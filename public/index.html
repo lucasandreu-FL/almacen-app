@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>El Almacén en Crisis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0e1a; --surface:#111827; --surface2:#1c2537; --border:#2a3650;
+  --accent:#f5a623; --accent2:#e85d4a; --green:#22c55e; --blue:#3b82f6;
+  --purple:#8b5cf6; --text:#e8edf5; --text-dim:#6b7a99; --red:#ef4444;
+  --font-mono:'Space Mono',monospace; --font:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.admin-layout{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:1.5rem;gap:.4rem}
+.main{overflow-y:auto;padding:2rem}
+.center-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem}
+.card-sm{padding:1rem 1.25rem}
+.card-accent{border-color:var(--accent);box-shadow:0 0 20px rgba(245,166,35,.1)}
+
+.btn{font-family:var(--font);font-weight:700;font-size:.9rem;padding:.65rem 1.4rem;border-radius:8px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover:not(:disabled){background:#fbbf24;transform:translateY(-1px)}
+.btn-danger{background:var(--accent2);color:#fff}.btn-danger:hover:not(:disabled){background:#f87171}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border)}.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn-green{background:var(--green);color:#000}.btn-green:hover:not(:disabled){background:#4ade80}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover:not(:disabled){background:#60a5fa}
+.btn-pause{background:rgba(245,166,35,.15);color:var(--accent);border:1px solid var(--accent)}.btn-pause:hover:not(:disabled){background:rgba(245,166,35,.28)}
+.btn-resume{background:var(--green);color:#000}.btn-resume:hover:not(:disabled){background:#4ade80}
+.btn-sm{padding:.4rem .9rem;font-size:.8rem}
+.btn-lg{padding:1rem 2rem;font-size:1.1rem}
+.btn-xl{padding:1.25rem 2.5rem;font-size:1.2rem}
+.btn-skip{background:linear-gradient(135deg,#f5a623,#e85d4a);color:#fff;padding:1rem 2rem;border-radius:12px;box-shadow:0 0 30px rgba(245,166,35,.5);animation:pulse-skip 1.5s ease-in-out infinite;width:100%;justify-content:center;font-size:1.05rem}
+@keyframes pulse-skip{0%,100%{box-shadow:0 0 20px rgba(245,166,35,.4)}50%{box-shadow:0 0 44px rgba(245,166,35,.85)}}
+.w-full{width:100%}
+
+input,textarea,select{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:.9rem;padding:.65rem 1rem;border-radius:8px;width:100%;transition:border-color .15s;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;display:block}
+
+.logo{font-family:var(--font-mono);font-size:.75rem;font-weight:700;color:var(--accent);letter-spacing:.1em;padding-bottom:1rem;border-bottom:1px solid var(--border);margin-bottom:.5rem}
+.nav-item{padding:.6rem 1rem;border-radius:8px;cursor:pointer;font-size:.88rem;color:var(--text-dim);transition:all .15s;display:flex;align-items:center;gap:.6rem}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:rgba(245,166,35,.15);color:var(--accent)}
+
+.timer-ring{position:relative;width:120px;height:120px;flex-shrink:0}
+.timer-ring svg{transform:rotate(-90deg)}
+.timer-ring .track{fill:none;stroke:var(--surface2);stroke-width:8}
+.timer-ring .progress{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .5s linear,stroke .5s}
+.timer-ring .label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)}
+.timer-ring .time-text{font-size:1.4rem;font-weight:700}
+.timer-ring .status-text{font-size:.55rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
+
+.badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .9rem;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.badge-1{background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)}
+.badge-2{background:rgba(245,166,35,.2);color:var(--accent);border:1px solid rgba(245,166,35,.4)}
+.badge-3{background:rgba(139,92,246,.2);color:var(--purple);border:1px solid rgba(139,92,246,.4)}
+.badge-4{background:rgba(232,93,74,.2);color:var(--accent2);border:1px solid rgba(232,93,74,.4)}
+.badge-ok{background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.4)}
+.badge-gray{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)}
+.badge-paused{background:rgba(245,166,35,.2);color:var(--accent);border:1px solid var(--accent);animation:blink-b 1s ease-in-out infinite}
+@keyframes blink-b{0%,100%{opacity:1}50%{opacity:.45}}
+
+.lb-row{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2)}
+.lb-row.my-team{border-color:var(--accent);background:rgba(245,166,35,.08)}
+.lb-row.pos-1{border-color:#fbbf24;background:rgba(251,191,36,.08)}
+.rank{font-family:var(--font-mono);font-size:1.1rem;font-weight:700;width:2rem;text-align:center}
+.rank.gold{color:#fbbf24}.rank.silver{color:#9ca3af}.rank.bronze{color:#b45309}
+.score-val{font-family:var(--font-mono);font-weight:700;color:var(--accent);margin-left:auto}
+
+.answer-opt{padding:1.1rem 1.4rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .15s;font-size:.95rem;line-height:1.5;text-align:left;font-family:var(--font);color:var(--text);width:100%}
+.answer-opt:hover:not(:disabled){border-color:var(--accent);background:rgba(245,166,35,.08)}
+.answer-opt.selected{border-color:var(--blue);background:rgba(59,130,246,.12)}
+.answer-opt.correct{border-color:var(--green);background:rgba(34,197,94,.15);color:var(--green)}
+.answer-opt.wrong{border-color:var(--red);background:rgba(239,68,68,.1);color:var(--red)}
+
+.dot-conn{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite;flex-shrink:0}
+.dot-conn.off{background:var(--red);animation:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+/* View badge */
+#view-badge{position:fixed;top:.6rem;right:.8rem;font-size:.65rem;font-family:var(--font-mono);color:var(--text-dim);background:rgba(10,14,26,.8);border:1px solid var(--border);border-radius:6px;padding:.15rem .5rem;z-index:900;display:none;letter-spacing:.05em;pointer-events:none}
+/* Countdown overlay */
+#countdown-overlay{position:fixed;inset:0;background:rgba(10,14,26,.93);display:none;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:1000}
+#countdown-overlay .cd-label{font-size:1.4rem;font-weight:700;color:var(--text);animation:blink-b 1s ease-in-out infinite}
+#countdown-overlay .cd-num{font-size:8rem;font-weight:800;font-family:var(--font-mono);color:var(--accent);line-height:1;animation:blink-b .8s ease-in-out infinite}
+#countdown-overlay .cd-go{font-size:5rem;font-weight:800;color:var(--green);animation:blink .3s step-start infinite}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.75rem}
+
+.flex{display:flex}.col{flex-direction:column}.gap-1{gap:.5rem}.gap-2{gap:1rem}.gap-3{gap:1.5rem}
+.items-center{align-items:center}.justify-center{justify-content:center}.justify-between{justify-content:space-between}
+.text-center{text-align:center}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+.progress-dots{display:flex;gap:.4rem}
+.pdot{width:10px;height:10px;border-radius:50%;background:var(--border);transition:all .3s}
+.pdot.done{background:var(--green)}.pdot.active{background:var(--accent);transform:scale(1.3)}
+.answers-bar{background:var(--surface2);border-radius:999px;height:6px;overflow:hidden}
+.answers-bar-fill{height:100%;background:var(--accent);border-radius:999px;transition:width .3s}
+.result-card{padding:1rem 1.25rem;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:1rem;font-size:.9rem}
+.result-card.ok{border-color:var(--green);background:rgba(34,197,94,.08)}
+.result-card.fail{border-color:var(--red);background:rgba(239,68,68,.08)}
+.result-pts{font-family:var(--font-mono);font-weight:700;font-size:1.1rem;margin-left:auto}
+.result-pts.pos{color:var(--green)}.result-pts.neg{color:var(--red)}
+.user-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);margin-bottom:.5rem}
+.role-badge{padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:700}
+.role-admin{background:rgba(245,166,35,.2);color:var(--accent);border:1px solid rgba(245,166,35,.4)}
+.role-user{background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)}
+
+#toast{position:fixed;bottom:2rem;right:2rem;padding:.8rem 1.4rem;border-radius:10px;font-size:.9rem;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none}
+#toast.show{opacity:1}
+#toast.success{background:var(--green);color:#000}
+#toast.error{background:var(--accent2);color:#fff}
+#toast.info{background:var(--blue);color:#fff}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
+
+.proj-body{min-height:100vh;background:var(--bg);display:flex;flex-direction:column}
+.proj-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
+.proj-area{flex:1;display:flex;padding:2rem;gap:2rem}
+.proj-content{flex:1;display:flex;flex-direction:column;gap:1.5rem}
+.proj-sidebar{width:300px;display:flex;flex-direction:column;gap:1rem}
+.ctx-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;flex:1;overflow-y:auto;font-size:1rem;line-height:1.7}
+.ctx-box h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.75rem}
+.clue-box{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.4);border-radius:12px;padding:1.5rem}
+
+@media(max-width:768px){.admin-layout{grid-template-columns:1fr}.sidebar{display:none}.proj-area{flex-direction:column}.proj-sidebar{width:100%}}
+
+.reconnect-overlay{position:fixed;inset:0;background:rgba(10,14,26,.93);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;text-align:center;padding:2rem}
+.reconnect-overlay h3{color:var(--accent);font-size:1.3rem;font-weight:700}
+.reconnect-overlay p{color:var(--text-dim);font-size:.9rem}
+.login-hint{font-size:.75rem;color:var(--text-dim);padding:.4rem .75rem;border-radius:6px;background:var(--surface2);border:1px solid var(--border);text-align:left;line-height:1.6}
+.login-hint strong{color:var(--text)}
+.field-row{display:flex;flex-direction:column;gap:.3rem}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="view-badge"></div>
+<div id="countdown-overlay">
+  <div class="cd-label" id="cd-label"></div>
+  <div id="cd-num-wrap"></div>
+</div>
+<div id="toast"></div>
+<div id="modal-root"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const S = {
+  view:'HOME', ws:null, session:null, team:null, admin:null,
+  role:null, roomCode:null,
+  timerRemaining:0, timerEnd:null, paused:false,
+  adminTab:'sesiones', adminSubTab:'personas', editingCase:null,
+  leaderboard:[], lastResults:null,
+  answered:false, selectedAnswer:null, skipDone:false,
+  skippedByTeam:null, answeredCount:0,
+  users:{ people:[], teams:[] }, allSessions:[],
+  awaitingReconnect:[], // keys de clientes desconectados pendientes de reconexión
+  waitingMsg:'',        // mensaje cuando no hay sesión activa
+  teamColor:'#f5a623',  // color de acento del equipo (se aplica en vista TEAM)
+};
+const TEAM_COLORS=['#f5a623','#e85d4a','#22c55e','#3b82f6','#8b5cf6','#06b6d4','#ec4899','#eab308'];
+let _publicSessions = []; // sesiones no finalizadas, para el dropdown de login
+let _cdTimer = null, _cdValue = 0, _cdCaseIdx = -1;
+
+function startCountdown(caseIdx){
+  if(_cdTimer){clearInterval(_cdTimer);_cdTimer=null;}
+  _cdValue=5; _cdCaseIdx=caseIdx;
+  _showCd();
+  _cdTimer=setInterval(()=>{
+    _cdValue--;
+    if(_cdValue<=0){
+      clearInterval(_cdTimer);_cdTimer=null;
+      _showCd(); // show "¡Go!" for 700ms then hide
+      setTimeout(()=>{$('countdown-overlay').style.display='none';render();},700);
+      return;
+    }
+    _showCd();
+  },1000);
+}
+function _showCd(){
+  const ov=$('countdown-overlay'); if(!ov)return;
+  ov.style.display='flex';
+  $('cd-label').textContent=`Comienza el Caso ${_cdCaseIdx+1} en`;
+  const wrap=$('cd-num-wrap');
+  if(_cdValue<=0){
+    wrap.innerHTML=`<div class="cd-go">¡Go!</div>`;
+  } else {
+    wrap.innerHTML=`<div class="cd-num">${_cdValue}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PERSISTENCIA LOCAL (localStorage)
+// ══════════════════════════════════════════════════════
+function persistState(){
+  try{
+    const snap={
+      view:S.view,session:S.session,team:S.team,admin:S.admin,role:S.role,roomCode:S.roomCode,
+      timerRemaining:S.timerRemaining,timerEnd:S.timerEnd,paused:S.paused,
+      adminTab:S.adminTab,adminSubTab:S.adminSubTab,
+      leaderboard:S.leaderboard,lastResults:S.lastResults,
+      answered:S.answered,selectedAnswer:S.selectedAnswer,skipDone:S.skipDone,
+      skippedByTeam:S.skippedByTeam,answeredCount:S.answeredCount,
+      users:S.users,allSessions:S.allSessions,awaitingReconnect:S.awaitingReconnect,
+      teamColor:S.teamColor
+    };
+    localStorage.setItem('alm_state',JSON.stringify(snap));
+  }catch{}
+}
+function restoreState(){
+  try{
+    const raw=localStorage.getItem('alm_state');
+    if(!raw)return false;
+    const snap=JSON.parse(raw);
+    Object.assign(S,snap);
+    return true;
+  }catch{return false;}
+}
+function clearPersistedState(){try{localStorage.removeItem('alm_state');}catch{}}
+
+function logout(){
+  clearTimeout(_reconnTimer);
+  if(S.ws&&S.ws.readyState<2){S.ws.onclose=null;S.ws.onerror=null;S.ws.close();}
+  S.ws=null; _isReconnecting=false;
+  const el=document.getElementById('reconnect-overlay');if(el)el.remove();
+  clearCreds(); clearPersistedState();
+  Object.assign(S,{
+    view:'HOME',role:null,session:null,team:null,admin:null,roomCode:null,
+    leaderboard:[],lastResults:null,answered:false,selectedAnswer:null,
+    skipDone:false,answeredCount:0,skippedByTeam:null,awaitingReconnect:[],
+    paused:false,timerRemaining:0,timerEnd:null,waitingMsg:'',teamColor:'#f5a623'
+  });
+  render();
+}
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+const $=id=>document.getElementById(id);
+const fmt=s=>{const m=Math.floor(s/60),sec=s%60;return `${m}:${sec.toString().padStart(2,'0')}`;};
+
+function toast(msg,type='info'){
+  const el=$('toast');el.textContent=msg;el.className=`show ${type}`;
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);
+}
+function send(msg){
+  if(S.ws?.readyState===1) S.ws.send(JSON.stringify(msg));
+  else toast('Sin conexión al servidor','error');
+}
+function stageLabel(s){
+  return ({LOBBY:'Sala de espera',STAGE_1:'Etapa 1 — Contexto inicial',STAGE_1_DEBATE:'Debate interno',
+    STAGE_2:'Etapa 2 — Contexto ampliado',STAGE_2_DEBATE:'Debate (adelantar disponible)',
+    STAGE_3:'Etapa 3 — Pista clave',STAGE_3_DEBATE:'Debate final',
+    STAGE_4:'⚡ Resolución',RESULTS:'Resultados',FINISHED:'Finalizado'})[s]||s;
+}
+function stageBadge(s){
+  if(!s) return 'badge-gray';
+  if(s.includes('1')) return 'badge-1';
+  if(s.includes('2')) return 'badge-2';
+  if(s.includes('3')) return 'badge-3';
+  if(s.includes('4')) return 'badge-4';
+  if(s==='RESULTS') return 'badge-ok';
+  return 'badge-gray';
+}
+
+// ══════════════════════════════════════════════════════
+// CREDENCIALES (sessionStorage — se borran al cerrar la pestaña)
+// ══════════════════════════════════════════════════════
+function saveCreds(c){try{sessionStorage.setItem('alm_creds',JSON.stringify(c));}catch{}}
+function loadCreds(){try{return JSON.parse(sessionStorage.getItem('alm_creds'));}catch{return null;}}
+function clearCreds(){try{sessionStorage.removeItem('alm_creds');}catch{}}
+function updateCredsRoom(room){const c=loadCreds();if(c)saveCreds({...c,room});}
+function buildLoginMsg(c){
+  if(!c.email&&!c.pass) return {type:'PROJECTOR_JOIN',payload:{roomCode:c.room||undefined}};
+  return {type:'UNIFIED_LOGIN',payload:{email:c.email,password:c.pass,roomCode:c.room||undefined}};
+}
+async function fetchPublicSessions(){
+  try{
+    const r=await fetch('/api/sessions/public');
+    _publicSessions=await r.json();
+    if(S.view==='HOME') render();
+  }catch{_publicSessions=[];}
+}
+
+// ══════════════════════════════════════════════════════
+// WEBSOCKET — con reconexión automática
+// ══════════════════════════════════════════════════════
+let _reconnDelay=1000, _reconnTimer=null, _isReconnecting=false;
+
+// Heartbeat: envía PING cada 25s para mantener la conexión viva
+setInterval(()=>{
+  if(S.ws?.readyState===1 && S.role) S.ws.send(JSON.stringify({type:'PING'}));
+},25000);
+
+function connectWS(loginMsg){
+  clearTimeout(_reconnTimer);
+  // cerrar socket previo sin disparar onclose
+  if(S.ws&&S.ws.readyState<2){S.ws.onclose=null;S.ws.onerror=null;S.ws.close();}
+  const proto=location.protocol==='https:'?'wss':'ws';
+  const ws=new WebSocket(`${proto}://${location.host}`);
+  S.ws=ws;
+  // timeout: si no conecta en 8s → error
+  const TO=setTimeout(()=>{if(ws.readyState!==1){ws.onclose=null;ws.close();_onConnectFail();}},8000);
+  ws.onopen=()=>{clearTimeout(TO);_reconnDelay=1000;ws.send(JSON.stringify(loginMsg));};
+  ws.onmessage=e=>handleMsg(JSON.parse(e.data));
+  ws.onerror=()=>{}; // onclose siempre vendrá después
+  ws.onclose=()=>{clearTimeout(TO);_onWsClose();};
+}
+
+function _onConnectFail(){
+  if(!S.role){showLoginError('No se puede conectar al servidor. ¿Está arrancado?');return;}
+  _scheduleReconnect();
+}
+function _onWsClose(){
+  if(!S.role){showLoginError('Conexión cerrada inesperadamente.');return;}
+  _scheduleReconnect();
+}
+function _scheduleReconnect(){
+  const saved=loadCreds();
+  if(!saved){S.role=null;S.view='HOME';render();toast('Sesión perdida. Inicia sesión de nuevo.','error');return;}
+  _isReconnecting=true;
+  _showReconnectOverlay(_reconnDelay/1000);
+  _reconnTimer=setTimeout(()=>connectWS(buildLoginMsg(saved)),_reconnDelay);
+  _reconnDelay=Math.min(_reconnDelay*2,30000);
+}
+function _showReconnectOverlay(secs){
+  let el=$('reconnect-overlay');
+  if(!el){el=document.createElement('div');el.id='reconnect-overlay';el.className='reconnect-overlay';document.body.appendChild(el);}
+  el.innerHTML=`<div class="spinner"></div>
+    <h3>Reconectando...</h3>
+    <p>Conexión perdida. Reintentando en ${Math.round(secs)}s</p>
+    <button class="btn btn-ghost btn-sm" onclick="forceReconnect()">Reintentar ahora</button>`;
+}
+function hideReconnectOverlay(){
+  _isReconnecting=false;
+  const el=$('reconnect-overlay');if(el)el.remove();
+}
+function forceReconnect(){
+  clearTimeout(_reconnTimer);_reconnDelay=1000;
+  const saved=loadCreds();
+  if(!saved){hideReconnectOverlay();S.role=null;S.view='HOME';render();return;}
+  connectWS(buildLoginMsg(saved));
+}
+
+function setLoginLoading(on){
+  const btn=$('login-btn');if(!btn)return;
+  btn.disabled=on;
+  btn.innerHTML=on?'<span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:.4rem"></span>Conectando...':'Entrar →';
+}
+function showLoginError(msg){setLoginLoading(false);toast(msg,'error');}
+
+function handleMsg(m){
+  switch(m.type){
+    case 'ADMIN_LOGIN_OK':
+      S.admin=m.admin; S.role='admin';
+      S.users=m.users||{people:[],teams:[]}; S.allSessions=m.sessions||[];
+      S.view='ADMIN';
+      hideReconnectOverlay(); setLoginLoading(false);
+      persistState(); render();
+      {const c=loadCreds();if(c?.room)send({type:'ADMIN_JOIN_SESSION',payload:{roomCode:c.room}});}
+      break;
+
+    case 'SESSION_CREATED':
+      S.session=m.session; S.roomCode=m.session.roomCode;
+      S.leaderboard=[]; S.lastResults=null;
+      S.allSessions=[...S.allSessions,{roomCode:m.session.roomCode,status:'LOBBY',casesCount:0,teamsCount:0}];
+      updateCredsRoom(m.session.roomCode);
+      S.adminTab='casos'; persistState(); render(); break;
+
+    case 'SESSION_STATE':
+      S.session=m.session; S.roomCode=m.session.roomCode;
+      S.leaderboard=m.leaderboard||[];
+      S.paused=m.paused||false;
+      S.timerRemaining=m.paused?m.pausedRemaining||0:(m.timerEnd?Math.max(0,Math.ceil((m.timerEnd-Date.now())/1000)):0);
+      S.timerEnd=m.timerEnd;
+      S.awaitingReconnect=m.awaitingReconnect||[];
+      updateCredsRoom(m.session.roomCode);
+      S.adminTab='control'; persistState(); render(); break;
+
+    case 'TEAM_LOGIN_OK':
+      S.team=m.team; S.role='team'; S.session=m.session;
+      S.teamColor=m.team.color||'#f5a623';
+      S.roomCode=m.session.roomCode; S.view='TEAM';
+      S.leaderboard=[]; S.lastResults=null;
+      S.answered=false; S.selectedAnswer=null; S.skipDone=false;
+      S.answeredCount=0; S.skippedByTeam=null;
+      S.awaitingReconnect=m.session.awaitingReconnect||[];
+      hideReconnectOverlay(); setLoginLoading(false);
+      persistState(); render(); break;
+
+    case 'PROJECTOR_JOIN_OK':
+      S.session=m.session; S.role='projector';
+      S.leaderboard=m.leaderboard||[]; S.view='PROJECTOR';
+      S.awaitingReconnect=m.session.awaitingReconnect||[];
+      hideReconnectOverlay(); setLoginLoading(false);
+      persistState(); render(); break;
+
+    case 'WAITING':
+      S.waitingMsg=m.message; S.view='WAITING';
+      setLoginLoading(false); render(); break;
+
+    case 'SESSION_AVAILABLE':
+      // El servidor tiene sesión activa ahora — reintentar login
+      {const c=loadCreds();if(c)connectWS(buildLoginMsg(c));}
+      break;
+
+    case 'AUTH_ERROR':
+      setLoginLoading(false);
+      toast(m.message,'error');
+      if(_isReconnecting){
+        _isReconnecting=false; hideReconnectOverlay(); clearCreds(); clearPersistedState();
+        S.role=null; S.view='HOME'; render();
+        toast('Sesión expirada. Por favor, inicia sesión de nuevo.','error');
+      }
+      break;
+
+    case 'CLIENT_DISCONNECTED':
+      S.awaitingReconnect=m.awaitingReconnect||[];
+      toast(`⚠️ ${m.name} se ha desconectado — timer pausado`,'error');
+      refreshDisconnectBanner(); syncPauseBtn(); break;
+
+    case 'CLIENT_RECONNECTED':
+      S.awaitingReconnect=m.awaitingReconnect||[];
+      toast(`✅ ${m.name} reconectado${S.awaitingReconnect.length===0?' — timer reanudado':''}`,'success');
+      refreshDisconnectBanner(); syncPauseBtn(); break;
+
+    case 'SESSION_STARTED':
+      S.session=m.session; S.answered=false; S.selectedAnswer=null;
+      S.skipDone=false; S.lastResults=null; S.skippedByTeam=null;
+      persistState(); render(); break;
+
+    case 'STAGE_CHANGE':
+      S.session=m.session; S.answered=false; S.selectedAnswer=null;
+      S.skippedByTeam=null; S.answeredCount=0; S.paused=false; S.awaitingReconnect=[];
+      persistState();
+      if((S.role==='user'||S.role==='projector') && m.session.currentStage==='STAGE_1'){
+        startCountdown(m.session.currentCaseIndex);
+      } else {
+        render();
+      }
+      break;
+
+    case 'TIMER_TICK':
+      S.timerRemaining=m.remaining; S.timerEnd=m.timerEnd; S.paused=false;
+      updateTimerUI(); break;
+
+    case 'TIMER_PAUSED':
+      S.paused=true; S.timerRemaining=m.remaining;
+      updateTimerUI(); syncPauseBtn(); break;
+
+    case 'TIMER_RESUMED':
+      S.paused=false; S.timerRemaining=m.remaining;
+      updateTimerUI(); syncPauseBtn(); break;
+
+    case 'TEAMS_UPDATED':
+      if(S.session) S.session.teams=m.teams;
+      S.leaderboard=m.leaderboard||[];
+      refreshLeaderboards(); refreshTeamList(); break;
+
+    case 'TEAM_SKIPPED':
+      S.skippedByTeam={id:m.teamId,name:m.teamName};
+      toast(`⚡ ${m.teamName} ha adelantado a la resolución!`,'info');
+      refreshSkipBanner(); break;
+
+    case 'TEAM_ANSWERED':
+      S.answeredCount=m.totalAnswered;
+      refreshAnswerBars(m.totalAnswered,m.totalTeams); break;
+
+    case 'CASE_RESULTS':
+      S.lastResults=m; S.leaderboard=m.leaderboard||[];
+      if(S.session){ S.session.currentStage='RESULTS'; if(m.eventLog) S.session.eventLog=m.eventLog; }
+      persistState(); render(); break;
+
+    case 'SESSION_FINISHED':
+      S.leaderboard=m.leaderboard||[];
+      if(S.session) S.session.status='FINISHED';
+      persistState(); render(); break;
+
+    case 'CONFIG_UPDATED':
+      if(S.session) S.session.config=m.config;
+      toast('Configuración guardada','success'); break;
+
+    case 'USERS_UPDATED':
+      S.users=m.users||{people:[],teams:[]}; closeModal(); persistState(); render(); break;
+
+    case 'CASES_UPDATED':
+      if(S.session) S.session.cases=m.cases;
+      S.editingCase=null;
+      if(m.importResult) toast(`Importados: ${m.importResult.imported} casos${m.importResult.skipped?` (${m.importResult.skipped} omitidos por datos incompletos)`:''}`,'success');
+      persistState(); render(); break;
+
+    case 'STATE_SYNC':
+      S.session=m.session; S.leaderboard=m.leaderboard||[];
+      S.paused=m.paused||false; S.timerRemaining=m.remaining||0; S.timerEnd=m.timerEnd;
+      render(); break;
+
+    case 'SESSION_KILLED':
+      if(S.role==='admin'){
+        S.allSessions=S.allSessions.filter(s=>s.roomCode!==m.roomCode);
+        if(S.session?.roomCode===m.roomCode){
+          S.session=null; S.roomCode=null; S.adminTab='sesiones';
+          S.leaderboard=[]; S.lastResults=null;
+          S.answered=false; S.selectedAnswer=null; S.skipDone=false;
+          S.answeredCount=0; S.skippedByTeam=null;
+        }
+        toast(`Sesión ${m.roomCode} eliminada`,'success');
+        persistState(); render();
+      } else {
+        clearCreds(); clearPersistedState();
+        S.session=null; S.role=null; S.view='HOME';
+        fetchPublicSessions(); render();
+        toast('La sesión ha sido terminada por el administrador','error');
+      }
+      break;
+
+    case 'SESSIONS_UPDATED':
+      S.allSessions=m.sessions||[];
+      persistState(); render(); break;
+
+    case 'PONG': break; // heartbeat response, no-op
+    case 'ERROR': toast(m.message,'error'); break;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PARTIAL UPDATES (no full re-render)
+// ══════════════════════════════════════════════════════
+function updateTimerUI(){
+  document.querySelectorAll('.timer-display').forEach(el=>{
+    const total=parseInt(el.dataset.total)||120, r=S.timerRemaining;
+    const pct=Math.max(0,r/total), radius=50, circ=2*Math.PI*radius;
+    const color=r>total*.5?'#22c55e':r>total*.2?'#f5a623':'#ef4444';
+    const prog=el.querySelector('.progress');
+    if(prog){prog.style.strokeDashoffset=circ*(1-pct);prog.style.stroke=color;prog.style.strokeDasharray=circ;}
+    const tt=el.querySelector('.time-text'); if(tt) tt.textContent=fmt(r);
+    const st=el.querySelector('.status-text'); if(st) st.textContent=S.paused?'PAUSADO':'restante';
+  });
+}
+
+function syncPauseBtn(){
+  const btn=$('pause-btn'); if(!btn) return;
+  const disconnPaused=S.awaitingReconnect?.length>0;
+  if(S.paused){
+    btn.className='btn btn-resume'; btn.innerHTML='▶ Reanudar timer';
+  } else {
+    btn.className='btn btn-pause'; btn.innerHTML='⏸ Pausar timer';
+  }
+  const pb=$('paused-badge');
+  if(pb) pb.style.display=S.paused?'inline-flex':'none';
+  const db=$('disconnect-badge');
+  if(db) db.style.display=disconnPaused?'inline-flex':'none';
+}
+
+function refreshDisconnectBanner(){
+  // Actualiza todos los banners de desconexión visibles
+  document.querySelectorAll('[data-disconnect-banner]').forEach(el=>{
+    el.innerHTML=disconnectBannerHTML();
+  });
+  syncPauseBtn();
+}
+
+function disconnectBannerHTML(){
+  if(!S.awaitingReconnect?.length) return '';
+  return `<div style="background:rgba(239,68,68,.12);border:1px solid var(--red);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;font-size:.88rem">
+    <span style="font-size:1.1rem">⚠️</span>
+    <span><strong>Timer pausado</strong> — esperando reconexión de: ${S.awaitingReconnect.map(k=>k.replace('team:','').replace('admin:','')).join(', ')}</span>
+  </div>`;
+}
+
+function refreshLeaderboards(){
+  document.querySelectorAll('[data-lb]').forEach(el=>{
+    el.innerHTML=lbHTML(el.dataset.lb||null);
+  });
+}
+
+function refreshTeamList(){
+  const el=$('team-list-lobby'); if(!el||!S.session) return;
+  el.innerHTML=S.session.teams.map(t=>`
+    <div class="lb-row ${t.id===S.team?.id?'my-team':''}">
+      <div class="dot-conn ${t.connected?'':'off'}"></div>
+      <span>${t.teamName||t.name}${t.id===S.team?.id?' <span style="color:var(--accent);font-size:.72rem">(tú)</span>':''}</span>
+    </div>`).join('');
+}
+
+function refreshSkipBanner(){
+  const el=$('skip-banner'); if(!el||!S.skippedByTeam) return;
+  el.innerHTML=`<div class="card card-sm" style="border-color:var(--accent);background:rgba(245,166,35,.08)">
+    ⚡ <strong>${S.skippedByTeam.name}</strong> ha adelantado — el quiz comenzará enseguida
+  </div>`;
+}
+
+function refreshAnswerBars(answered,total){
+  const pct=total?(answered/total*100):0;
+  document.querySelectorAll('[data-answer-bar]').forEach(el=>{
+    el.innerHTML=`<div class="flex justify-between" style="font-size:.8rem;color:var(--text-dim);margin-bottom:.3rem"><span>Respuestas recibidas</span><span>${answered}/${total}</span></div>
+    <div class="answers-bar"><div class="answers-bar-fill" style="width:${pct}%"></div></div>`;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SHARED COMPONENTS
+// ══════════════════════════════════════════════════════
+function timerHTML(total=120){
+  const r=50,circ=2*Math.PI*r;
+  return `<div class="timer-ring timer-display" data-total="${total}">
+    <svg width="120" height="120" viewBox="0 0 120 120">
+      <circle class="track" cx="60" cy="60" r="${r}"/>
+      <circle class="progress" cx="60" cy="60" r="${r}" style="stroke-dasharray:${circ};stroke-dashoffset:${circ};stroke:#22c55e"/>
+    </svg>
+    <div class="label">
+      <span class="time-text">${fmt(S.timerRemaining)}</span>
+      <span class="status-text">${S.paused?'PAUSADO':'restante'}</span>
+    </div>
+  </div>`;
+}
+
+function lbHTML(highlight=null){
+  if(!S.leaderboard?.length) return '<p style="color:var(--text-dim);font-size:.85rem;padding:.5rem 0">Sin datos aún</p>';
+  return S.leaderboard.map(row=>{
+    const rc=row.position===1?'gold':row.position===2?'silver':row.position===3?'bronze':'';
+    const isMe=highlight&&row.teamId===highlight;
+    return `<div class="lb-row ${row.position===1?'pos-1':''} ${isMe?'my-team':''}">
+      <span class="rank ${rc}">${row.position===1?'🥇':row.position===2?'🥈':row.position===3?'🥉':row.position}</span>
+      <span style="font-weight:600">${row.teamName}${isMe?' <span style="color:var(--accent);font-size:.72rem">← TÚ</span>':''}</span>
+      <span class="score-val">${row.score} pts</span>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL
+// ══════════════════════════════════════════════════════
+function openModal(html){$('modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()">${html}</div>`;}
+function closeModal(){$('modal-root').innerHTML='';}
+
+// ══════════════════════════════════════════════════════
+// HOME
+// ══════════════════════════════════════════════════════
+function renderHome(){
+  return `<div class="center-page" style="background:radial-gradient(ellipse at 50% 0%,rgba(245,166,35,.08) 0%,transparent 70%)">
+    <div style="max-width:420px;width:100%;text-align:center">
+      <div style="font-family:var(--font-mono);font-size:.72rem;letter-spacing:.2em;color:var(--accent);margin-bottom:1rem">FACTORLIBRE</div>
+      <h1 style="font-size:3rem;font-weight:800;line-height:1.1;margin-bottom:.5rem">El Almacén<br>en Crisis</h1>
+      <p style="color:var(--text-dim);margin-bottom:2rem">Dinámica de equipo</p>
+
+      <div class="card" style="text-align:left;margin-bottom:.75rem">
+        <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);margin-bottom:1rem">Admin / Equipo</div>
+        <div class="flex col gap-2">
+          <div class="field-row">
+            <label>Email</label>
+            <input id="l-email" type="email" placeholder="tu@factorlibre.com" onkeydown="if(event.key==='Enter')doLogin()"/>
+          </div>
+          <div class="field-row">
+            <label>Contraseña</label>
+            <input id="l-pass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+          </div>
+          <div class="field-row">
+            <label>Código de sesión <span style="color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:.7rem">(equipos — opcional para admin)</span></label>
+            <input id="l-room" list="dl-sessions" placeholder="ABC123" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')doLogin()"/>
+            <datalist id="dl-sessions">
+              ${_publicSessions.map(s=>`<option value="${s.roomCode}">${s.roomCode} — ${s.status==='RUNNING'?'En curso':'Sala de espera'}</option>`).join('')}
+            </datalist>
+          </div>
+          <button id="login-btn" class="btn btn-primary w-full" style="margin-top:.25rem" onclick="doLogin()">Entrar →</button>
+        </div>
+      </div>
+
+      <div class="card" style="text-align:left">
+        <div class="flex justify-between items-center" style="margin-bottom:1rem">
+          <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim)">Vista proyector</div>
+          <button class="btn btn-ghost btn-sm" onclick="fetchPublicSessions()" title="Refrescar sesiones">↻</button>
+        </div>
+        <input id="proj-room" list="dl-sessions-proj" placeholder="Código de sesión" autocomplete="off" style="text-transform:uppercase;margin-bottom:.75rem" onkeydown="if(event.key==='Enter')doProjector()"/>
+        <datalist id="dl-sessions-proj">
+          ${_publicSessions.map(s=>`<option value="${s.roomCode}">${s.roomCode} — ${s.status==='RUNNING'?'En curso':'Sala de espera'}</option>`).join('')}
+        </datalist>
+        <button id="proj-btn" class="btn btn-ghost w-full" onclick="doProjector()">📺 Conectar proyector</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderWaiting(){
+  return `<div class="center-page">
+    <div style="max-width:420px;width:100%;text-align:center;display:flex;flex-direction:column;gap:1.5rem">
+      <div style="font-size:3rem">⏳</div>
+      <h2 style="font-size:1.4rem;font-weight:800">Esperando sesión</h2>
+      <div class="card" style="color:var(--text-dim)">${S.waitingMsg}</div>
+      <div class="card text-center" style="padding:1.5rem">
+        <div class="spinner" style="margin:0 auto .75rem"></div>
+        <div style="font-size:.85rem;color:var(--text-dim)">Conectarás automáticamente cuando el moderador inicie la dinámica</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="S.view='HOME';S.role=null;clearCreds();clearPersistedState();render()">← Volver al inicio</button>
+    </div>
+  </div>`;
+}
+
+function doLogin(){
+  const email=$('l-email')?.value.trim();
+  const pass=$('l-pass')?.value.trim();
+  const room=($('l-room')?.value.trim()||'').toUpperCase();
+  if(!email||!pass){toast('Introduce email y contraseña','error');return;}
+  setLoginLoading(true);
+  saveCreds({email,pass,room});
+  connectWS({type:'UNIFIED_LOGIN',payload:{email,password:pass,roomCode:room||undefined}});
+}
+
+function doProjector(){
+  const room=($('proj-room')?.value.trim()||'').toUpperCase();
+  if(!room){toast('Introduce o selecciona un código de sesión','error');return;}
+  const btn=$('proj-btn'); if(btn){btn.disabled=true;btn.textContent='Conectando...';}
+  saveCreds({email:'',pass:'',room});
+  connectWS({type:'PROJECTOR_JOIN',payload:{roomCode:room}});
+}
+
+// ══════════════════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════════════════
+function renderAdmin(){
+  const tabs=[
+    {id:'sesiones',icon:'🖥️',label:'Sesiones'},
+    {id:'casos',icon:'📋',label:'Casos'},
+    {id:'control',icon:'🎮',label:'Control'},
+    {id:'usuarios',icon:'👥',label:'Usuarios'},
+    {id:'config',icon:'⚙️',label:'Config'},
+    {id:'log',icon:'🪵',label:'Log'},
+  ];
+  const s=S.session;
+  return `<div class="admin-layout">
+    <div class="sidebar">
+      <div class="logo">🏭 ALMACÉN EN CRISIS</div>
+      <div class="card card-sm" style="margin-bottom:.5rem">
+        <div style="font-size:.7rem;color:var(--text-dim)">Admin conectado</div>
+        <div style="font-weight:700;font-size:.95rem">${S.admin?.name}</div>
+        ${s?`<div style="margin-top:.5rem;font-family:var(--font-mono);font-size:1.2rem;font-weight:700;color:var(--accent);letter-spacing:.15em">${s.roomCode}</div>
+        <div style="font-size:.72rem;color:var(--text-dim)">${s.teams?.length||0} equipos · ${stageLabel(s.currentStage)}</div>`
+        :'<div style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Sin sesión activa</div>'}
+      </div>
+      ${tabs.map(t=>`<div class="nav-item ${S.adminTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.icon} ${t.label}</div>`).join('')}
+      <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--border)">
+        <button class="btn btn-ghost btn-sm w-full" onclick="logout()" style="color:var(--text-dim)">← Salir</button>
+      </div>
+    </div>
+    <div class="main">
+      ${S.adminTab==='sesiones'?renderSessions():''}
+      ${S.adminTab==='casos'?renderCases():''}
+      ${S.adminTab==='control'?renderControl():''}
+      ${S.adminTab==='usuarios'?renderUsers():''}
+      ${S.adminTab==='config'?renderConfig():''}
+      ${S.adminTab==='log'?renderLog():''}
+    </div>
+  </div>`;
+}
+function setTab(t){S.adminTab=t;S.editingCase=null;render();}
+
+// ─ Sesiones ─
+function renderSessions(){
+  return `<div style="max-width:700px">
+    <div class="flex justify-between items-center" style="margin-bottom:1.5rem">
+      <h2 style="font-size:1.3rem;font-weight:700">Sesiones</h2>
+      <button class="btn btn-primary btn-sm" onclick="createSession()">+ Nueva sesión</button>
+    </div>
+    ${!S.allSessions.length?`<div class="card text-center" style="color:var(--text-dim);padding:3rem">
+      <div style="font-size:2rem;margin-bottom:1rem">🖥️</div>No hay sesiones. Crea la primera.
+    </div>`:''}
+    ${S.allSessions.map(s=>`
+    <div class="card flex items-center gap-2" style="margin-bottom:.75rem">
+      <div>
+        <div style="font-family:var(--font-mono);font-weight:700;font-size:1.2rem;color:var(--accent)">${s.roomCode}</div>
+        <div style="font-size:.78rem;color:var(--text-dim)">${s.casesCount} casos · ${s.teamsCount} equipos</div>
+      </div>
+      <span class="badge ${s.status==='RUNNING'?'badge-ok':s.status==='FINISHED'?'badge-4':'badge-gray'}" style="margin-left:auto">${s.status==='RUNNING'?'En curso':s.status==='FINISHED'?'Finalizada':'Lobby'}</span>
+      <button class="btn btn-ghost btn-sm" onclick="joinSession('${s.roomCode}')">Gestionar →</button>
+      <button class="btn btn-danger btn-sm" onclick="killSession('${s.roomCode}')">🗑 Terminar</button>
+    </div>`).join('')}
+  </div>`;
+}
+function createSession(){send({type:'ADMIN_CREATE_SESSION'});toast('Creando sesión...','info');}
+function joinSession(code){send({type:'ADMIN_JOIN_SESSION',payload:{roomCode:code}});}
+function killSession(code){
+  if(!confirm(`¿Terminar la sesión ${code}?\nSe desconectarán todos los participantes. Esta acción no se puede deshacer.`))return;
+  send({type:'ADMIN_KILL_SESSION',payload:{roomCode:code}});
+}
+
+// ─ Casos ─
+function renderCases(){
+  const s=S.session; if(!s) return noSession();
+  if(S.editingCase!==null){
+    const ec=S.editingCase;
+    const c=ec==='new'?{}:s.cases.find(x=>x.id===ec)||{};
+    return `<div style="max-width:700px">
+      <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
+        <button class="btn btn-ghost btn-sm" onclick="S.editingCase=null;render()">← Volver</button>
+        <h2 style="font-size:1.3rem;font-weight:700">${ec==='new'?'Nuevo caso':'Editar caso'}</h2>
+      </div>
+      <div class="card flex col gap-2">
+        <div class="grid-2">
+          <div><label>Título del caso</label><input id="c-title" value="${c.title||''}"/></div>
+          <div><label>Puntos base</label><input id="c-pts" type="number" value="${c.points||100}" min="10"/></div>
+        </div>
+        <div><label>Etapa 1 — Contexto inicial (breve, insuficiente)</label><textarea id="c-s1">${c.stage1||''}</textarea></div>
+        <div><label>Etapa 2 — Contexto ampliado (~70% información)</label><textarea id="c-s2">${c.stage2||''}</textarea></div>
+        <div><label>Etapa 3 — Pista clave (sutil, no explícita)</label><textarea id="c-s3" style="min-height:60px">${c.stage3||''}</textarea></div>
+        <div>
+          <div class="section-title" style="margin-top:.5rem">Opciones de respuesta — selecciona la correcta</div>
+          ${[0,1,2,3].map(i=>`<div class="flex items-center gap-2" style="margin-bottom:.5rem">
+            <input type="radio" name="correct-ans" value="${i}" ${(c.correctAnswerIndex??0)===i?'checked':''} style="width:auto;flex-shrink:0"/>
+            <span style="font-family:var(--font-mono);font-size:.8rem;font-weight:700;color:var(--accent);width:1.2rem;flex-shrink:0">${String.fromCharCode(65+i)}</span>
+            <input id="c-a${i}" value="${c.answers?.[i]||''}" placeholder="Opción ${String.fromCharCode(65+i)}${i<2?' (similares entre sí)':''}"/>
+          </div>`).join('')}
+        </div>
+        <div class="flex gap-2" style="margin-top:.5rem">
+          <button class="btn btn-primary" onclick="saveCase('${ec}')">Guardar caso</button>
+          <button class="btn btn-ghost" onclick="S.editingCase=null;render()">Cancelar</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  return `<div>
+    <div class="flex justify-between items-center" style="margin-bottom:1.5rem;flex-wrap:wrap;gap:.5rem">
+      <h2 style="font-size:1.3rem;font-weight:700">Casos · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
+      <div class="flex gap-1">
+        <button class="btn btn-ghost btn-sm" onclick="openImportCases()">📥 Importar JSON</button>
+        <button class="btn btn-primary btn-sm" onclick="S.editingCase='new';render()">+ Nuevo caso</button>
+      </div>
+    </div>
+    ${!s.cases.length?`<div class="card text-center" style="color:var(--text-dim);padding:3rem">
+      <div style="font-size:2rem;margin-bottom:1rem">📋</div>Sin casos. Crea el primero.
+    </div>`:s.cases.map((c,i)=>`
+    <div class="card flex items-center gap-2" style="margin-bottom:.75rem">
+      <div style="font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim);width:1.5rem">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-weight:600">${c.title||'Sin título'}</div>
+        <div style="font-size:.78rem;color:var(--text-dim)">${c.points} pts · ${c.answers?.filter(Boolean).length||0}/4 opciones · <span style="color:var(--accent);font-family:var(--font-mono)">Correcta: ${c.correctAnswerIndex!==undefined?String.fromCharCode(65+c.correctAnswerIndex):'?'}</span></div>
+      </div>
+      ${(()=>{
+        const isActive=s.status==='RUNNING'&&i===s.currentCaseIndex;
+        const isDone=!isActive&&(s.eventLog||[]).some(e=>e.ev==='CASE_RESOLVED'&&e.ci===i);
+        const isPending=s.status==='RUNNING'&&!isActive&&!isDone;
+        if(isActive) return `<span class="badge badge-ok">ACTIVO</span>`;
+        if(isDone)   return `<span class="badge" style="background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)">HECHO</span>`;
+        if(isPending) return `<span class="badge badge-gray">PENDIENTE</span>`;
+        return '';
+      })()}
+      <button class="btn btn-ghost btn-sm" onclick="S.editingCase='${c.id}';render()">Editar</button>
+      <button class="btn btn-danger btn-sm" onclick="delCase('${c.id}')">✕</button>
+    </div>`).join('')}
+  </div>`;
+}
+function saveCase(ec){
+  const title=$('c-title')?.value.trim(), pts=parseInt($('c-pts')?.value)||100;
+  const s1=$('c-s1')?.value.trim(), s2=$('c-s2')?.value.trim(), s3=$('c-s3')?.value.trim();
+  const answers=[0,1,2,3].map(i=>$(`c-a${i}`)?.value.trim()||'');
+  const correct=parseInt(document.querySelector('input[name="correct-ans"]:checked')?.value??0);
+  if(!title){toast('El título es obligatorio','error');return;}
+  if(!s1||!s2||!s3){toast('Completa las 3 etapas','error');return;}
+  if(answers.filter(Boolean).length<4){toast('Añade las 4 opciones de respuesta','error');return;}
+  send({type:'ADMIN_SAVE_CASE',payload:{caseData:{title,points:pts,stage1:s1,stage2:s2,stage3:s3,answers,correctAnswerIndex:correct,id:ec==='new'?null:ec}}});
+}
+function delCase(id){if(!confirm('¿Eliminar este caso?'))return;send({type:'ADMIN_DELETE_CASE',payload:{caseId:id}});}
+
+function openImportCases(){
+  openModal(`<div class="modal">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem">Importar casos desde JSON</h3>
+    <p style="font-size:.82rem;color:var(--text-dim);margin-bottom:1rem">Pega el contenido del fichero JSON o usa el selector. Formato: array <code>cases</code> con campos <code>title, stage1, stage2, stage3, answers[4], correctAnswerIndex</code>.</p>
+    <div class="flex col gap-2">
+      <div><label>Archivo JSON</label><input type="file" id="imp-file" accept=".json" onchange="loadImportFile(this)" style="cursor:pointer"/></div>
+      <div><label>O pega el JSON aquí</label><textarea id="imp-json" style="min-height:120px;font-family:var(--font-mono);font-size:.78rem" placeholder='{"cases":[{"title":"...","points":100,"stage1":"...","stage2":"...","stage3":"...","answers":["A","B","C","D"],"correctAnswerIndex":0}]}'></textarea></div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-primary" onclick="doImportCases()">Importar</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>`);
+}
+function loadImportFile(input){
+  const f=input.files?.[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{const ta=$('imp-json');if(ta)ta.value=e.target.result;};
+  r.readAsText(f);
+}
+function doImportCases(){
+  const raw=$('imp-json')?.value.trim();
+  if(!raw){toast('Pega o selecciona un JSON','error');return;}
+  let data;
+  try{data=JSON.parse(raw);}catch(e){toast('JSON inválido: '+e.message,'error');return;}
+  const cases=Array.isArray(data)?data:(data.cases||[]);
+  if(!cases.length){toast('No se encontraron casos en el JSON','error');return;}
+  send({type:'ADMIN_IMPORT_CASES',payload:{cases}});
+  closeModal();
+}
+
+// ─ Control ─
+function renderControl(){
+  const s=S.session; if(!s) return noSession();
+  const running=s.status==='RUNNING', finished=s.status==='FINISHED';
+  const cc=s.cases[s.currentCaseIndex];
+  const stages=['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS'];
+  return `<div style="max-width:680px">
+    <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Control · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
+
+    ${!running&&!finished?`<div class="card card-accent text-center" style="padding:2.5rem;margin-bottom:1.5rem">
+      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.cases.length} caso(s) · ${s.teams?.length||0} equipo(s) en sala</div>
+      <button class="btn btn-primary btn-xl" onclick="startSession()" ${!s.cases.length||!s.teams?.length?'disabled':''}>🚀 Iniciar dinámica</button>
+      ${!s.cases.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.75rem">Añade casos en la pestaña Casos</div>':''}
+      ${!s.teams?.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.5rem">Ningún equipo conectado todavía</div>':''}
+    </div>`:''}
+
+    ${running?`
+    <div class="card" style="margin-bottom:1rem">
+      <div class="flex justify-between items-center">
+        <div style="flex:1">
+          <div class="section-title">Caso ${s.currentCaseIndex+1} de ${s.cases.length}</div>
+          <div style="font-weight:700;font-size:1.1rem;margin-bottom:.5rem">${cc?.title||'—'}</div>
+          <div class="flex items-center gap-2" style="flex-wrap:wrap">
+            <span class="badge ${stageBadge(s.currentStage)}">${stageLabel(s.currentStage)}</span>
+            <span id="paused-badge" class="badge badge-paused" style="display:${S.paused?'inline-flex':'none'}">⏸ PAUSADO</span>
+          <span id="disconnect-badge" class="badge" style="background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.4);display:${S.awaitingReconnect?.length?'inline-flex':'none'}">⚠️ DESCONEXIÓN</span>
+          </div>
+        </div>
+        ${timerHTML(S.session?.config?.stage2DebateTime||300)}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="section-title">Timer</div>
+      <div class="flex gap-2" style="flex-wrap:wrap;align-items:center">
+        <button id="pause-btn" class="btn ${S.paused?'btn-resume':'btn-pause'}" onclick="togglePause()">
+          ${S.paused?'▶ Reanudar timer':'⏸ Pausar timer'}
+        </button>
+        <button class="btn btn-blue btn-sm" onclick="nextCase()" ${s.currentStage!=='RESULTS'?'disabled':''}>Siguiente caso →</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="section-title">Avance manual de etapa</div>
+      <div class="flex" style="flex-wrap:wrap;gap:.5rem;margin-top:.5rem">
+        ${stages.map(st=>`<button class="btn btn-sm ${s.currentStage===st?'btn-primary':'btn-ghost'}" onclick="forceStage('${st}')">${stageLabel(st)}</button>`).join('')}
+      </div>
+    </div>
+
+    <div data-answer-bar style="margin-bottom:1rem"></div>
+    <div data-disconnect-banner style="margin-bottom:1rem">${disconnectBannerHTML()}</div>
+    `:''}
+
+    ${finished?`<div class="card card-accent text-center" style="padding:2rem;margin-bottom:1.5rem">
+      <div style="font-size:2rem;margin-bottom:.5rem">🏆</div>
+      <div style="font-weight:700;font-size:1.2rem">Dinámica finalizada</div>
+    </div>`:''}
+
+    <div class="card">
+      <div class="section-title">Clasificación en tiempo real</div>
+      <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+    </div>
+  </div>`;
+}
+function startSession(){send({type:'ADMIN_START_SESSION'});}
+function forceStage(st){send({type:'ADMIN_FORCE_STAGE',payload:{stage:st}});}
+function nextCase(){send({type:'ADMIN_NEXT_CASE'});}
+function togglePause(){
+  S.paused=!S.paused; // optimistic toggle for instant UI feedback
+  syncPauseBtn();
+  send({type:'ADMIN_TOGGLE_PAUSE'});
+}
+
+// ─ Usuarios ─
+function renderUsers(){
+  const subTabs=[{id:'personas',label:'👤 Personas'},{id:'equipos',label:'👥 Equipos'}];
+  return `<div style="max-width:700px">
+    <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Usuarios</h2>
+    <div class="flex gap-1" style="margin-bottom:1.5rem">
+      ${subTabs.map(t=>`<button class="btn btn-sm ${S.adminSubTab===t.id?'btn-primary':'btn-ghost'}" onclick="S.adminSubTab='${t.id}';render()">${t.label}</button>`).join('')}
+    </div>
+    ${S.adminSubTab==='personas'?renderPeople():renderTeamsAdmin()}
+  </div>`;
+}
+
+function renderPeople(){
+  const people=S.users.people||[];
+  return `<div>
+    <div class="flex justify-between items-center" style="margin-bottom:1rem">
+      <div style="font-size:.82rem;color:var(--text-dim)">${people.length} persona(s) registrada(s)</div>
+      <button class="btn btn-primary btn-sm" onclick="openCreatePerson()">+ Nueva persona</button>
+    </div>
+    ${!people.length?`<div class="card text-center" style="color:var(--text-dim);padding:2rem">Sin personas registradas</div>`:''}
+    ${people.map(p=>{
+      const team=S.users.teams?.find(t=>t.memberIds?.includes(p.id));
+      return `<div class="user-row">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600">${p.name}</div>
+          <div style="font-size:.78rem;color:var(--text-dim)">${p.email}${team?` · Equipo: <strong>${team.teamName}</strong>`:' · Sin equipo'}</div>
+        </div>
+        <span class="role-badge ${p.role==='admin'?'role-admin':'role-user'}">${p.role==='admin'?'Admin':'User'}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openEditPerson('${p.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delPerson('${p.id}')">✕</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderTeamsAdmin(){
+  const teams=S.users.teams||[];
+  const assignedIds=new Set(teams.flatMap(t=>t.memberIds||[]));
+  const availCount=(S.users.people||[]).filter(p=>p.role==='user'&&!assignedIds.has(p.id)).length;
+  return `<div>
+    <div class="flex justify-between items-center" style="margin-bottom:1rem">
+      <div style="font-size:.82rem;color:var(--text-dim)">${teams.length} equipo(s) · ${availCount} persona(s) sin asignar</div>
+      <button class="btn btn-primary btn-sm" onclick="openCreateTeam()">+ Nuevo equipo</button>
+    </div>
+    ${!teams.length?`<div class="card text-center" style="color:var(--text-dim);padding:2rem">Sin equipos. Primero registra personas (pestaña Personas), luego crea equipos aquí.</div>`:''}
+    ${teams.map(t=>{
+      const members=(t.memberIds||[]).map(id=>S.users.people?.find(p=>p.id===id)?.name||id);
+      return `<div class="user-row">
+        <div style="width:14px;height:14px;border-radius:50%;background:${t.color||'#f5a623'};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:1rem">${t.teamName}</div>
+          <div style="font-size:.78rem;color:var(--text-dim)">${members.join(', ')||'Sin miembros'}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openEditTeam('${t.id}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delTeam('${t.id}')">✕</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function availablePeopleOptions(excludeTeamId=''){
+  const assigned=new Set((S.users.teams||[]).filter(t=>t.id!==excludeTeamId).flatMap(t=>t.memberIds||[]));
+  return (S.users.people||[]).filter(p=>p.role==='user'&&!assigned.has(p.id));
+}
+
+function openCreatePerson(){
+  openModal(`<div class="modal">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.5rem">Nueva persona</h3>
+    <div class="flex col gap-2">
+      <div><label>Nombre *</label><input id="np-name" placeholder="Nombre completo"/></div>
+      <div><label>Email *</label><input id="np-email" type="email" placeholder="email@factorlibre.com"/></div>
+      <div><label>Contraseña *</label><input id="np-pass" type="password" placeholder="mínimo 6 caracteres"/></div>
+      <div><label>Rol *</label>
+        <select id="np-role">
+          <option value="user">Usuario (juega en equipo)</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-primary" onclick="createPerson()">Crear persona</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+function openEditPerson(id){
+  const p=(S.users.people||[]).find(x=>x.id===id); if(!p) return;
+  openModal(`<div class="modal">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.5rem">Editar persona</h3>
+    <div class="flex col gap-2">
+      <div><label>Nombre</label><input id="ep-name" value="${p.name||''}"/></div>
+      <div><label>Email</label><input id="ep-email" type="email" value="${p.email||''}"/></div>
+      <div><label>Nueva contraseña (vacío = no cambiar)</label><input id="ep-pass" type="password" placeholder="••••••"/></div>
+      <div><label>Rol</label>
+        <select id="ep-role">
+          <option value="user" ${p.role==='user'?'selected':''}>Usuario</option>
+          <option value="admin" ${p.role==='admin'?'selected':''}>Administrador</option>
+        </select>
+      </div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-primary" onclick="updatePerson('${id}')">Guardar</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+function membersCheckboxes(teamId=''){
+  const avail=availablePeopleOptions(teamId);
+  const team=teamId?(S.users.teams||[]).find(t=>t.id===teamId):null;
+  if(!avail.length&&!team?.memberIds?.length) return `<div style="color:var(--text-dim);font-size:.85rem">No hay personas con rol "Usuario" disponibles. Créalas primero en Personas.</div>`;
+  // Si editando, mostrar también los ya asignados a este equipo
+  const all=teamId?[...avail,...(team?.memberIds||[]).map(id=>(S.users.people||[]).find(p=>p.id===id)).filter(Boolean)]:avail;
+  const unique=[...new Map(all.map(p=>[p.id,p])).values()];
+  return unique.map(p=>`<label style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;cursor:pointer">
+    <input type="checkbox" value="${p.id}" ${team?.memberIds?.includes(p.id)?'checked':''} style="width:auto"/>
+    <span>${p.name} <span style="color:var(--text-dim);font-size:.78rem">(${p.email})</span></span>
+  </label>`).join('');
+}
+
+function openCreateTeam(){
+  openModal(`<div class="modal">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.5rem">Nuevo equipo</h3>
+    <div class="flex col gap-2">
+      <div><label>Nombre del equipo *</label><input id="ct-name" placeholder="Error 404: Mercancía Not Found"/></div>
+      ${colorPicker('#f5a623','ct-color')}
+      <div><label>Miembros (selecciona uno o más)</label>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem;max-height:200px;overflow-y:auto">
+          ${membersCheckboxes()}
+        </div>
+      </div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-primary" onclick="createTeam()">Crear equipo</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+function openEditTeam(id){
+  const t=(S.users.teams||[]).find(x=>x.id===id); if(!t) return;
+  openModal(`<div class="modal">
+    <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:1.5rem">Editar equipo</h3>
+    <div class="flex col gap-2">
+      <div><label>Nombre del equipo</label><input id="et-name" value="${t.teamName||''}"/></div>
+      ${colorPicker(t.color||'#f5a623','et-color')}
+      <div><label>Miembros</label>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.75rem;max-height:200px;overflow-y:auto">
+          ${membersCheckboxes(id)}
+        </div>
+      </div>
+      <div class="flex gap-2" style="margin-top:.5rem">
+        <button class="btn btn-primary" onclick="updateTeam('${id}')">Guardar</button>
+        <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>`);
+}
+
+function colorPicker(sel,inputId){
+  return `<div>
+    <label>Color del equipo</label>
+    <input type="hidden" id="${inputId}" value="${sel||'#f5a623'}">
+    <div class="flex gap-2" style="flex-wrap:wrap;margin-top:.4rem">
+      ${TEAM_COLORS.map(c=>`<button type="button"
+        onclick="document.getElementById('${inputId}').value='${c}';this.closest('.flex').querySelectorAll('button').forEach(b=>b.style.outline='none');this.style.outline='3px solid white'"
+        style="width:26px;height:26px;border-radius:50%;background:${c};border:none;cursor:pointer;outline:${(sel||'#f5a623')===c?'3px solid white':'none'};outline-offset:2px;flex-shrink:0"
+        title="${c}"></button>`).join('')}
+    </div>
+  </div>`;
+}
+function getCheckedMembers(){
+  return [...document.querySelectorAll('#modal-root input[type=checkbox]:checked')].map(el=>el.value);
+}
+
+function createPerson(){
+  const name=$('np-name')?.value.trim(),email=$('np-email')?.value.trim(),pass=$('np-pass')?.value.trim(),role=$('np-role')?.value;
+  if(!name||!email||!pass){toast('Todos los campos son obligatorios','error');return;}
+  if(pass.length<6){toast('Contraseña mínimo 6 caracteres','error');return;}
+  send({type:'ADMIN_CREATE_PERSON',payload:{name,email,password:pass,role}});
+}
+function updatePerson(id){
+  const p={id,name:$('ep-name')?.value.trim(),email:$('ep-email')?.value.trim(),password:$('ep-pass')?.value.trim(),role:$('ep-role')?.value};
+  send({type:'ADMIN_UPDATE_PERSON',payload:p});
+}
+function delPerson(id){if(!confirm('¿Eliminar esta persona?'))return;send({type:'ADMIN_DELETE_PERSON',payload:{id}});}
+function createTeam(){
+  const teamName=$('ct-name')?.value.trim(), memberIds=getCheckedMembers();
+  const color=$('ct-color')?.value||'#f5a623';
+  if(!teamName){toast('El nombre del equipo es obligatorio','error');return;}
+  if(!memberIds.length){toast('Selecciona al menos un miembro','error');return;}
+  send({type:'ADMIN_CREATE_TEAM',payload:{teamName,memberIds,color}});
+}
+function updateTeam(id){
+  const teamName=$('et-name')?.value.trim(), memberIds=getCheckedMembers();
+  const color=$('et-color')?.value||'#f5a623';
+  send({type:'ADMIN_UPDATE_TEAM',payload:{id,teamName,memberIds,color}});
+}
+function delTeam(id){if(!confirm('¿Eliminar este equipo? Los miembros quedarán disponibles para otros equipos.'))return;send({type:'ADMIN_DELETE_TEAM',payload:{id}});}
+
+// ─ Config ─
+function renderConfig(){
+  const s=S.session; if(!s) return noSession();
+  const c=s.config||{};
+  const fields=[
+    ['stage1Time','Etapa 1 — Duración contexto inicial (seg)','60'],
+    ['stage1DebateTime','Etapa 1 — Debate interno (seg)','120'],
+    ['stage2Time','Etapa 2 — Duración contexto ampliado (seg)','90'],
+    ['stage2DebateTime','Etapa 2 — Debate + botón adelantar (seg)','300'],
+    ['stage3Time','Etapa 3 — Duración pista clave (seg)','60'],
+    ['stage3DebateTime','Etapa 3 — Debate final (seg)','180'],
+    ['resultsTime','Resultados — Tiempo de visualización (seg)','20'],
+  ];
+  return `<div style="max-width:540px">
+    <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Configuración · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
+    <div class="card flex col gap-3" style="margin-bottom:1.5rem">
+      ${fields.map(([k,l,d])=>`<div><label>${l}</label><input type="number" id="cfg-${k}" value="${c[k]||d}" min="5"/></div>`).join('')}
+      <button class="btn btn-primary" onclick="saveConfig()">Guardar configuración</button>
+    </div>
+    <div class="card">
+      <div class="section-title">Puntuación</div>
+      <div style="font-size:.85rem;color:var(--text-dim);line-height:2">
+        ✅ Respuesta correcta → puntos base del caso<br>
+        ⚡ Adelantar + acertar → +30% bonus<br>
+        ❌ Adelantar + fallar → −50% penalización<br>
+        🔇 Sin respuesta → 0 pts
+      </div>
+    </div>
+  </div>`;
+}
+function saveConfig(){
+  const keys=['stage1Time','stage1DebateTime','stage2Time','stage2DebateTime','stage3Time','stage3DebateTime','resultsTime'];
+  const config={};
+  keys.forEach(k=>config[k]=parseInt($(`cfg-${k}`)?.value)||60);
+  send({type:'ADMIN_UPDATE_CONFIG',payload:{config}});
+}
+
+// ─ Log ─
+function renderLog(){
+  const s=S.session; if(!s) return noSession();
+  const log=[...(s.eventLog||[])].reverse();
+  if(!log.length) return `<div style="max-width:800px"><h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Log de sesión · <span style="font-family:var(--font-mono);color:var(--accent)">${s.roomCode}</span></h2><div class="card text-center" style="color:var(--text-dim);padding:3rem"><div style="font-size:2rem;margin-bottom:1rem">🪵</div>Sin eventos registrados aún</div></div>`;
+  return `<div style="max-width:900px">
+    <div class="flex justify-between items-center" style="margin-bottom:1.5rem">
+      <h2 style="font-size:1.3rem;font-weight:700">Log · <span style="font-family:var(--font-mono);color:var(--accent)">${s.roomCode}</span></h2>
+      <span style="font-size:.78rem;color:var(--text-dim)">${log.length} eventos (más reciente primero)</span>
+    </div>
+    <div class="flex col gap-1" style="font-family:var(--font-mono);font-size:.78rem">
+      ${log.map(renderLogEntry).join('')}
+    </div>
+  </div>`;
+}
+function renderLogEntry(e){
+  const d=new Date(e.ts);
+  const ts=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+  const colorMap={
+    SESSION_STARTED:'var(--green)',SESSION_FINISHED:'var(--accent)',
+    STAGE_CHANGE:'var(--blue)',CASE_RESOLVED:'var(--accent)',NEXT_CASE:'var(--accent)',
+    TEAM_SKIP:'#f97316',TEAM_ANSWER:'var(--blue)',
+    TIMER_PAUSED:'var(--red)',TIMER_RESUMED:'var(--green)',
+    CLIENT_CONNECTED:'var(--green)',CLIENT_DISCONNECTED:'var(--red)',
+    SERVER_RESTART:'#c084fc',
+  };
+  const col=colorMap[e.ev]||'var(--text-dim)';
+  const caseTag=e.ci!==undefined&&e.ci!==null?`<span style="color:var(--text-dim)">[Caso ${e.ci+1}]</span> `:'';
+  let detail='';
+  if(e.ev==='TEAM_ANSWER'){
+    const ok=e.correctAnswerIndex!==undefined&&e.answerIndex===e.correctAnswerIndex;
+    detail=` — ${e.teamName} → <strong>${e.answerLabel||e.answerIndex}</strong> "${e.answerText||''}" ${ok?'<span style="color:var(--green)">✓ CORRECTO</span>':'<span style="color:var(--red)">✗ INCORRECTO</span>'} (correcta: ${e.correctAnswerLabel||e.correctAnswerIndex})${e.isSkipper?' ⚡adelantó':''}`;
+  } else if(e.ev==='TEAM_SKIP'){
+    detail=` — ${e.teamName}`;
+  } else if(e.ev==='STAGE_CHANGE'){
+    detail=` → ${e.newStage}`;
+  } else if(e.ev==='CASE_RESOLVED'){
+    const corrLbl=e.correctAnswerLabel||(e.correctAnswerIndex!==undefined?String.fromCharCode(65+e.correctAnswerIndex):'?');
+    detail=e.results?` <span style="color:var(--green)">[Correcta: ${corrLbl}]</span> — ${e.results.map(r=>`${r.teamName}: <strong>${r.answerLabel||r.answerIndex||'—'}</strong> ${r.isCorrect?'<span style="color:var(--green)">✓</span>':'<span style="color:var(--red)">✗</span>'} (${r.pts>0?'+':''}${r.pts}pts)`).join(' | ')}`:` — ${e.caseTitle||''}`;
+  } else if(e.ev==='NEXT_CASE'){
+    detail=` → Caso ${(e.newCaseIndex||0)+1} "${e.caseTitle||''}"`;
+  } else if(e.ev==='CLIENT_CONNECTED'||e.ev==='CLIENT_DISCONNECTED'){
+    detail=` — ${e.name} (${e.role})`;
+  } else if(e.ev==='TIMER_PAUSED'){
+    detail=` — ${e.remaining}s restantes${e.byDisconnect?' (desconexión)':''}`;
+  } else if(e.ev==='TIMER_RESUMED'){
+    detail=` — ${e.remaining}s`;
+  } else if(e.ev==='SERVER_RESTART'){
+    detail=` — ${e.action}${e.stage?' en '+e.stage:''}${e.remaining?' ('+e.remaining+'s restantes)':''}`;
+  } else if(e.ev==='SESSION_STARTED'){
+    detail=` — ${e.teamsCount} equipos · ${e.casesCount} casos`;
+  }
+  return `<div style="padding:.4rem .75rem;border-radius:6px;border-left:3px solid ${col};background:rgba(0,0,0,.25);display:flex;gap:.75rem;align-items:baseline">
+    <span style="color:var(--text-dim);flex-shrink:0">${ts}</span>
+    <span style="color:${col};font-weight:700;flex-shrink:0">${e.ev}</span>
+    <span style="color:var(--text-dim)">${caseTag}<span style="color:var(--text)">${detail}</span></span>
+  </div>`;
+}
+
+function noSession(){
+  return `<div class="card text-center" style="padding:3rem;color:var(--text-dim)">
+    <div style="font-size:2rem;margin-bottom:1rem">🖥️</div>
+    Primero selecciona o crea una sesión en la pestaña <strong>Sesiones</strong>.
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// PROJECTOR
+// ══════════════════════════════════════════════════════
+function renderProjector(){
+  const s=S.session;
+  if(!s) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><div class="spinner"></div></div>`;
+  if(s.status==='LOBBY') return projLobby(s);
+  if(s.status==='FINISHED') return projFinished();
+  if(s.currentStage==='RESULTS') return projResults(s);
+  if(s.currentStage==='STAGE_4') return projQuiz(s);
+  return projStage(s);
+}
+
+function projLobby(s){
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(245,166,35,.1) 0%,transparent 70%)">
+    <div class="text-center" style="max-width:600px;padding:2rem">
+      <div style="font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;color:var(--accent);margin-bottom:2rem">FACTORLIBRE — TEAMBUILDING</div>
+      <h1 style="font-size:4.5rem;font-weight:800;line-height:1;margin-bottom:1.5rem">El Almacén<br>en Crisis</h1>
+      <div class="card" style="display:inline-block;padding:1.2rem 2.5rem;margin-bottom:2rem">
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.3rem">Código de sala</div>
+        <div style="font-family:var(--font-mono);font-size:3.5rem;font-weight:700;color:var(--accent);letter-spacing:.2em">${s.roomCode}</div>
+      </div>
+      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.teams?.length||0} equipo(s) conectados</div>
+      <div id="team-list-lobby" class="flex col gap-2" style="max-width:320px;margin:0 auto">
+        ${s.teams?.map(t=>`<div class="lb-row"><div class="dot-conn ${t.connected?'':'off'}"></div><span style="font-weight:600">${t.teamName||t.name}</span></div>`).join('')||''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function projStage(s){
+  const stage=s.currentStage, cc=s.cases[s.currentCaseIndex], total=s.cases.length;
+  const s1=stage.includes('1'), s2=stage.includes('2'), s3=stage.includes('3');
+  return `<div class="proj-body">
+    <div class="proj-header">
+      <div class="flex items-center gap-3">
+        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+        <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
+        ${S.paused?`<span class="badge badge-paused">⏸ PAUSADO</span>`:''}
+        ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ ${S.skippedByTeam.name} adelantó</span>`:''}
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="progress-dots">${Array.from({length:total},(_,i)=>`<div class="pdot ${i<s.currentCaseIndex?'done':i===s.currentCaseIndex?'active':''}"></div>`).join('')}</div>
+        <div style="font-size:.85rem;color:var(--text-dim)">Caso ${s.currentCaseIndex+1}/${total}</div>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+      </div>
+    </div>
+    <div class="proj-area">
+      <div class="proj-content">
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.4rem">Escenario</div>
+          <h1 style="font-size:2.5rem;font-weight:800;line-height:1.2">${cc?.title||''}</h1>
+        </div>
+        ${s1||s2?`<div class="ctx-box">
+          <h3>Contexto inicial</h3><div ${s2?'style="color:var(--text-dim);margin-bottom:1.25rem"':''}>${cc?.stage1||''}</div>
+          ${s2?`<h3>Contexto ampliado</h3>${cc?.stage2||''}`:''}
+        </div>`:''}
+        ${s3?`<div class="ctx-box" style="margin-bottom:0">
+          <h3>Contexto</h3><div style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem">${cc?.stage1||''} ${cc?.stage2||''}</div>
+        </div>
+        <div class="clue-box">
+          <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--purple);margin-bottom:.5rem">🔑 Pista clave</div>
+          <div style="font-size:1rem;line-height:1.7">${cc?.stage3||''}</div>
+        </div>`:''}
+        ${stage==='STAGE_2_DEBATE'?`<div class="card card-sm" style="border-color:var(--accent);background:rgba(245,166,35,.08);text-align:center">⚡ Debate activo — los equipos pueden <strong>adelantar a la resolución</strong></div>`:''}
+        ${['STAGE_1_DEBATE','STAGE_3_DEBATE'].includes(stage)?`<div class="card card-sm" style="text-align:center;color:var(--text-dim)">💬 Tiempo de debate interno</div>`:''}
+      </div>
+      <div class="proj-sidebar">
+        ${timerHTML(300)}
+        <div class="card"><div class="section-title">Clasificación</div>
+          <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function projQuiz(s){
+  const cc=s.cases[s.currentCaseIndex];
+  return `<div class="proj-body">
+    <div class="proj-header">
+      <div class="flex items-center gap-3">
+        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+        <span class="badge badge-4">⚡ Resolución</span>
+        ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ Adelantado por ${S.skippedByTeam.name}</span>`:''}
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+    </div>
+    <div class="proj-area">
+      <div class="proj-content">
+        <h2 style="font-size:1.8rem;font-weight:700">¿Cuál es la solución correcta?</h2>
+        <div class="grid-2">
+          ${cc?.answers?.map((a,i)=>`<div style="padding:1.25rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);font-size:.95rem;line-height:1.5">
+            <div style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);margin-bottom:.3rem">${String.fromCharCode(65+i)}</div>${a}
+          </div>`).join('')||''}
+        </div>
+        <div data-answer-bar></div>
+      </div>
+      <div class="proj-sidebar">
+        ${timerHTML(120)}
+        <div class="card"><div class="section-title">Clasificación</div>
+          <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function projResults(s){
+  const lr=S.lastResults; if(!lr) return '';
+  return `<div class="proj-body">
+    <div class="proj-header">
+      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+      <div class="flex items-center gap-2">
+        <span class="badge badge-ok">✅ Resultados del caso</span>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+      </div>
+    </div>
+    <div class="proj-area">
+      <div class="proj-content">
+        <div>
+          <div style="font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;color:var(--green);margin-bottom:.4rem">Respuesta correcta</div>
+          <div style="font-size:1.2rem;font-weight:700;padding:1rem 1.5rem;border-radius:10px;border:2px solid var(--green);background:rgba(34,197,94,.1)">
+            ${String.fromCharCode(65+lr.correctAnswerIndex)}: ${lr.correctAnswerText}
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Resultados por equipo</div>
+          <div class="flex col gap-1">
+            ${lr.results?.map(r=>`<div class="result-card ${r.isCorrect?'ok':'fail'}">
+              ${r.isSkipper?'⚡ ':''}<span style="font-weight:600">${r.teamName}</span>
+              <span style="font-size:.82rem;color:var(--text-dim)">${r.isCorrect?'Correcto':'Incorrecto'}${r.isSkipper?(r.isCorrect?' +30%':' −50%'):''}${!r.didAnswer?' (sin respuesta)':''}</span>
+              <span class="result-pts ${r.pointsEarned>=0?'pos':'neg'}">${r.pointsEarned>=0?'+':''}${r.pointsEarned} pts</span>
+            </div>`).join('')||''}
+          </div>
+        </div>
+      </div>
+      <div class="proj-sidebar">
+        <div class="card"><div class="section-title">Nueva clasificación</div>
+          <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function projFinished(){
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(34,197,94,.08) 0%,transparent 70%)">
+    <div class="text-center" style="max-width:600px;padding:2rem">
+      <div style="font-size:4rem;margin-bottom:1rem">🏆</div>
+      <h1 style="font-size:3.5rem;font-weight:800;margin-bottom:2rem">¡Dinámica finalizada!</h1>
+      <div data-lb class="flex col gap-2" style="max-width:400px;margin:0 auto">${lbHTML()}</div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// TEAM
+// ══════════════════════════════════════════════════════
+function renderTeam(){
+  const s=S.session, stage=s?.currentStage;
+  if(!s||s.status==='LOBBY') return teamLobby();
+  if(s.status==='FINISHED') return teamFinished();
+  if(stage==='RESULTS') return teamResults();
+  if(stage==='STAGE_4') return teamQuiz();
+  return teamWaiting(stage);
+}
+
+function teamLobby(){
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:1.5rem">
+      <div style="display:flex;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.75rem">← Salir</button></div>
+      <div><div style="font-size:2rem;margin-bottom:.5rem">🏭</div>
+        <h2 style="font-size:1.5rem;font-weight:800">El Almacén en Crisis</h2>
+      </div>
+      <div class="card">
+        <div style="font-size:.75rem;color:var(--text-dim)">Equipo</div>
+        <div style="font-weight:700;font-size:1.2rem">${S.team?.teamName||S.team?.name}</div>
+        <div style="font-size:.82rem;color:var(--text-dim);margin-top:.2rem">Capitán: ${S.team?.captainName||'—'}</div>
+      </div>
+      <div class="card text-center" style="padding:2rem">
+        <div class="spinner" style="margin:0 auto 1rem"></div>
+        <div style="color:var(--text-dim)">Esperando a que el moderador inicie la sesión...</div>
+      </div>
+      <div class="card"><div class="section-title">Equipos en sala</div>
+        <div id="team-list-lobby" class="flex col gap-1" style="margin-top:.5rem">
+          ${S.session?.teams?.map(t=>`<div class="lb-row ${t.id===S.team?.id?'my-team':''}">
+            <div class="dot-conn ${t.connected?'':'off'}"></div>
+            <span>${t.teamName||t.name}${t.id===S.team?.id?' (tú)':''}</span>
+          </div>`).join('')||''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function teamWaiting(stage){
+  const showSkip=stage==='STAGE_2_DEBATE'&&!S.skipDone&&!S.skippedByTeam;
+  const skipTakenByOther=S.skippedByTeam&&S.skippedByTeam.id!==S.team?.id;
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;display:flex;flex-direction:column;gap:1.5rem">
+      <div class="flex justify-between items-center">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;color:var(--text-dim)">EQUIPO</div>
+          <div style="font-weight:700;font-size:1.1rem">${S.team?.teamName||S.team?.name}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="dot-conn"></div>
+          <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
+          ${S.paused?'<span class="badge badge-paused">⏸</span>':''}
+          <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+        </div>
+      </div>
+      <div class="card text-center" style="padding:2rem">${timerHTML(300)}</div>
+      <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+      <div id="skip-banner"></div>
+      ${showSkip?`<div class="card" style="border-color:var(--accent)">
+        <div style="font-size:.85rem;color:var(--text-dim);margin-bottom:1rem;text-align:center">
+          ¿Tenéis la respuesta? Podéis saltar a la resolución ahora.<br>
+          <span style="color:var(--accent);font-weight:600">+30% si acertáis · −50% si falláis</span>
+        </div>
+        <button class="btn btn-skip" onclick="doSkip()">⚡ ¡TENEMOS LA RESPUESTA! Adelantar</button>
+      </div>`:''}
+      ${skipTakenByOther?`<div class="card text-center" style="border-color:var(--accent)">⚡ <strong>${S.skippedByTeam.name}</strong> ha adelantado — el quiz llegará enseguida</div>`:''}
+      <div class="card"><div class="section-title">Clasificación</div>
+        <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function teamQuiz(){
+  const s=S.session, cc=s?.cases[s.currentCaseIndex];
+  const isSkipper=S.skippedByTeam?.id===S.team?.id;
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;display:flex;flex-direction:column;gap:1.5rem">
+      <div class="flex justify-between items-center">
+        <div style="font-weight:700">${S.team?.teamName||S.team?.name}</div>
+        <span class="badge badge-4">⚡ Resolución</span>
+      </div>
+      ${isSkipper?`<div class="card card-sm text-center" style="border-color:var(--accent)">⚡ Habéis adelantado — <strong>+30% si acertáis, −50% si falláis</strong></div>`:''}
+      <div class="card text-center" style="padding:1.5rem">${timerHTML(120)}</div>
+      ${S.answered?`<div class="card text-center" style="padding:2rem;color:var(--text-dim)">
+        ⏳ Respuesta enviada — esperando resultados
+      </div>`:`
+      <div class="card"><div class="section-title" style="margin-bottom:1rem">¿Cuál es la solución?</div>
+        <div class="flex col gap-2">
+          ${cc?.answers?.map((a,i)=>`<button class="answer-opt ${S.selectedAnswer===i?'selected':''}" onclick="selAns(${i})">
+            <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
+          </button>`).join('')||''}
+        </div>
+        <button id="confirm-btn" class="btn btn-primary w-full" style="margin-top:1rem" onclick="submitAns()" ${S.selectedAnswer===null?'disabled':''}>
+          Confirmar respuesta →
+        </button>
+      </div>`}
+      <div class="card"><div class="section-title">Clasificación</div>
+        <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function teamResults(){
+  const lr=S.lastResults, my=lr?.results?.find(r=>r.teamId===S.team?.id);
+  const cc=S.session?.cases?.[lr?.caseIndex??S.session?.currentCaseIndex];
+  const myAnsText=my?.didAnswer&&my?.answerIndex!==undefined?cc?.answers?.[my.answerIndex]:null;
+  const myAnsLabel=my?.answerIndex!==undefined?String.fromCharCode(65+my.answerIndex):'';
+  const corrLabel=lr?.correctAnswerIndex!==undefined?String.fromCharCode(65+lr.correctAnswerIndex):'';
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;display:flex;flex-direction:column;gap:1.5rem">
+      <h2 style="font-size:1.3rem;font-weight:700;text-align:center">Resultados del caso</h2>
+      ${my?`<div class="result-card ${my.isCorrect?'ok':'fail'}" style="padding:1.5rem;flex-direction:column;text-align:center;gap:.5rem">
+        <div style="font-size:2rem">${my.isCorrect?'✅':'❌'}</div>
+        <div style="font-weight:700;font-size:1.1rem">${my.isCorrect?'¡Correcto!':'Incorrecto'}</div>
+        ${my.isSkipper?`<div style="font-size:.85rem">${my.isCorrect?'Bonus por adelantar +30%':'Penalización −50%'}</div>`:''}
+        <div class="result-pts ${my.pointsEarned>=0?'pos':'neg'}" style="font-size:1.5rem">${my.pointsEarned>=0?'+':''}${my.pointsEarned} pts</div>
+        <div style="font-size:.85rem;color:var(--text-dim)">Total acumulado: ${my.totalScore} pts</div>
+      </div>`:''}
+      <div class="card card-sm" style="display:flex;flex-direction:column;gap:.6rem">
+        ${myAnsText?`<div style="display:flex;gap:.5rem;align-items:flex-start">
+          <span style="font-size:.72rem;color:var(--text-dim);white-space:nowrap;padding-top:.15rem">Vuestra respuesta</span>
+          <span style="font-weight:600;color:${my?.isCorrect?'var(--green)':'var(--red)'}">${myAnsLabel}: ${myAnsText}</span>
+        </div>`:''}
+        <div style="display:flex;gap:.5rem;align-items:flex-start">
+          <span style="font-size:.72rem;color:var(--text-dim);white-space:nowrap;padding-top:.15rem">Respuesta correcta</span>
+          <span style="font-weight:700;color:var(--green)">${corrLabel}: ${lr?.correctAnswerText||''}</span>
+        </div>
+      </div>
+      <div class="card"><div class="section-title">Nueva clasificación</div>
+        <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
+      </div>
+      <div style="text-align:center;color:var(--text-dim);font-size:.85rem">Esperando al siguiente caso...</div>
+    </div>
+  </div>`;
+}
+
+function teamFinished(){
+  const my=S.leaderboard.find(r=>r.teamId===S.team?.id);
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:1.5rem">
+      <div style="font-size:3rem">${my?.position===1?'🥇':my?.position===2?'🥈':my?.position===3?'🥉':'🏁'}</div>
+      <h2 style="font-size:1.5rem;font-weight:800">¡Dinámica finalizada!</h2>
+      ${my?`<div class="card">
+        <div style="font-size:.85rem;color:var(--text-dim)">Posición final</div>
+        <div style="font-size:2.5rem;font-weight:800;color:var(--accent)">#${my.position}</div>
+        <div style="font-family:var(--font-mono);font-size:1.2rem">${my.score} pts</div>
+      </div>`:''}
+      <div class="card"><div class="section-title">Clasificación final</div>
+        <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function doSkip(){if(S.skipDone)return;S.skipDone=true;send({type:'TEAM_SKIP',payload:{timestamp:Date.now()}});render();}
+function selAns(i){
+  if(S.answered)return;
+  S.selectedAnswer=i;
+  document.querySelectorAll('.answer-opt').forEach((el,idx)=>el.classList.toggle('selected',idx===i));
+  const btn=$('confirm-btn');if(btn)btn.removeAttribute('disabled');
+}
+function submitAns(){
+  if(S.answered||S.selectedAnswer===null)return;
+  S.answered=true;
+  send({type:'TEAM_ANSWER',payload:{answerIndex:S.selectedAnswer,timestamp:Date.now()}});
+  render();
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════
+function render(){
+  const root=$('root');
+  if(S.view==='HOME')      root.innerHTML=renderHome();
+  else if(S.view==='WAITING')   root.innerHTML=renderWaiting();
+  else if(S.view==='ADMIN')     root.innerHTML=renderAdmin();
+  else if(S.view==='TEAM')      root.innerHTML=renderTeam();
+  else if(S.view==='PROJECTOR') root.innerHTML=renderProjector();
+  updateTimerUI();
+  refreshLeaderboards();
+  refreshDisconnectBanner();
+  // Tema de color por vista
+  const r=document.documentElement;
+  if(S.view==='TEAM'){
+    const c=S.teamColor||'#f5a623';
+    r.style.setProperty('--accent',c);
+    // Derivar acento2 (más oscuro para hover) y mantener resto
+    r.style.setProperty('--accent-dim',c+'33');
+  } else if(S.view==='PROJECTOR'){
+    r.style.setProperty('--accent','#3b82f6');
+    r.style.setProperty('--accent-dim','#3b82f633');
+  } else {
+    r.style.setProperty('--accent','#f5a623');
+    r.style.setProperty('--accent-dim','#f5a62333');
+  }
+  // View badge (solo admin)
+  const badge=$('view-badge');
+  if(badge){
+    badge.textContent=S.view==='ADMIN'?'🔧 Admin':'';
+    badge.style.display=S.view==='ADMIN'?'block':'none';
+  }
+  // Hide countdown if not active
+  if(!_cdTimer && _cdValue<=0){
+    const ov=$('countdown-overlay');if(ov)ov.style.display='none';
+  }
+}
+
+// Restaurar estado y reconectar
+(function(){
+  fetchPublicSessions(); // poblar dropdown de sesiones en el login
+  const hadState=restoreState(); // carga S desde localStorage (UI instantánea)
+  const saved=loadCreds();
+  if(saved){
+    _isReconnecting=!!hadState; // si había estado previo, es reconexión
+    connectWS(buildLoginMsg(saved));
+  }
+})();
+
+render();
+</script>
+</body>
+</html>

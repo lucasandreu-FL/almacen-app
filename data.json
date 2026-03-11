@@ -1,0 +1,76 @@
+{
+  "users": {
+    "people": [
+      {
+        "id": "admin-1",
+        "name": "Lucas Andreu",
+        "email": "lucas.andreu@factorlibre.com",
+        "password": "lucas12345",
+        "role": "admin",
+        "createdAt": 1773183745157
+      },
+      {
+        "id": "admin-2",
+        "name": "Adriana Saiz",
+        "email": "adriana.saiz@factorlibre.com",
+        "password": "adriana12345",
+        "role": "admin",
+        "createdAt": 1773183745157
+      },
+      {
+        "id": "admin-3",
+        "name": "Álvaro Gómez",
+        "email": "alvaro.gomez@factorlibre.com",
+        "password": "alvaro12345",
+        "role": "admin",
+        "createdAt": 1773183745157
+      },
+      {
+        "id": "011e611b-5984-4574-b512-18d638835654",
+        "name": "Persona de prueba",
+        "email": "pruebaemail@prueba.com",
+        "password": "123456",
+        "role": "user",
+        "createdAt": 1773188075180
+      },
+      {
+        "id": "424eb54d-1c07-4732-88bd-b4ee48aaf24d",
+        "name": "persona 2",
+        "email": "persona2@email.com",
+        "password": "123456",
+        "role": "user",
+        "createdAt": 1773188133777
+      },
+      {
+        "id": "ccf8cb05-9c81-4c43-b4bd-d5e644d21f76",
+        "name": "pepito",
+        "email": "email@email.com",
+        "password": "123456",
+        "role": "user",
+        "createdAt": 1773248285726
+      }
+    ],
+    "teams": [
+      {
+        "id": "64cdba45-f711-4191-b7b7-69edbf693393",
+        "teamName": "Equipo 1",
+        "memberIds": [
+          "011e611b-5984-4574-b512-18d638835654"
+        ],
+        "createdAt": 1773188111488,
+        "color": "#8b5cf6"
+      },
+      {
+        "id": "df37842f-6d5a-421d-85e0-3ba9cecc4cd3",
+        "teamName": "Equipo 2",
+        "memberIds": [
+          "424eb54d-1c07-4732-88bd-b4ee48aaf24d",
+          "ccf8cb05-9c81-4c43-b4bd-d5e644d21f76"
+        ],
+        "createdAt": 1773188545582,
+        "color": "#ec4899"
+      }
+    ]
+  },
+  "sessions": {}
+}
