@@ -486,7 +486,9 @@ function handleMsg(m){
     case 'TEAMS_UPDATED':
       if(S.session) S.session.teams=m.teams;
       S.leaderboard=m.leaderboard||[];
-      refreshLeaderboards(); refreshTeamList(); break;
+      refreshLeaderboards(); refreshTeamList();
+      if(S.role==='admin' && S.session?.status==='LOBBY') render();
+      break;
 
     case 'TEAM_SKIPPED':
       S.skippedByTeam={id:m.teamId,name:m.teamName};

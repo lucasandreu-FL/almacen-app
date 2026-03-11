@@ -12,6 +12,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+// ── Heartbeat: detectar conexiones muertas ────────────────────────────────────
+setInterval(() => {
+  wss.clients.forEach(ws => {
+    if (ws._isAlive === false) { ws.terminate(); return; }
+    ws._isAlive = false;
+    ws.ping();
+  });
+}, 30000);
+
 // ── Data persistence ──────────────────────────────────────────────────────────
 const DATA_FILE = path.join(__dirname, 'data.json');
 
@@ -126,7 +135,9 @@ function broadcast(sessionId, message, excludeWs = null) {
   if (!clients[sessionId]) return;
   const data = JSON.stringify(message);
   clients[sessionId].forEach(c => {
-    if (c.ws !== excludeWs && c.ws.readyState === 1) c.ws.send(data);
+    if (c.ws !== excludeWs && c.ws.readyState === 1) {
+      try { c.ws.send(data); } catch (e) { /* ignorar errores de envío individuales */ }
+    }
   });
 }
 function broadcastAll(sessionId, message) { broadcast(sessionId, message); }
@@ -323,6 +334,10 @@ function clientName(role, teamId, personId, session) {
 
 // ── WebSocket ──────────────────────────────────────────────────────────────────
 wss.on('connection', ws => {
+  ws._isAlive = true;
+  ws.on('pong', () => { ws._isAlive = true; });
+  ws.on('error', err => console.error('[WS] connection error:', err.message));
+
   let sid = null, clientRole = null, clientPersonId = null, clientTeamId = null;
 
   // Registra el cliente en la sesión y gestiona reconexión pendiente
