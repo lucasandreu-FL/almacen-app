@@ -709,7 +709,7 @@ wss.on('connection', ws => {
       return;
     }
 
-    if (type === 'PING') { ws.send(JSON.stringify({ type: 'PONG' })); return; }
+    if (type === 'PING') { ws._isAlive = true; ws.send(JSON.stringify({ type: 'PONG' })); return; }
 
     if (type === 'GET_STATE') {
       const remaining = session.paused
@@ -752,7 +752,8 @@ wss.on('connection', ws => {
       session.awaitingReconnect = session.awaitingReconnect || new Set();
       session.awaitingReconnect.add(key);
       const name = clientName(clientRole, clientTeamId, clientPersonId, session);
-      logEvent(sid, 'CLIENT_DISCONNECTED', { role: clientRole, name });
+      const reason = ws._closeReason || 'ws_close';
+      logEvent(sid, 'CLIENT_DISCONNECTED', { role: clientRole, name, reason });
       if (!session.paused) pauseTimer(sid, true);
       saveData();
       broadcastAll(sid, { type: 'CLIENT_DISCONNECTED', role: clientRole, name, awaitingReconnect: [...session.awaitingReconnect] });
@@ -770,6 +771,23 @@ process.on('unhandledRejection', (reason) => {
 
 // ── Init + rutas ──────────────────────────────────────────────────────────────
 loadData();
+
+// Beacon: cierre de pestaña/navegador detectado por el cliente
+app.post('/api/beacon-disconnect', express.text({ type: '*/*' }), (req, res) => {
+  try {
+    const { sessionCode, role, teamId, personId } = JSON.parse(req.body || '{}');
+    if (!sessionCode || !clients[sessionCode]) return res.sendStatus(204);
+    // Encontrar la WS de este cliente y terminarla para disparar ws.on('close')
+    clients[sessionCode].forEach(c => {
+      const roleMatch = role === 'team'     ? c.teamId === teamId
+                      : role === 'admin'    ? c.role === 'admin'
+                      : role === 'projector'? c.role === 'projector'
+                      : false;
+      if (roleMatch) { c.ws._closeReason = 'beacon'; c.ws.terminate(); }
+    });
+  } catch(e) { /* ignorar */ }
+  res.sendStatus(204);
+});
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 app.get('/api/sessions/public', (_, res) => {

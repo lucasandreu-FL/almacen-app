@@ -71,7 +71,7 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 @keyframes blink-b{0%,100%{opacity:1}50%{opacity:.45}}
 
 .lb-row{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2)}
-.lb-row.my-team{border-color:var(--accent);background:rgba(245,166,35,.08)}
+.lb-row.my-team{border-color:var(--accent);background:var(--my-team-bg,rgba(245,166,35,.08))}
 .lb-row.pos-1{border-color:#fbbf24;background:rgba(251,191,36,.08)}
 .rank{font-family:var(--font-mono);font-size:1.1rem;font-weight:700;width:2rem;text-align:center}
 .rank.gold{color:#fbbf24}.rank.silver{color:#9ca3af}.rank.bronze{color:#b45309}
@@ -304,6 +304,29 @@ let _reconnDelay=1000, _reconnTimer=null, _isReconnecting=false;
 setInterval(()=>{
   if(S.ws?.readyState===1 && S.role) S.ws.send(JSON.stringify({type:'PING'}));
 },25000);
+
+// ── Detección de cierre de pestaña/navegador ──────────────────────────────
+// beforeunload: aviso al usuario si la sesión está activa
+window.addEventListener('beforeunload', e=>{
+  if(S.role && S.session?.status==='RUNNING'){
+    e.preventDefault();
+    e.returnValue='Si cierras esta pestaña causarás una desconexión y el timer se pausará. ¿Seguro?';
+  }
+});
+
+// pagehide: se dispara solo cuando la página se descarga de verdad (no bfcache)
+// Usamos sendBeacon para notificar al servidor de forma fiable
+window.addEventListener('pagehide', e=>{
+  if(e.persisted) return; // bfcache, no es un cierre real
+  if(!S.role || !S.session?.roomCode) return;
+  const payload=JSON.stringify({
+    sessionCode: S.session.roomCode,
+    role: S.role,
+    teamId: S.team?.id||null,
+    personId: S.person?.id||null
+  });
+  navigator.sendBeacon('/api/beacon-disconnect', payload);
+});
 
 function connectWS(loginMsg){
   clearTimeout(_reconnTimer);
@@ -661,7 +684,7 @@ function lbHTML(highlight=null){
   return S.leaderboard.map(row=>{
     const rc=row.position===1?'gold':row.position===2?'silver':row.position===3?'bronze':'';
     const isMe=highlight&&row.teamId===highlight;
-    return `<div class="lb-row ${row.position===1?'pos-1':''} ${isMe?'my-team':''}">
+    return `<div class="lb-row ${(!highlight&&row.position===1)?'pos-1':''} ${isMe?'my-team':''}">
       <span class="rank ${rc}">${row.position===1?'🥇':row.position===2?'🥈':row.position===3?'🥉':row.position}</span>
       <span style="font-weight:600">${row.teamName}${isMe?' <span style="color:var(--accent);font-size:.72rem">← TÚ</span>':''}</span>
       <span class="score-val">${row.score} pts</span>
@@ -1683,8 +1706,11 @@ function render(){
   if(S.view==='TEAM'){
     const c=S.teamColor||'#f5a623';
     r.style.setProperty('--accent',c);
-    // Derivar acento2 (más oscuro para hover) y mantener resto
     r.style.setProperty('--accent-dim',c+'33');
+    // Fondo suave para la tarjeta "mi equipo" en el leaderboard
+    const hx=c.replace('#','');
+    const tr=parseInt(hx.substring(0,2),16),tg=parseInt(hx.substring(2,4),16),tb=parseInt(hx.substring(4,6),16);
+    r.style.setProperty('--my-team-bg',`rgba(${tr},${tg},${tb},0.12)`);
   } else if(S.view==='PROJECTOR'){
     r.style.setProperty('--accent','#3b82f6');
     r.style.setProperty('--accent-dim','#3b82f633');
