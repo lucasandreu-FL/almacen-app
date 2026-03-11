@@ -370,7 +370,7 @@ function handleMsg(m){
       S.view='ADMIN';
       hideReconnectOverlay(); setLoginLoading(false);
       persistState(); render();
-      {const c=loadCreds();if(c?.room)send({type:'ADMIN_JOIN_SESSION',payload:{roomCode:c.room}});}
+      {const c=loadCreds();const roomToJoin=c?.room||m.activeSessionCode;if(roomToJoin)send({type:'ADMIN_JOIN_SESSION',payload:{roomCode:roomToJoin}});}
       break;
 
     case 'SESSION_CREATED':
@@ -394,17 +394,35 @@ function handleMsg(m){
       S.team=m.team; S.role='team'; S.session=m.session;
       S.teamColor=m.team.color||'#f5a623';
       S.roomCode=m.session.roomCode; S.view='TEAM';
-      S.leaderboard=[]; S.lastResults=null;
-      S.answered=false; S.selectedAnswer=null; S.skipDone=false;
-      S.answeredCount=0; S.skippedByTeam=null;
-      S.awaitingReconnect=m.session.awaitingReconnect||[];
+      S.awaitingReconnect=m.awaitingReconnect||m.session.awaitingReconnect||[];
+      if(m.session.status==='RUNNING'){
+        S.leaderboard=m.leaderboard||[];
+        S.lastResults=m.lastResults||null;
+        S.paused=m.paused||false;
+        S.timerEnd=m.timerEnd||null;
+        S.timerRemaining=m.paused?(m.pausedRemaining||0):(m.timerEnd?Math.max(0,Math.ceil((m.timerEnd-Date.now())/1000)):0);
+        // Restore skip state from session
+        S.skipDone=m.session.skipTeamId===m.team.id;
+        S.skippedByTeam=m.session.skipTeamId
+          ?{id:m.session.skipTeamId,name:m.session.teams?.find(t=>t.id===m.session.skipTeamId)?.teamName||'Equipo'}
+          :null;
+        S.answered=false; S.selectedAnswer=null; S.answeredCount=Object.keys(m.session.answers||{}).length;
+      } else {
+        S.leaderboard=[]; S.lastResults=null;
+        S.answered=false; S.selectedAnswer=null; S.skipDone=false;
+        S.answeredCount=0; S.skippedByTeam=null;
+      }
       hideReconnectOverlay(); setLoginLoading(false);
       persistState(); render(); break;
 
     case 'PROJECTOR_JOIN_OK':
       S.session=m.session; S.role='projector';
       S.leaderboard=m.leaderboard||[]; S.view='PROJECTOR';
-      S.awaitingReconnect=m.session.awaitingReconnect||[];
+      S.awaitingReconnect=m.awaitingReconnect||m.session.awaitingReconnect||[];
+      S.paused=m.paused||false;
+      S.timerEnd=m.timerEnd||null;
+      S.timerRemaining=m.paused?(m.pausedRemaining||0):(m.timerEnd?Math.max(0,Math.ceil((m.timerEnd-Date.now())/1000)):0);
+      S.lastResults=m.lastResults||null;
       hideReconnectOverlay(); setLoginLoading(false);
       persistState(); render(); break;
 
@@ -574,9 +592,18 @@ function refreshDisconnectBanner(){
 
 function disconnectBannerHTML(){
   if(!S.awaitingReconnect?.length) return '';
+  const names=S.awaitingReconnect.map(k=>{
+    if(k==='projector') return 'Proyector';
+    if(k.startsWith('admin:')) return 'Admin';
+    if(k.startsWith('team:')){
+      const tid=k.slice(5);
+      return S.session?.teams?.find(t=>t.id===tid)?.teamName||tid;
+    }
+    return k;
+  });
   return `<div style="background:rgba(239,68,68,.12);border:1px solid var(--red);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;font-size:.88rem">
     <span style="font-size:1.1rem">⚠️</span>
-    <span><strong>Timer pausado</strong> — esperando reconexión de: ${S.awaitingReconnect.map(k=>k.replace('team:','').replace('admin:','')).join(', ')}</span>
+    <span><strong>Timer pausado</strong> — esperando reconexión de: ${names.join(', ')}</span>
   </div>`;
 }
 
@@ -954,6 +981,29 @@ function renderControl(){
 
     <div data-answer-bar style="margin-bottom:1rem"></div>
     <div data-disconnect-banner style="margin-bottom:1rem">${disconnectBannerHTML()}</div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <div class="section-title">Conexiones activas</div>
+      <div class="flex" style="flex-wrap:wrap;gap:.5rem;margin-top:.5rem">
+        ${(()=>{
+          const dc=new Set(S.awaitingReconnect||[]);
+          const rows=[];
+          // Admin
+          const adminKey=S.admin?.id?`admin:${S.admin.id}`:null;
+          const adminConn=!adminKey||!dc.has(adminKey);
+          rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${adminConn?'var(--green)':'var(--red)'};background:${adminConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${adminConn?'':'off'}"></div><span style="font-size:.82rem">Admin</span></div>`);
+          // Projector
+          const projConn=!dc.has('projector');
+          rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${projConn?'var(--green)':'var(--red)'};background:${projConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${projConn?'':'off'}"></div><span style="font-size:.82rem">Proyector</span></div>`);
+          // Teams
+          (s.teams||[]).forEach(t=>{
+            const tConn=t.connected&&!dc.has(`team:${t.id}`);
+            rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${tConn?'var(--green)':'var(--red)'};background:${tConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${tConn?'':'off'}"></div><span style="font-size:.82rem">${t.teamName}</span></div>`);
+          });
+          return rows.join('');
+        })()}
+      </div>
+    </div>
     `:''}
 
     ${finished?`<div class="card card-accent text-center" style="padding:2rem;margin-bottom:1.5rem">
@@ -1346,6 +1396,7 @@ function projStage(s){
         </div>`:''}
         ${stage==='STAGE_2_DEBATE'?`<div class="card card-sm" style="border-color:var(--accent);background:rgba(245,166,35,.08);text-align:center">⚡ Debate activo — los equipos pueden <strong>adelantar a la resolución</strong></div>`:''}
         ${['STAGE_1_DEBATE','STAGE_3_DEBATE'].includes(stage)?`<div class="card card-sm" style="text-align:center;color:var(--text-dim)">💬 Tiempo de debate interno</div>`:''}
+        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
       <div class="proj-sidebar">
         ${timerHTML(300)}
@@ -1377,6 +1428,7 @@ function projQuiz(s){
           </div>`).join('')||''}
         </div>
         <div data-answer-bar></div>
+        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
       <div class="proj-sidebar">
         ${timerHTML(120)}
@@ -1421,6 +1473,7 @@ function projResults(s){
         <div class="card"><div class="section-title">Nueva clasificación</div>
           <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
         </div>
+        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
     </div>
   </div>`;
@@ -1522,6 +1575,7 @@ function teamQuiz(){
       </div>
       ${isSkipper?`<div class="card card-sm text-center" style="border-color:var(--accent)">⚡ Habéis adelantado — <strong>+30% si acertáis, −50% si falláis</strong></div>`:''}
       <div class="card text-center" style="padding:1.5rem">${timerHTML(120)}</div>
+      <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       ${S.answered?`<div class="card text-center" style="padding:2rem;color:var(--text-dim)">
         ⏳ Respuesta enviada — esperando resultados
       </div>`:`
@@ -1571,6 +1625,7 @@ function teamResults(){
       <div class="card"><div class="section-title">Nueva clasificación</div>
         <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
       </div>
+      <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       <div style="text-align:center;color:var(--text-dim);font-size:.85rem">Esperando al siguiente caso...</div>
     </div>
   </div>`;

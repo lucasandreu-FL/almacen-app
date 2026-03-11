@@ -313,7 +313,7 @@ function disconnectKey(role, teamId, personId) {
   return 'projector';
 }
 function isTimerStage(stage) {
-  return ['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4'].includes(stage);
+  return ['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS'].includes(stage);
 }
 function clientName(role, teamId, personId, session) {
   if (role === 'team')     return session?.teams?.find(t => t.id === teamId)?.teamName || 'Equipo';
@@ -366,7 +366,8 @@ wss.on('connection', ws => {
           type: 'ADMIN_LOGIN_OK',
           admin: { id: person.id, name: person.name, email: person.email, role: 'admin' },
           sessions: Object.values(sessions).map(s => ({ roomCode: s.roomCode, status: s.status, casesCount: s.cases.length, teamsCount: s.teams.length, createdAt: s.createdAt })),
-          users: getPublicUsers()
+          users: getPublicUsers(),
+          activeSessionCode: getActiveSession()?.roomCode || null
         }));
         return;
       }
@@ -392,7 +393,17 @@ wss.on('connection', ws => {
         sessionTeam.connected = true;
       }
       joinSession(session, 'team', team.id, person.id);
-      ws.send(JSON.stringify({ type: 'TEAM_LOGIN_OK', team: { id: team.id, teamName: team.teamName, color: team.color || '#f5a623' }, session: getPublicSession(session) }));
+      ws.send(JSON.stringify({
+        type: 'TEAM_LOGIN_OK',
+        team: { id: team.id, teamName: team.teamName, color: team.color || '#f5a623' },
+        session: getPublicSession(session),
+        leaderboard: getLeaderboard(session),
+        paused: session.paused,
+        timerEnd: session.timerEnd,
+        pausedRemaining: session.pausedRemaining,
+        awaitingReconnect: [...(session.awaitingReconnect || [])],
+        lastResults: session.lastResults
+      }));
       broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session) });
       return;
     }
@@ -406,7 +417,16 @@ wss.on('connection', ws => {
         return;
       }
       joinSession(session, 'projector', null, null);
-      ws.send(JSON.stringify({ type: 'PROJECTOR_JOIN_OK', session: getPublicSession(session), leaderboard: getLeaderboard(session) }));
+      ws.send(JSON.stringify({
+        type: 'PROJECTOR_JOIN_OK',
+        session: getPublicSession(session),
+        leaderboard: getLeaderboard(session),
+        paused: session.paused,
+        timerEnd: session.timerEnd,
+        pausedRemaining: session.pausedRemaining,
+        awaitingReconnect: [...(session.awaitingReconnect || [])],
+        lastResults: session.lastResults
+      }));
       return;
     }
 
@@ -562,7 +582,8 @@ wss.on('connection', ws => {
           stage2: String(c.stage2),
           stage3: String(c.stage3),
           answers: c.answers.map(String),
-          correctAnswerIndex: Number(c.correctAnswerIndex)
+          correctAnswerIndex: Number(c.correctAnswerIndex),
+          ...(c.moraleja ? { moraleja: String(c.moraleja) } : {})
         });
         imported++;
       }

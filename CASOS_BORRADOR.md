@@ -93,8 +93,8 @@ Todos los albaranes afectados pertenecen exclusivamente al almacén donde se eje
 
 ### Respuestas
 - A. Regenerar los albaranes afectados desde los pedidos de venta originales y cancelar los actuales
-\1 \2estaurar la base de datos al estado anterior a la limpieza, revisar exactamente qué fue eliminado y reasociar los albaranes a sus pedidos originales
-\1 \2dentificar cada albarán afectado, asociarlo manualmente a su pedido de venta usando la documentación disponible, y revisar el impacto en contabilidad antes de generar las etiquetas
+- B. Restaurar la base de datos al estado anterior a la limpieza, revisar exactamente qué fue eliminado y reasociar los albaranes a sus pedidos originales
+- C. Identificar cada albarán afectado, asociarlo manualmente a su pedido de venta usando la documentación disponible, y revisar el impacto en contabilidad antes de generar las etiquetas
 - D. Emitir las etiquetas sin pedido de venta asociado usando solo la dirección de destino y reconciliar la trazabilidad después del envío
 
 **✅ Correcta: C** — B puede ser ideal técnicamente pero si han transcurrido días hay operaciones intermedias que se perderían. A crea duplicados. D rompe la trazabilidad contable. C es lento pero seguro y auditable.
@@ -123,8 +123,8 @@ El módulo de validación del sistema permite procesar más unidades que las res
 ### Respuestas
 - A. Bloquear todos los pickings activos y pedir a los operarios que revisen manualmente cada uno
 - B. Ajustar el stock negativo con un inventario de regularización y activar la opción de "cantidad exacta" en los tipos de operación
-\1 \2orregir el módulo para que valide contra la cantidad reservada antes de procesar, revertir los albaranes con exceso y regularizar el stock afectado
-\1 \2onfigurar los tipos de operación para que no permitan modificar cantidades y ajustar el stock negativo manualmente
+- C. Corregir el módulo para que valide contra la cantidad reservada antes de procesar, revertir los albaranes con exceso y regularizar el stock afectado
+- D. Configurar los tipos de operación para que no permitan modificar cantidades y ajustar el stock negativo manualmente
 
 **✅ Correcta: C** — D corrige la configuración pero no la lógica del módulo, que seguirá sin validar correctamente en otros escenarios. B regulariza el síntoma sin corregir la causa. C es la única opción que corrige la raíz del problema y el impacto de datos.
 
@@ -150,8 +150,8 @@ El equipo analiza el informe de valoración en detalle. Se detectan movimientos 
 Varios de los movimientos con destinos inconsistentes fueron generados durante un ajuste de inventario realizado hace un trimestre. Ese ajuste se ejecutó de forma manual sin seguir el procedimiento habitual del sistema.
 
 ### Respuestas
-\1 \2ealizar un inventario físico completo del almacén y ajustar todos los valores del sistema al recuento real
-\1 \2dentificar y corregir los movimientos con destinos inconsistentes, documentar el procedimiento de ajuste correcto y revisar todos los ajustes del trimestre anterior
+- A. Realizar un inventario físico completo del almacén y ajustar todos los valores del sistema al recuento real
+- B. Identificar y corregir los movimientos con destinos inconsistentes, documentar el procedimiento de ajuste correcto y revisar todos los ajustes del trimestre anterior
 - C. Usar el valor del informe de inventario como referencia oficial para el cierre y registrar la diferencia como pérdida en la contabilidad
 - D. Reabrir la tarea anterior y escalar a soporte del fabricante del ERP solicitando un parche del módulo de valoración
 
@@ -179,8 +179,8 @@ Se revisan los logs de la integración entre el ERP y el sistema físico de alma
 En el historial del ERP se registra un período de mantenimiento programado durante ese intervalo. Los mensajes de sincronización que llegaron mientras el sistema estaba en mantenimiento fueron rechazados y no existe registro de ellos en ninguna cola de reintento.
 
 ### Respuestas
-\1 \2justar manualmente el stock y los estados de los albaranes en el ERP para que reflejen la realidad física expedida
-\1 \2ecuperar todos los mensajes de sincronización del intervalo afectado, procesarlos o forzar una resincronización, y revisar que la integración tenga mecanismo de reintentos ante rechazos
+- A. Ajustar manualmente el stock y los estados de los albaranes en el ERP para que reflejen la realidad física expedida
+- B. Recuperar todos los mensajes de sincronización del intervalo afectado, procesarlos o forzar una resincronización, y revisar que la integración tenga mecanismo de reintentos ante rechazos
 - C. Cancelar los albaranes afectados en el ERP y recrearlos directamente como "entregados"
 - D. Configurar la integración para que no envíe mensajes durante ventanas de mantenimiento programado
 
@@ -209,8 +209,8 @@ Uno de los artículos con esta ruta especial tiene cuarenta y siete pedidos de v
 
 ### Respuestas
 - A. Deshabilitar temporalmente la ruta especial para estos artículos y procesar los albaranes manualmente como entregas directas
-\1 \2anzar las validaciones en modo asíncrono (segundo plano) para evitar el timeout visible en la interfaz del operario
-\1 \2dentificar por qué el sistema recalcula todas las necesidades del artículo en lugar de solo la vinculada al movimiento actual, corregir el filtro y desbloquear los albaranes pendientes
+- B. Lanzar las validaciones en modo asíncrono (segundo plano) para evitar el timeout visible en la interfaz del operario
+- C. Identificar por qué el sistema recalcula todas las necesidades del artículo en lugar de solo la vinculada al movimiento actual, corregir el filtro y desbloquear los albaranes pendientes
 - D. Reducir el número de pedidos activos del artículo cancelando los más antiguos hasta que la validación deje de hacer timeout
 
 **✅ Correcta: C** — B es un workaround válido a corto plazo pero el proceso puede igualmente agotar el tiempo en segundo plano; no corrige la causa. A y D alteran la lógica de negocio. C es la única que identifica y corrige la raíz: el recálculo no acotado de necesidades.
@@ -238,9 +238,9 @@ La plantilla de etiqueta obtiene algunos campos críticos (referencia, direcció
 
 ### Respuestas
 - A. Crear manualmente en el ERP un pedido de venta por cada albarán afectado para que la plantilla pueda obtener los datos
-\1 \2daptar la plantilla para que obtenga los datos directamente del albarán cuando no existe pedido de venta vinculado, y usar una etiqueta manual provisional para los paquetes de hoy mientras se despliega el fix
+- B. Adaptar la plantilla para que obtenga los datos directamente del albarán cuando no existe pedido de venta vinculado, y usar una etiqueta manual provisional para los paquetes de hoy mientras se despliega el fix
 - C. Posponer la operativa de la integración hasta tener el módulo de etiquetado adaptado al nuevo flujo
-\1 \2enerar las etiquetas manualmente desde la plataforma externa para no bloquear la operativa del día y abrir tarea para corregir el módulo después
+- D. Generar las etiquetas manualmente desde la plataforma externa para no bloquear la operativa del día y abrir tarea para corregir el módulo después
 
 **✅ Correcta: B** — D es un workaround que funciona hoy pero deja el problema abierto sin plan de resolución. A no escala ni es sostenible. C cancela un lanzamiento comprometido con el cliente. B es la única que resuelve hoy Y corrige el problema de raíz.
 
@@ -266,8 +266,8 @@ Se analiza la configuración de los dos módulos activos. Cada uno tiene su prop
 Ambos escenarios utilizan el mismo valor en el campo que el sistema emplea internamente para identificar qué módulo debe gestionar cada operación. Cuando los dos coinciden, el sistema asigna la operación al primero que encuentra en su búsqueda interna.
 
 ### Respuestas
-\1 \2eshabilitar uno de los dos módulos y operar con un solo flujo hasta encontrar una solución definitiva
-\1 \2orregir el campo de identificación para que cada escenario tenga un valor verdaderamente único, añadir una prueba automatizada que detecte este conflicto antes de cualquier despliegue
+- A. Deshabilitar uno de los dos módulos y operar con un solo flujo hasta encontrar una solución definitiva
+- B. Corregir el campo de identificación para que cada escenario tenga un valor verdaderamente único, añadir una prueba automatizada que detecte este conflicto antes de cualquier despliegue
 - C. Crear un módulo coordinador que analice cada albarán y decida explícitamente qué flujo debe gestionarlo
 - D. Segmentar los usuarios para que los del backoffice y los del sistema móvil nunca accedan a los mismos albaranes
 
@@ -295,8 +295,8 @@ Al revisar los registros se encuentran dos problemas entremezclados: por un lado
 Cuando un albarán se cancela después de haber sido procesado parcialmente en el sistema de almacén, los movimientos de stock ya ejecutados no se revierten: quedan cantidades residuales que el sistema sigue considerando como reservadas o entregadas.
 
 ### Respuestas
-\1 \2ealizar un recuento físico completo del almacén y ajustar el sistema a la realidad física como punto de partida limpio
-\1 \2dentificar todos los albaranes cancelados con movimientos parciales, corregir las cantidades residuales, revisar las facturas emitidas con divergencia y establecer un protocolo que fuerce la reversión completa al cancelar
+- A. Realizar un recuento físico completo del almacén y ajustar el sistema a la realidad física como punto de partida limpio
+- B. Identificar todos los albaranes cancelados con movimientos parciales, corregir las cantidades residuales, revisar las facturas emitidas con divergencia y establecer un protocolo que fuerce la reversión completa al cancelar
 - C. Emitir facturas rectificativas para todos los pedidos con diferencia y congelar nuevas operaciones hasta tener los datos limpios
 - D. Bloquear la opción de cancelar albaranes parcialmente procesados hasta implementar la corrección técnica
 
@@ -326,9 +326,9 @@ El equipo técnico analiza los lotes afectados. Todos pertenecen a pedidos marca
 Los movimientos de los lotes en firme tienen reservas sobre ubicaciones virtuales de "stock entrante" que aún no han pasado por recepción. El sistema no puede asignar ubicaciones físicas de picking a movimientos cuya reserva apunta a stock que todavía no está disponible en la ubicación correcta.
 
 ### Respuestas
-\1 \2ancelar las reservas incorrectas y volver a reservar desde ubicaciones físicas disponibles antes de regenerar los lotes
+- A. Cancelar las reservas incorrectas y volver a reservar desde ubicaciones físicas disponibles antes de regenerar los lotes
 - B. Eliminar los lotes y recrearlos manualmente desde cero para que el sistema asigne ubicaciones desde el principio
-\1 \2dentificar los movimientos con reservas en ubicaciones virtuales, forzar su disponibilidad mediante un traslado previo y desbloquear los lotes
+- C. Identificar los movimientos con reservas en ubicaciones virtuales, forzar su disponibilidad mediante un traslado previo y desbloquear los lotes
 - D. Deshabilitar la función de "venta en firme" hasta que se resuelva el problema de asignación
 
 **✅ Correcta: A** — C requiere crear movimientos adicionales que pueden generar inconsistencias. B es más lento y no corrige la raíz. D elimina funcionalidad de negocio. A es la forma estándar de resolver reservas incorrectas sin crear movimientos extra.
@@ -356,8 +356,8 @@ Las órdenes de reposición tienen prioridad de reserva por encima de los pedido
 
 ### Respuestas
 - A. Desactivar la reposición automática y lanzarla manualmente solo fuera del horario de picking
-\1 \2onfigurar la reposición para que se ejecute fuera del horario de operativa y revisar las reglas de prioridad de reserva para que los compromisos existentes tengan precedencia
-\1 \2iberar manualmente las reservas de reposición que bloquean los pickings urgentes y procesar los pedidos; ajustar la configuración de prioridades para que no vuelva a ocurrir
+- B. Configurar la reposición para que se ejecute fuera del horario de operativa y revisar las reglas de prioridad de reserva para que los compromisos existentes tengan precedencia
+- C. Liberar manualmente las reservas de reposición que bloquean los pickings urgentes y procesar los pedidos; ajustar la configuración de prioridades para que no vuelva a ocurrir
 - D. Aumentar el stock mínimo de las ubicaciones de picking para que haya suficiente para reposición y pedidos simultáneamente
 
 **✅ Correcta: B** — C resuelve hoy pero no el problema estructural. A funciona operativamente pero no es escalable ni corrige la raíz. D es un workaround de inventario que no resuelve el conflicto de prioridades. B es la única que corrige la configuración y previene la recurrencia.
@@ -384,8 +384,8 @@ El equipo analiza los movimientos de stock de los productos afectados. Todos tie
 Cuando una devolución se procesa sin referenciar el albarán original, el sistema no puede recuperar el coste FIFO de la capa que se consumió en la venta. En su lugar, crea una nueva entrada de coste usando el precio de coste actual del producto, que puede diferir del original.
 
 ### Respuestas
-\1 \2ambiar el método de valoración de FIFO a precio medio ponderado para evitar el problema de capas
-\1 \2orregir el módulo para que las devoluciones recuperen el coste de la capa FIFO original, y ajustar la valoración histórica de los productos afectados con asientos de corrección
+- A. Cambiar el método de valoración de FIFO a precio medio ponderado para evitar el problema de capas
+- B. Corregir el módulo para que las devoluciones recuperen el coste de la capa FIFO original, y ajustar la valoración histórica de los productos afectados con asientos de corrección
 - C. Procesar todas las devoluciones futuras siempre referenciando el albarán original y aceptar la desviación histórica como pérdida contable
 - D. Recalcular manualmente el valor FIFO de todos los productos afectados y ajustar vía inventario de regularización
 
@@ -413,9 +413,9 @@ Se analiza el flujo intercompany. Cuando se cancela el pedido de compra, el sist
 El identificador de la ruta de aprovisionamiento se recalcula en tiempo real en lugar de guardarse en el momento de la creación del pedido. Al cambiar la configuración de rutas, los pedidos existentes pierden su vínculo de cancelación intercompany.
 
 ### Respuestas
-\1 \2ancelar manualmente el pedido de venta huérfano y ajustar los apuntes contables intercompany afectados
+- A. Cancelar manualmente el pedido de venta huérfano y ajustar los apuntes contables intercompany afectados
 - B. Revertir el cambio de rutas a la configuración anterior y volver a cancelar el pedido desde el inicio
-\1 \2orregir el módulo para que almacene el identificador de ruta en el momento de la creación y no lo recalcule al cancelar; cancelar manualmente los pedidos huérfanos existentes
+- C. Corregir el módulo para que almacene el identificador de ruta en el momento de la creación y no lo recalcule al cancelar; cancelar manualmente los pedidos huérfanos existentes
 - D. Deshabilitar el flujo intercompany automático y gestionar los pedidos entre sociedades manualmente hasta tener el fix
 
 **✅ Correcta: C** — A resuelve el síntoma pero deja el bug abierto para que ocurra en el próximo cambio de rutas. B puede generar efectos secundarios en pedidos activos. D elimina funcionalidad crítica. C es la única que corrige la causa raíz y limpia los datos existentes.
@@ -443,8 +443,8 @@ El informe de stock a fecha filtra los movimientos usando el estado actual de la
 
 ### Respuestas
 - A. Restaurar temporalmente las ubicaciones archivadas, extraer el informe y volver a archivarlas
-\1 \2orregir el informe para que evalúe el estado de las ubicaciones en la fecha consultada y no en la fecha actual; recuperar el histórico afectado con una consulta directa a base de datos como solución inmediata
-\1 \2xtraer los movimientos directamente desde base de datos sin usar el informe estándar para la auditoría en curso, y abrir una tarea de mejora del informe
+- B. Corregir el informe para que evalúe el estado de las ubicaciones en la fecha consultada y no en la fecha actual; recuperar el histórico afectado con una consulta directa a base de datos como solución inmediata
+- C. Extraer los movimientos directamente desde base de datos sin usar el informe estándar para la auditoría en curso, y abrir una tarea de mejora del informe
 - D. Reconstruir el historial de stock manualmente a partir de los albaranes físicos del período auditado
 
 **✅ Correcta: B** — A es un workaround temporal que no corrige el bug y puede afectar a otros informes. D es inviable a escala. C resuelve la urgencia de la auditoría pero no corrige el informe para el futuro. B resuelve tanto la auditoría actual como el problema de raíz.
@@ -472,8 +472,8 @@ La configuración regional del conector de integración usa el separador decimal
 
 ### Respuestas
 - A. Ajustar manualmente el stock negativo con un inventario de regularización y revisar uno a uno los pedidos del canal del último mes
-\1 \2orregir la configuración regional del conector para que ambos sistemas usen el mismo formato numérico, validar retroactivamente los pedidos afectados y ajustar el stock
-\1 \2ñadir una validación en el conector que detecte cantidades con formato ambiguo y las rechace antes de crear el movimiento en el ERP
+- B. Corregir la configuración regional del conector para que ambos sistemas usen el mismo formato numérico, validar retroactivamente los pedidos afectados y ajustar el stock
+- C. Añadir una validación en el conector que detecte cantidades con formato ambiguo y las rechace antes de crear el movimiento en el ERP
 - D. Solicitar al canal externo que cambie su formato de exportación al estándar del ERP
 
 **✅ Correcta: B** — C añade validación útil pero no corrige los datos ya mal importados ni la configuración regional incorrecta. A es un parche sin causa identificada. D depende de un tercero y puede tardar semanas. B corrige la causa raíz y valida el impacto histórico.
@@ -502,8 +502,8 @@ La plantilla del informe usa un método de búsqueda no diseñado para manejar m
 ### Respuestas
 - A. Deshabilitar la opción de asignar múltiples transportistas por albarán hasta tener el informe corregido
 - B. Desconsolidar manualmente los albaranes multi-transportista en albaranes separados antes de imprimir
-\1 \2orregir la plantilla del informe para que gestione correctamente el caso de múltiples transportistas, mostrando todos los asociados al albarán
-\1 \2omo solución inmediata, asignar un transportista único a cada albarán antes de imprimir; corregir la plantilla en paralelo para que soporte múltiples
+- C. Corregir la plantilla del informe para que gestione correctamente el caso de múltiples transportistas, mostrando todos los asociados al albarán
+- D. Como solución inmediata, asignar un transportista único a cada albarán antes de imprimir; corregir la plantilla en paralelo para que soporte múltiples
 
 **✅ Correcta: C** — D es un workaround manual no escalable. A y B limitan funcionalidad de negocio. C es la solución que aborda directamente el bug en la plantilla y preserva la funcionalidad multi-transportista.
 
@@ -530,8 +530,8 @@ El proceso de asignación de stock no tiene bloqueo de concurrencia: calcula el 
 
 ### Respuestas
 - A. Prohibir los ajustes de inventario durante el horario de generación de pickings
-\1 \2ñadir una verificación post-asignación que compruebe que la reserva efectivamente se registró, y reintentar en caso de discrepancia; revisar si el módulo de asignación necesita bloqueo transaccional
-\1 \2anzar los ajustes de inventario y las asignaciones de forma secuencial, nunca simultánea, como norma operativa mientras se implementa el fix técnico
+- B. Añadir una verificación post-asignación que compruebe que la reserva efectivamente se registró, y reintentar en caso de discrepancia; revisar si el módulo de asignación necesita bloqueo transaccional
+- C. Lanzar los ajustes de inventario y las asignaciones de forma secuencial, nunca simultánea, como norma operativa mientras se implementa el fix técnico
 - D. Deshabilitar la asignación automática y asignar stock manualmente en todos los pickings
 
 **✅ Correcta: B** — C es una norma operativa útil a corto plazo pero no escala ni garantiza que otros procesos no generen el mismo conflicto. A limita la operativa sin corregir el problema. D no es viable en un almacén de volumen. B aborda el problema técnico de raíz con verificación y bloqueo transaccional.
@@ -559,8 +559,8 @@ La exportación de configuración de rutas entre entornos preserva los IDs de lo
 
 ### Respuestas
 - A. Recrear todos los pedidos de venta del día desde cero asignando manualmente el almacén correcto
-\1 \2orregir las rutas en producción para que apunten a los almacenes correctos, forzar la reasignación de rutas en los pedidos existentes y monitorizar la generación de los próximos albaranes
-\1 \2ara los pedidos urgentes del día, crear los albaranes manualmente en el almacén correcto; corregir las rutas en paralelo para que los pedidos nuevos funcionen correctamente desde ese momento
+- B. Corregir las rutas en producción para que apunten a los almacenes correctos, forzar la reasignación de rutas en los pedidos existentes y monitorizar la generación de los próximos albaranes
+- C. Para los pedidos urgentes del día, crear los albaranes manualmente en el almacén correcto; corregir las rutas en paralelo para que los pedidos nuevos funcionen correctamente desde ese momento
 - D. Revertir a un proceso completamente manual de creación de albaranes durante el día de arranque
 
 **✅ Correcta: C** — B corrige el problema estructural pero los pedidos urgentes del día necesitan solución inmediata mientras se aplica el fix. A crea duplicados si los pedidos originales ya tienen movimientos parciales. D abandona la automatización sin corregir nada. C equilibra urgencia operativa y corrección técnica.
@@ -588,8 +588,8 @@ El módulo de valoración por ubicación aplica su ajuste sobre el valor que ya 
 
 ### Respuestas
 - A. Desactivar la valoración por ubicación específica y usar solo FIFO estándar para todos los productos
-\1 \2dentificar y corregir los movimientos con doble ajuste, documentar el impacto contable y evaluar si la combinación FIFO + valoración por ubicación está soportada en la versión actual del sistema
-\1 \2eparar los productos por método: los que requieren valoración por ubicación usan precio medio ponderado; los que requieren FIFO no tienen valoración por ubicación
+- B. Identificar y corregir los movimientos con doble ajuste, documentar el impacto contable y evaluar si la combinación FIFO + valoración por ubicación está soportada en la versión actual del sistema
+- C. Separar los productos por método: los que requieren valoración por ubicación usan precio medio ponderado; los que requieren FIFO no tienen valoración por ubicación
 - D. Corregir manualmente la valoración de cada producto afectado mediante asientos contables sin tocar la configuración del sistema
 
 **✅ Correcta: B** — A elimina funcionalidad que el cliente necesita. C puede ser válida pero implica cambios de metodología contable que requieren validación con auditoría. D es inviable a largo plazo. B es el único enfoque que evalúa correctamente el soporte real de la combinación y corrige los datos afectados.
