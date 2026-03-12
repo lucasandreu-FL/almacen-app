@@ -422,7 +422,9 @@ function handleMsg(m){
       S.leaderboard=[]; S.lastResults=null;
       S.allSessions=[...S.allSessions,{roomCode:m.session.roomCode,status:'LOBBY',casesCount:0,teamsCount:0}];
       updateCredsRoom(m.session.roomCode);
-      S.adminTab='casos'; persistState(); render(); break;
+      S.adminTab='casos'; persistState(); render();
+      showCredentialsModal(m.session.roomCode, m.credentials||[]);
+      break;
 
     case 'SESSION_STATE':
       S.session=m.session; S.roomCode=m.session.roomCode;
@@ -506,7 +508,6 @@ function handleMsg(m){
       S.session=m.session; S.answered=false; S.selectedAnswer=null;
       S.skipDone=false; S.lastResults=null; S.skippedByTeam=null;
       persistState(); render();
-      if(S.role==='admin') showInvitationsModal(m.session);
       break;
 
     case 'STAGE_CHANGE':
@@ -604,11 +605,6 @@ function handleMsg(m){
 
     case 'PONG': break; // heartbeat response, no-op
     case 'ERROR': toast(m.message,'error'); break;
-    case 'INVITATIONS_RESULT':
-      if(m.error) toast('⚠️ '+m.error,'error');
-      else toast(`📧 ${m.sent} email${m.sent!==1?'s':''} enviado${m.sent!==1?'s':''}${m.failed?' · ⚠️ '+m.failed+' fallido'+(m.failed!==1?'s':''):''}`
-        , m.failed?'error':'success');
-      break;
   }
 }
 
@@ -1087,28 +1083,31 @@ function kickClient(role,teamId){
   if(!confirm(`¿Forzar desconexión de ${role==='projector'?'el Proyector':'el equipo'}?`)) return;
   send({type:'ADMIN_KICK_CLIENT',payload:{role,teamId}});
 }
-function showInvitationsModal(session){
-  const teams = session.teams||[];
-  let count=0;
-  teams.forEach(st=>{
-    const ut=(S.users?.teams||[]).find(t=>t.id===st.id);
-    (ut?.memberIds||[]).forEach(pid=>{
-      const p=(S.users?.people||[]).find(p=>p.id===pid&&p.role==='user');
-      if(p) count++;
+function showCredentialsModal(roomCode, credentials){
+  const url = window.location.origin;
+  let lines = `🚨 *El Almacén en Crisis* — ¡La dinámica está lista!\n\n`;
+  lines += `🔗 ${url}\n`;
+  lines += `🏠 Código de sala: *${roomCode}*\n\n`;
+  if(credentials.length){
+    credentials.forEach(c=>{
+      lines += `*${c.teamName}*\n`;
+      lines += `  Usuario: ${c.email}\n`;
+      lines += `  Contraseña: ${c.password}\n\n`;
     });
-  });
+  } else {
+    lines += `_(No hay equipos configurados aún)_\n`;
+  }
+  lines += `⚠️ Solo puede haber *un dispositivo conectado por equipo*.`;
+  const escaped = lines.replace(/`/g,'\\`');
   openModal(`<div style="padding:8px 0">
-    <h3 style="margin:0 0 12px;font-size:18px">📧 Notificar participantes</h3>
-    <p style="color:#94a3b8;margin:0 0 20px;font-size:14px">¿Enviar email de acceso a los <strong style="color:#f1f5f9">${count} participante${count!==1?'s':''}</strong> de los equipos con sus credenciales y enlace directo?</p>
-    <div style="display:flex;gap:12px;justify-content:flex-end">
-      <button class="btn btn-sm" onclick="closeModal()" style="background:#1e293b;border:1px solid #334155">Omitir</button>
-      <button class="btn btn-primary" onclick="send({type:'ADMIN_SEND_INVITATIONS',payload:{sessionCode:'${session.roomCode}'}});closeModal()">📧 Enviar invitaciones</button>
+    <h3 style="margin:0 0 4px;font-size:18px">📋 Comparte en Slack</h3>
+    <p style="color:#64748b;font-size:13px;margin:0 0 12px">Copia este mensaje y pégalo en el canal del equipo.</p>
+    <textarea id="slack-msg" readonly style="width:100%;box-sizing:border-box;height:220px;background:#0a0e1a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:monospace;font-size:13px;padding:12px;resize:none;line-height:1.6">${lines}</textarea>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-sm" onclick="closeModal()" style="background:#1e293b;border:1px solid #334155">Cerrar</button>
+      <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('slack-msg').value).then(()=>toast('Copiado al portapapeles','success'))">📋 Copiar</button>
     </div>
   </div>`);
-}
-function resendInvitation(personId){
-  if(!S.session?.roomCode) return;
-  send({type:'ADMIN_RESEND_INVITATION',payload:{personId,sessionCode:S.session.roomCode}});
 }
 function togglePause(){
   S.paused=!S.paused; // optimistic toggle for instant UI feedback
@@ -1163,9 +1162,8 @@ function renderTeamsAdmin(){
     ${!teams.length?`<div class="card text-center" style="color:var(--text-dim);padding:2rem">Sin equipos. Primero registra personas (pestaña Personas), luego crea equipos aquí.</div>`:''}
     ${teams.map(t=>{
       const memberPeople=(t.memberIds||[]).map(id=>S.users.people?.find(p=>p.id===id)).filter(Boolean);
-      const canResend=S.session?.status==='RUNNING';
       const membersHtml=memberPeople.length
-        ? memberPeople.map(p=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:6px">${p.name}${canResend&&p.role==='user'?`<button class="btn btn-ghost" onclick="resendInvitation('${p.id}')" title="Reenviar invitación a ${p.name}" style="padding:1px 5px;font-size:11px;line-height:1.2">📧</button>`:''}</span>`).join('')
+        ? memberPeople.map(p=>`<span style="margin-right:6px">${p.name}</span>`).join('')
         : 'Sin miembros';
       return `<div class="user-row">
         <div style="width:14px;height:14px;border-radius:50%;background:${t.color||'#f5a623'};flex-shrink:0"></div>
