@@ -744,6 +744,40 @@ wss.on('connection', ws => {
 
     if (type === 'PING') { ws._isAlive = true; ws.send(JSON.stringify({ type: 'PONG' })); return; }
 
+    // ── Logout explícito ──
+    if (type === 'LOGOUT') {
+      if (!sid || !sessions[sid]) { try { ws.send(JSON.stringify({ type: 'LOGOUT_OK' })); } catch(e){} return; }
+      const session = sessions[sid];
+      const name = clientName(clientRole, clientTeamId, clientPersonId, session);
+      // Actualizar presencia
+      if (clientRole === 'team') {
+        const t = session.teams.find(t => t.id === clientTeamId);
+        if (t) t.connected = false;
+      }
+      if (clientRole === 'projector') session.projectorConnected = false;
+      if (clientRole === 'team' || clientRole === 'projector') {
+        broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session), projectorConnected: !!session.projectorConnected });
+      }
+      // Log
+      if (session.status !== 'FINISHED') {
+        logEvent(sid, 'CLIENT_DISCONNECTED', { role: clientRole, name, reason: 'logout' });
+      }
+      // Auto-pausa si RUNNING
+      if (session.status === 'RUNNING' && isTimerStage(session.currentStage)) {
+        const key = disconnectKey(clientRole, clientTeamId, clientPersonId);
+        const isRequired = !session.requiredParticipants?.size || session.requiredParticipants.has(key);
+        if (isRequired && !session.awaitingReconnect.has(key)) {
+          session.awaitingReconnect.add(key);
+          if (!session.paused) pauseTimer(sid, true);
+          saveData();
+          broadcastAll(sid, { type: 'CLIENT_DISCONNECTED', role: clientRole, name, awaitingReconnect: [...session.awaitingReconnect] });
+        }
+      }
+      ws._logoutProcessed = true;
+      try { ws.send(JSON.stringify({ type: 'LOGOUT_OK' })); } catch(e) {}
+      return;
+    }
+
     if (type === 'GET_STATE') {
       const remaining = session.paused
         ? session.pausedRemaining
@@ -758,6 +792,8 @@ wss.on('connection', ws => {
     waitingClients.forEach(c => { if (c.ws === ws) waitingClients.delete(c); });
 
     if (!sid || !clients[sid]) return;
+    // Si ya fue procesado por LOGOUT explícito, solo limpiar clients
+    if (ws._logoutProcessed) { clients[sid].forEach(c => { if (c.ws === ws) clients[sid].delete(c); }); return; }
     clients[sid].forEach(c => { if (c.ws === ws) clients[sid].delete(c); });
 
     const session = sessions[sid];

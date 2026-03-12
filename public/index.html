@@ -233,6 +233,10 @@ function clearPersistedState(){try{localStorage.removeItem('alm_state');}catch{}
 
 function logout(){
   clearTimeout(_reconnTimer);
+  // Notificar al servidor antes de cerrar (logout explícito y trazable)
+  if(S.ws?.readyState===1 && S.role && S.session?.roomCode){
+    try{ S.ws.send(JSON.stringify({type:'LOGOUT'})); }catch(e){}
+  }
   if(S.ws&&S.ws.readyState<2){S.ws.onclose=null;S.ws.onerror=null;S.ws.close();}
   S.ws=null; _isReconnecting=false;
   const el=document.getElementById('reconnect-overlay');if(el)el.remove();
@@ -519,7 +523,7 @@ function handleMsg(m){
       }
       S.leaderboard=m.leaderboard||[];
       refreshLeaderboards(); refreshTeamList();
-      if(S.role==='admin' && S.session?.status==='LOBBY') render();
+      if(S.role==='admin') render(); // siempre: actualiza dots de conexión en LOBBY y RUNNING
       break;
 
     case 'TEAM_SKIPPED':
