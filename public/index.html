@@ -502,7 +502,9 @@ function handleMsg(m){
     case 'SESSION_STARTED':
       S.session=m.session; S.answered=false; S.selectedAnswer=null;
       S.skipDone=false; S.lastResults=null; S.skippedByTeam=null;
-      persistState(); render(); break;
+      persistState(); render();
+      if(S.role==='admin') showInvitationsModal(m.session);
+      break;
 
     case 'STAGE_CHANGE':
       S.session=m.session; S.answered=false; S.selectedAnswer=null;
@@ -599,6 +601,11 @@ function handleMsg(m){
 
     case 'PONG': break; // heartbeat response, no-op
     case 'ERROR': toast(m.message,'error'); break;
+    case 'INVITATIONS_RESULT':
+      if(m.error) toast('⚠️ '+m.error,'error');
+      else toast(`📧 ${m.sent} email${m.sent!==1?'s':''} enviado${m.sent!==1?'s':''}${m.failed?' · ⚠️ '+m.failed+' fallido'+(m.failed!==1?'s':''):''}`
+        , m.failed?'error':'success');
+      break;
   }
 }
 
@@ -1076,6 +1083,29 @@ function kickClient(role,teamId){
   if(!confirm(`¿Forzar desconexión de ${role==='projector'?'el Proyector':'el equipo'}?`)) return;
   send({type:'ADMIN_KICK_CLIENT',payload:{role,teamId}});
 }
+function showInvitationsModal(session){
+  const teams = session.teams||[];
+  let count=0;
+  teams.forEach(st=>{
+    const ut=(S.users?.teams||[]).find(t=>t.id===st.id);
+    (ut?.memberIds||[]).forEach(pid=>{
+      const p=(S.users?.people||[]).find(p=>p.id===pid&&p.role==='user');
+      if(p) count++;
+    });
+  });
+  openModal(`<div style="padding:8px 0">
+    <h3 style="margin:0 0 12px;font-size:18px">📧 Notificar participantes</h3>
+    <p style="color:#94a3b8;margin:0 0 20px;font-size:14px">¿Enviar email de acceso a los <strong style="color:#f1f5f9">${count} participante${count!==1?'s':''}</strong> de los equipos con sus credenciales y enlace directo?</p>
+    <div style="display:flex;gap:12px;justify-content:flex-end">
+      <button class="btn btn-sm" onclick="closeModal()" style="background:#1e293b;border:1px solid #334155">Omitir</button>
+      <button class="btn btn-primary" onclick="send({type:'ADMIN_SEND_INVITATIONS',payload:{sessionCode:'${session.roomCode}'}});closeModal()">📧 Enviar invitaciones</button>
+    </div>
+  </div>`);
+}
+function resendInvitation(personId){
+  if(!S.session?.roomCode) return;
+  send({type:'ADMIN_RESEND_INVITATION',payload:{personId,sessionCode:S.session.roomCode}});
+}
 function togglePause(){
   S.paused=!S.paused; // optimistic toggle for instant UI feedback
   syncPauseBtn();
@@ -1128,12 +1158,16 @@ function renderTeamsAdmin(){
     </div>
     ${!teams.length?`<div class="card text-center" style="color:var(--text-dim);padding:2rem">Sin equipos. Primero registra personas (pestaña Personas), luego crea equipos aquí.</div>`:''}
     ${teams.map(t=>{
-      const members=(t.memberIds||[]).map(id=>S.users.people?.find(p=>p.id===id)?.name||id);
+      const memberPeople=(t.memberIds||[]).map(id=>S.users.people?.find(p=>p.id===id)).filter(Boolean);
+      const canResend=S.session?.status==='RUNNING';
+      const membersHtml=memberPeople.length
+        ? memberPeople.map(p=>`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:6px">${p.name}${canResend&&p.role==='user'?`<button class="btn btn-ghost" onclick="resendInvitation('${p.id}')" title="Reenviar invitación a ${p.name}" style="padding:1px 5px;font-size:11px;line-height:1.2">📧</button>`:''}</span>`).join('')
+        : 'Sin miembros';
       return `<div class="user-row">
         <div style="width:14px;height:14px;border-radius:50%;background:${t.color||'#f5a623'};flex-shrink:0"></div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:1rem">${t.teamName}</div>
-          <div style="font-size:.78rem;color:var(--text-dim)">${members.join(', ')||'Sin miembros'}</div>
+          <div style="font-size:.78rem;color:var(--text-dim);display:flex;flex-wrap:wrap;align-items:center;gap:2px">${membersHtml}</div>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="openEditTeam('${t.id}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="delTeam('${t.id}')">✕</button>

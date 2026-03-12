@@ -4,6 +4,7 @@ const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
@@ -335,6 +336,73 @@ function clientName(role, teamId, personId, session) {
   return 'Proyector';
 }
 
+// ── Email invitaciones ────────────────────────────────────────────────────────
+async function sendInvitationEmail(person, team, session, fromName) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return { ok: false, email: person.email, error: 'SMTP no configurado' };
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com', port: 465, secure: true,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    // Compañeros de equipo
+    const userTeam = users.teams.find(t => t.id === team.id);
+    const teammates = (userTeam?.memberIds || [])
+      .filter(id => id !== person.id)
+      .map(id => users.people.find(p => p.id === id)?.name || id);
+    const accent = team.color || '#f5a623';
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+      body{margin:0;padding:0;background:#0a0e1a;font-family:Arial,sans-serif;color:#e2e8f0}
+      .wrap{max-width:560px;margin:0 auto;padding:32px 16px}
+      .header{text-align:center;padding:24px 0 16px}
+      .badge{display:inline-block;background:${accent}22;border:2px solid ${accent};color:${accent};padding:6px 18px;border-radius:20px;font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+      h1{font-size:22px;color:#f1f5f9;margin:12px 0 4px;text-align:center}
+      .section{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:20px;margin:16px 0}
+      .section h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:#64748b;margin:0 0 12px}
+      .team-name{font-size:18px;font-weight:700;color:${accent};margin-bottom:6px}
+      .mates{font-size:14px;color:#94a3b8;line-height:1.8}
+      .cred-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e293b}
+      .cred-row:last-child{border-bottom:none}
+      .cred-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px}
+      .cred-value{font-family:monospace;font-size:15px;color:#f1f5f9;background:#0a0e1a;padding:4px 10px;border-radius:6px;border:1px solid #334155}
+      .btn{display:block;text-align:center;background:${accent};color:#0a0e1a;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;text-decoration:none;margin:24px auto;width:fit-content}
+      .footer{text-align:center;font-size:12px;color:#475569;margin-top:24px;line-height:1.7}
+      .warn{background:#7c2d1222;border:1px solid #7c2d12;border-radius:8px;padding:12px 16px;font-size:13px;color:#fca5a5;margin-top:16px}
+    </style></head><body><div class="wrap">
+      <div class="header">
+        <div class="badge">El Almacén en Crisis</div>
+        <h1>¡La dinámica ha comenzado!</h1>
+        <p style="color:#64748b;font-size:14px;margin:0">Sala: <strong style="color:#e2e8f0">${session.roomCode}</strong></p>
+      </div>
+      <div class="section">
+        <h2>Tu equipo</h2>
+        <div class="team-name">${team.teamName}</div>
+        ${teammates.length ? `<div class="mates">Compañeros: ${teammates.join(', ')}</div>` : ''}
+      </div>
+      <div class="section">
+        <h2>Tus credenciales de acceso</h2>
+        <div class="cred-row"><span class="cred-label">Email</span><span class="cred-value">${person.email}</span></div>
+        <div class="cred-row"><span class="cred-label">Contraseña</span><span class="cred-value">${person.password}</span></div>
+        <div class="cred-row"><span class="cred-label">Código de sala</span><span class="cred-value">${session.roomCode}</span></div>
+      </div>
+      <a class="btn" href="https://almacen-app-production-2d12.up.railway.app/">🚀 Entrar ahora</a>
+      <div class="warn">⚠️ Solo puede haber <strong>un dispositivo conectado por equipo</strong>. Si alguien de tu equipo ya está dentro, espera a que salga antes de conectarte.</div>
+      <div class="footer">Enviado por ${fromName} · El Almacén en Crisis — FactorLibre</div>
+    </div></body></html>`;
+    await transporter.sendMail({
+      from: `"${process.env.SMTP_FROM_NAME || fromName}" <${process.env.SMTP_USER}>`,
+      to: person.email,
+      subject: `🚨 El Almacén en Crisis — Acceso para el equipo ${team.teamName}`,
+      html
+    });
+    return { ok: true, email: person.email };
+  } catch (e) {
+    console.error('[EMAIL] Error enviando a', person.email, e.message);
+    return { ok: false, email: person.email, error: e.message };
+  }
+}
+
 // ── WebSocket ──────────────────────────────────────────────────────────────────
 wss.on('connection', ws => {
   ws._isAlive = true;
@@ -368,7 +436,7 @@ wss.on('connection', ws => {
     }
   }
 
-  ws.on('message', raw => {
+  ws.on('message', async raw => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
     const { type, payload } = msg;
 
@@ -707,6 +775,46 @@ wss.on('connection', ws => {
       } else {
         pauseTimer(sid, false);
       }
+      return;
+    }
+
+    if (type === 'ADMIN_SEND_INVITATIONS' && clientRole === 'admin') {
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent: 0, failed: 0, error: 'SMTP no configurado. Añade SMTP_USER y SMTP_PASS en las variables de entorno.' }));
+        return;
+      }
+      const fromName = users.people.find(p => p.id === clientPersonId)?.name || 'Admin';
+      const promises = [];
+      session.teams.forEach(st => {
+        const ut = users.teams.find(t => t.id === st.id);
+        (ut?.memberIds || []).forEach(pid => {
+          const person = users.people.find(p => p.id === pid && p.role === 'user');
+          if (person) promises.push(sendInvitationEmail(person, st, session, fromName));
+        });
+      });
+      const results = await Promise.allSettled(promises);
+      const flat = results.map(r => r.status === 'fulfilled' ? r.value : { ok: false, email: '?', error: r.reason?.message });
+      const sent = flat.filter(r => r.ok).length;
+      const failed = flat.filter(r => !r.ok).length;
+      logEvent(sid, 'INVITATIONS_SENT', { sent, failed });
+      ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent, failed, results: flat }));
+      return;
+    }
+
+    if (type === 'ADMIN_RESEND_INVITATION' && clientRole === 'admin') {
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent: 0, failed: 0, error: 'SMTP no configurado. Añade SMTP_USER y SMTP_PASS en las variables de entorno.' }));
+        return;
+      }
+      const { personId: targetPersonId } = payload;
+      const person = users.people.find(p => p.id === targetPersonId && p.role === 'user');
+      if (!person) { ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent: 0, failed: 1, results: [{ ok: false, email: '?', error: 'Usuario no encontrado' }] })); return; }
+      const ut = users.teams.find(t => (t.memberIds || []).includes(targetPersonId));
+      const st = ut ? session.teams.find(t => t.id === ut.id) || { id: ut.id, teamName: ut.teamName, color: ut.color } : null;
+      if (!st) { ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent: 0, failed: 1, results: [{ ok: false, email: person.email, error: 'Equipo no encontrado en la sesión' }] })); return; }
+      const fromName = users.people.find(p => p.id === clientPersonId)?.name || 'Admin';
+      const result = await sendInvitationEmail(person, st, session, fromName);
+      ws.send(JSON.stringify({ type: 'INVITATIONS_RESULT', sent: result.ok ? 1 : 0, failed: result.ok ? 0 : 1, results: [result] }));
       return;
     }
 

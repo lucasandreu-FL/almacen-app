@@ -48,6 +48,14 @@
         "password": "123456",
         "role": "user",
         "createdAt": 1773248285726
+      },
+      {
+        "id": "137609c5-287c-4a90-9d9a-21b0521dc9fc",
+        "name": "USER 1",
+        "email": "USER1",
+        "password": "123456",
+        "role": "user",
+        "createdAt": 1773317779736
       }
     ],
     "teams": [
@@ -65,7 +73,8 @@
         "teamName": "Equipo 2",
         "memberIds": [
           "424eb54d-1c07-4732-88bd-b4ee48aaf24d",
-          "ccf8cb05-9c81-4c43-b4bd-d5e644d21f76"
+          "ccf8cb05-9c81-4c43-b4bd-d5e644d21f76",
+          "137609c5-287c-4a90-9d9a-21b0521dc9fc"
         ],
         "createdAt": 1773188545582,
         "color": "#ec4899"
