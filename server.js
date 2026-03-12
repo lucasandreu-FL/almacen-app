@@ -24,6 +24,7 @@ setInterval(() => {
 // ── Data persistence ──────────────────────────────────────────────────────────
 // DATA_DIR permite apuntar a un volumen persistente (ej: Railway Volume en /data)
 const DATA_FILE = path.join(process.env.DATA_DIR || __dirname, 'data.json');
+console.log(`[PERSISTENCIA] DATA_DIR=${process.env.DATA_DIR||'(no definida)'} → DATA_FILE=${DATA_FILE}`);
 
 const DEFAULT_PEOPLE = [
   { id: 'person-1', name: 'Lucas Andreu',  email: 'lucas.andreu@factorlibre.com',  password: 'lucas12345',   role: 'admin', createdAt: Date.now() },
@@ -860,6 +861,20 @@ app.post('/api/beacon-disconnect', express.text({ type: '*/*' }), (req, res) => 
 });
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
+app.get('/api/debug-persistence', (_, res) => {
+  const exists = fs.existsSync(DATA_FILE);
+  let size = null;
+  try { size = exists ? fs.statSync(DATA_FILE).size : 0; } catch(e) {}
+  res.json({
+    DATA_DIR: process.env.DATA_DIR || '(no definida)',
+    DATA_FILE,
+    fileExists: exists,
+    fileSizeBytes: size,
+    people: users.people.length,
+    teams: users.teams.length,
+    sessions: Object.keys(sessions).length
+  });
+});
 app.get('/api/sessions/public', (_, res) => {
   res.json(Object.values(sessions)
     .filter(s => s.status !== 'FINISHED')
