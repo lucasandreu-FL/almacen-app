@@ -46,8 +46,8 @@ function saveData() {
       sessions: Object.fromEntries(
         Object.entries(sessions).map(([code, s]) => {
           // eslint-disable-next-line no-unused-vars
-          const { timer, awaitingReconnect, ...rest } = s;
-          return [code, rest]; // timer y awaitingReconnect son transitorios
+          const { timer, awaitingReconnect, requiredParticipants, ...rest } = s;
+          return [code, { ...rest, requiredParticipants: [...(requiredParticipants || [])] }];
         })
       )
     };
@@ -97,6 +97,7 @@ function loadData() {
         ...s,
         timer: null,
         awaitingReconnect: new Set(),
+        requiredParticipants: new Set(s.requiredParticipants || []),
         pausedByDisconnect: false // al reiniciar server se resetea — admin puede reanudar manualmente
       };
     }
@@ -352,6 +353,7 @@ wss.on('connection', ws => {
 
     const key = disconnectKey(role, teamId, personId);
     const cname = clientName(role, teamId, personId, session);
+    if (role === 'projector') session.projectorConnected = true;
     logEvent(sid, 'CLIENT_CONNECTED', { role, name: cname });
     if (session.awaitingReconnect?.has(key)) {
       session.awaitingReconnect.delete(key);
@@ -408,6 +410,20 @@ wss.on('connection', ws => {
       } else {
         sessionTeam.connected = true;
       }
+      // Verificar que no haya otro usuario del mismo equipo ya conectado
+      if (session.status === 'RUNNING' && clients[sid]) {
+        const teamKey = `team:${team.id}`;
+        const isReconnecting = session.awaitingReconnect?.has(teamKey);
+        const existingConns = [...clients[sid]].filter(c => c.teamId === team.id);
+        if (existingConns.length > 0) {
+          if (!isReconnecting) {
+            ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: `Tu equipo "${team.teamName}" ya tiene una sesión activa. Solo puede haber un dispositivo conectado por equipo.` }));
+            return;
+          }
+          // Reconexión legítima → terminar conexiones zombie del mismo equipo
+          existingConns.forEach(c => { c.ws._closeReason = 'replaced'; c.ws.terminate(); });
+        }
+      }
       joinSession(session, 'team', team.id, person.id);
       ws.send(JSON.stringify({
         type: 'TEAM_LOGIN_OK',
@@ -420,7 +436,7 @@ wss.on('connection', ws => {
         awaitingReconnect: [...(session.awaitingReconnect || [])],
         lastResults: session.lastResults
       }));
-      broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session) });
+      broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session), projectorConnected: !!session.projectorConnected });
       return;
     }
 
@@ -443,6 +459,8 @@ wss.on('connection', ws => {
         awaitingReconnect: [...(session.awaitingReconnect || [])],
         lastResults: session.lastResults
       }));
+      // Notificar a admin/equipos que el proyector está conectado
+      broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session), projectorConnected: true });
       return;
     }
 
@@ -465,7 +483,8 @@ wss.on('connection', ws => {
         config: { stage1Time:60, stage1DebateTime:120, stage2Time:90, stage2DebateTime:300, stage3Time:60, stage3DebateTime:180, resultsTime:20 },
         currentCaseIndex:0, currentStage:'LOBBY', skipTeamId:null, skipAvailable:false,
         timer:null, timerEnd:null, paused:false, pausedRemaining:null, pausedByDisconnect:false,
-        lastResults:null, awaitingReconnect: new Set(), eventLog: [], createdAt: Date.now()
+        lastResults:null, awaitingReconnect: new Set(), requiredParticipants: new Set(),
+        projectorConnected: false, eventLog: [], createdAt: Date.now()
       };
       joinSession(sessions[code], 'admin', null, clientPersonId);
       saveData();
@@ -628,10 +647,22 @@ wss.on('connection', ws => {
     if (type === 'ADMIN_START_SESSION' && clientRole === 'admin') {
       if (!session.cases.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Añade al menos un caso' })); return; }
       if (!session.teams.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Ningún equipo conectado todavía' })); return; }
+      if (!session.projectorConnected) { ws.send(JSON.stringify({ type: 'ERROR', message: 'El proyector debe estar conectado antes de iniciar la sesión' })); return; }
       const running = Object.values(sessions).find(s => s.status === 'RUNNING' && s.roomCode !== session.roomCode);
       if (running) { ws.send(JSON.stringify({ type: 'ERROR', message: `Ya hay una sesión en curso (${running.roomCode})` })); return; }
+      // Capturar participantes requeridos: todos los que están conectados ahora
+      const required = new Set();
+      required.add(disconnectKey('admin', null, clientPersonId));
+      required.add('projector');
+      if (clients[sid]) {
+        clients[sid].forEach(c => {
+          if (c.role === 'team') required.add(disconnectKey('team', c.teamId, c.personId));
+        });
+      }
+      session.requiredParticipants = required;
       session.status = 'RUNNING';
       session.currentCaseIndex = 0;
+      logEvent(sid, 'SESSION_PARTICIPANTS_SNAPSHOT', { participants: [...required] });
       logEvent(sid, 'SESSION_STARTED', { teamsCount: session.teams.length, casesCount: session.cases.length });
       saveData();
       broadcastAll(sid, { type: 'SESSION_STARTED', session: getPublicSession(session) });
@@ -740,24 +771,40 @@ wss.on('connection', ws => {
     });
     if (stillConnected) return;
 
-    // Marcar equipo como desconectado
+    // Actualizar estado de presencia del rol
     if (clientRole === 'team') {
       const t = session.teams.find(t => t.id === clientTeamId);
       if (t) t.connected = false;
-      broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session) });
+    }
+    if (clientRole === 'projector') {
+      session.projectorConnected = false;
     }
 
-    // Auto-pausa si hay timer activo
+    // Notificar cambio de presencia a todos
+    if (clientRole === 'team' || clientRole === 'projector') {
+      broadcastAll(sid, { type: 'TEAMS_UPDATED', teams: session.teams, leaderboard: getLeaderboard(session), projectorConnected: !!session.projectorConnected });
+    }
+
+    // Loguear en cualquier estado activo (no FINISHED)
+    const name = clientName(clientRole, clientTeamId, clientPersonId, session);
+    const reason = ws._closeReason || 'ws_close';
+    if (session.status !== 'FINISHED') {
+      logEvent(sid, 'CLIENT_DISCONNECTED', { role: clientRole, name, reason });
+    }
+
+    // Auto-pausa solo si RUNNING, timer activo y participante requerido
     if (session.status === 'RUNNING' && isTimerStage(session.currentStage)) {
       const key = disconnectKey(clientRole, clientTeamId, clientPersonId);
-      session.awaitingReconnect = session.awaitingReconnect || new Set();
-      session.awaitingReconnect.add(key);
-      const name = clientName(clientRole, clientTeamId, clientPersonId, session);
-      const reason = ws._closeReason || 'ws_close';
-      logEvent(sid, 'CLIENT_DISCONNECTED', { role: clientRole, name, reason });
-      if (!session.paused) pauseTimer(sid, true);
-      saveData();
-      broadcastAll(sid, { type: 'CLIENT_DISCONNECTED', role: clientRole, name, awaitingReconnect: [...session.awaitingReconnect] });
+      const isRequired = !session.requiredParticipants?.size || session.requiredParticipants.has(key);
+      if (isRequired) {
+        session.awaitingReconnect = session.awaitingReconnect || new Set();
+        if (!session.awaitingReconnect.has(key)) {
+          session.awaitingReconnect.add(key);
+          if (!session.paused) pauseTimer(sid, true);
+          saveData();
+          broadcastAll(sid, { type: 'CLIENT_DISCONNECTED', role: clientRole, name, awaitingReconnect: [...session.awaitingReconnect] });
+        }
+      }
     }
   });
 });
@@ -776,17 +823,39 @@ loadData();
 // Beacon: cierre de pestaña/navegador detectado por el cliente
 app.post('/api/beacon-disconnect', express.text({ type: '*/*' }), (req, res) => {
   try {
-    const { sessionCode, role, teamId, personId } = JSON.parse(req.body || '{}');
-    if (!sessionCode || !clients[sessionCode]) return res.sendStatus(204);
-    // Encontrar la WS de este cliente y terminarla para disparar ws.on('close')
-    clients[sessionCode].forEach(c => {
-      const roleMatch = role === 'team'     ? c.teamId === teamId
-                      : role === 'admin'    ? c.role === 'admin'
-                      : role === 'projector'? c.role === 'projector'
-                      : false;
-      if (roleMatch) { c.ws._closeReason = 'beacon'; c.ws.terminate(); }
-    });
-  } catch(e) { /* ignorar */ }
+    const { sessionCode, role, teamId, personId, name: beaconName } = JSON.parse(req.body || '{}');
+    const session = sessions[sessionCode];
+    if (!session) return res.sendStatus(204);
+
+    // Caso A: WS aún en clients[] → terminarlo; ws.on('close') manejará todo
+    let wsFound = false;
+    if (clients[sessionCode]) {
+      clients[sessionCode].forEach(c => {
+        const match = role === 'team'      ? c.teamId === teamId
+                    : role === 'admin'     ? c.role === 'admin'
+                    : role === 'projector' ? c.role === 'projector'
+                    : false;
+        if (match) { wsFound = true; c.ws._closeReason = 'beacon'; c.ws.terminate(); }
+      });
+    }
+
+    // Caso B: WS ya cerrado pero la sesión aún no lo refleja (race condition)
+    if (!wsFound && session.status === 'RUNNING' && isTimerStage(session.currentStage)) {
+      const key = disconnectKey(role, teamId, personId);
+      const isRequired = !session.requiredParticipants?.size || session.requiredParticipants.has(key);
+      if (isRequired) {
+        if (!session.awaitingReconnect) session.awaitingReconnect = new Set();
+        if (!session.awaitingReconnect.has(key)) {
+          session.awaitingReconnect.add(key);
+          const name = beaconName || clientName(role, teamId, personId, session);
+          logEvent(sessionCode, 'CLIENT_DISCONNECTED', { role, name, reason: 'beacon_fallback' });
+          if (!session.paused) pauseTimer(sessionCode, true);
+          saveData();
+          broadcastAll(sessionCode, { type: 'CLIENT_DISCONNECTED', role, name, awaitingReconnect: [...session.awaitingReconnect] });
+        }
+      }
+    }
+  } catch(e) { console.error('[beacon-disconnect]', e.message); }
   res.sendStatus(204);
 });
 

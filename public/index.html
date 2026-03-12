@@ -319,11 +319,13 @@ window.addEventListener('beforeunload', e=>{
 window.addEventListener('pagehide', e=>{
   if(e.persisted) return; // bfcache, no es un cierre real
   if(!S.role || !S.session?.roomCode) return;
+  const displayName = S.role==='team'?(S.team?.teamName||'Equipo'):S.role==='admin'?(S.admin?.name||'Admin'):'Proyector';
   const payload=JSON.stringify({
     sessionCode: S.session.roomCode,
     role: S.role,
     teamId: S.team?.id||null,
-    personId: S.person?.id||null
+    personId: S.person?.id||null,
+    name: displayName
   });
   navigator.sendBeacon('/api/beacon-disconnect', payload);
 });
@@ -507,7 +509,10 @@ function handleMsg(m){
       updateTimerUI(); syncPauseBtn(); break;
 
     case 'TEAMS_UPDATED':
-      if(S.session) S.session.teams=m.teams;
+      if(S.session){
+        S.session.teams=m.teams;
+        if(m.projectorConnected!==undefined) S.session.projectorConnected=m.projectorConnected;
+      }
       S.leaderboard=m.leaderboard||[];
       refreshLeaderboards(); refreshTeamList();
       if(S.role==='admin' && S.session?.status==='LOBBY') render();
@@ -965,10 +970,11 @@ function renderControl(){
     <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Control · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
 
     ${!running&&!finished?`<div class="card card-accent text-center" style="padding:2.5rem;margin-bottom:1.5rem">
-      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.cases.length} caso(s) · ${s.teams?.length||0} equipo(s) en sala</div>
-      <button class="btn btn-primary btn-xl" onclick="startSession()" ${!s.cases.length||!s.teams?.length?'disabled':''}>🚀 Iniciar dinámica</button>
+      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.cases.length} caso(s) · ${s.teams?.length||0} equipo(s) en sala · Proyector: ${s.projectorConnected?'<span style="color:var(--green)">✓ conectado</span>':'<span style="color:var(--red)">✗ no conectado</span>'}</div>
+      <button class="btn btn-primary btn-xl" onclick="startSession()" ${!s.cases.length||!s.teams?.length||!s.projectorConnected?'disabled':''}>🚀 Iniciar dinámica</button>
       ${!s.cases.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.75rem">Añade casos en la pestaña Casos</div>':''}
       ${!s.teams?.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.5rem">Ningún equipo conectado todavía</div>':''}
+      ${!s.projectorConnected?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.5rem">El proyector debe conectarse antes de iniciar</div>':''}
     </div>`:''}
 
     ${running?`
@@ -1018,7 +1024,7 @@ function renderControl(){
           const adminConn=!adminKey||!dc.has(adminKey);
           rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${adminConn?'var(--green)':'var(--red)'};background:${adminConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${adminConn?'':'off'}"></div><span style="font-size:.82rem">Admin</span></div>`);
           // Projector
-          const projConn=!dc.has('projector');
+          const projConn=s.projectorConnected&&!dc.has('projector');
           rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${projConn?'var(--green)':'var(--red)'};background:${projConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${projConn?'':'off'}"></div><span style="font-size:.82rem">Proyector</span></div>`);
           // Teams
           (s.teams||[]).forEach(t=>{
