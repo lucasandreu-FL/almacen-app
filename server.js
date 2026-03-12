@@ -54,8 +54,9 @@ function saveData() {
       )
     };
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+    console.log(`[SAVE] OK → ${users.people.length} personas, ${users.teams.length} equipos, ${Object.keys(sessions).length} sesiones`);
   } catch (err) {
-    console.error('Error guardando data.json:', err.message);
+    console.error('[SAVE] ERROR escribiendo data.json:', err.message);
   }
 }
 
