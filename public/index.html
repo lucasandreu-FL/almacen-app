@@ -58,6 +58,9 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .timer-ring .progress{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .5s linear,stroke .5s}
 .timer-ring .label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)}
 .timer-ring .time-text{font-size:1.4rem;font-weight:700}
+@keyframes timerUrgent{0%,100%{opacity:1}50%{opacity:.2}}
+.timer-urgent .progress{animation:timerUrgent 1s ease-in-out infinite}
+.timer-urgent .time-text{animation:timerUrgent 1s ease-in-out infinite;color:#ef4444}
 .timer-ring .status-text{font-size:.55rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
 
 .badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .9rem;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
@@ -618,16 +621,38 @@ function handleMsg(m){
 // ══════════════════════════════════════════════════════
 // PARTIAL UPDATES (no full re-render)
 // ══════════════════════════════════════════════════════
+let _audioCtx=null;
+function _getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();return _audioCtx;}
+function _playUrgentBeep(){
+  try{
+    const ctx=_getAudioCtx();
+    const osc=ctx.createOscillator(),gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.value=880;osc.type='sine';
+    gain.gain.setValueAtTime(0.25,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.12);
+    osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.12);
+  }catch(e){}
+}
+let _lastBeepSec=-1;
 function updateTimerUI(){
   document.querySelectorAll('.timer-display').forEach(el=>{
     const total=parseInt(el.dataset.total)||120, r=S.timerRemaining;
     const pct=Math.max(0,r/total), radius=50, circ=2*Math.PI*radius;
-    const color=r>total*.5?'#22c55e':r>total*.2?'#f5a623':'#ef4444';
+    const isUrgent=r>0&&pct<=0.15;
+    const color=pct>0.5?'#22c55e':pct>0.15?'#f5a623':'#ef4444';
     const prog=el.querySelector('.progress');
     if(prog){prog.style.strokeDashoffset=circ*(1-pct);prog.style.stroke=color;prog.style.strokeDasharray=circ;}
     const tt=el.querySelector('.time-text'); if(tt) tt.textContent=fmt(r);
     const st=el.querySelector('.status-text'); if(st) st.textContent=S.paused?'PAUSADO':'restante';
+    el.classList.toggle('timer-urgent',isUrgent&&!S.paused);
   });
+  // sonido urgente: un beep por segundo sincronizado con el tick
+  const r=S.timerRemaining, total=currentTimerTotal();
+  if(r>0&&r/total<=0.15&&!S.paused&&r!==_lastBeepSec){
+    _lastBeepSec=r;
+    _playUrgentBeep();
+  }
 }
 
 function syncPauseBtn(){
