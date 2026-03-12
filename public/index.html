@@ -173,6 +173,7 @@ const S = {
 };
 const TEAM_COLORS=['#f5a623','#e85d4a','#22c55e','#3b82f6','#8b5cf6','#06b6d4','#ec4899','#eab308'];
 let _publicSessions = []; // sesiones no finalizadas, para el dropdown de login
+let _lastLogoutCreds = null; // credenciales del último logout, para pre-rellenar el formulario
 let _cdTimer = null, _cdValue = 0, _cdCaseIdx = -1;
 
 function startCountdown(caseIdx){
@@ -240,6 +241,8 @@ function logout(){
   if(S.ws&&S.ws.readyState<2){S.ws.onclose=null;S.ws.onerror=null;S.ws.close();}
   S.ws=null; _isReconnecting=false;
   const el=document.getElementById('reconnect-overlay');if(el)el.remove();
+  // Guardar credenciales en memoria para pre-rellenar HOME (se pierde al refrescar)
+  _lastLogoutCreds = loadCreds();
   clearCreds(); clearPersistedState();
   Object.assign(S,{
     view:'HOME',role:null,session:null,team:null,admin:null,roomCode:null,
@@ -744,15 +747,15 @@ function renderHome(){
         <div class="flex col gap-2">
           <div class="field-row">
             <label>Email</label>
-            <input id="l-email" type="email" placeholder="tu@factorlibre.com" onkeydown="if(event.key==='Enter')doLogin()"/>
+            <input id="l-email" type="email" placeholder="tu@factorlibre.com" value="${_lastLogoutCreds?.email||''}" onkeydown="if(event.key==='Enter')doLogin()"/>
           </div>
           <div class="field-row">
             <label>Contraseña</label>
-            <input id="l-pass" type="password" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+            <input id="l-pass" type="password" placeholder="••••••" value="${_lastLogoutCreds?.pass||''}" onkeydown="if(event.key==='Enter')doLogin()"/>
           </div>
           <div class="field-row">
             <label>Código de sesión <span style="color:var(--text-dim);text-transform:none;letter-spacing:0;font-size:.7rem">(equipos — opcional para admin)</span></label>
-            <input id="l-room" list="dl-sessions" placeholder="ABC123" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')doLogin()"/>
+            <input id="l-room" list="dl-sessions" placeholder="ABC123" value="${_lastLogoutCreds?.room||''}" autocomplete="off" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')doLogin()"/>
             <datalist id="dl-sessions">
               ${_publicSessions.map(s=>`<option value="${s.roomCode}">${s.roomCode} — ${s.status==='RUNNING'?'En curso':'Sala de espera'}</option>`).join('')}
             </datalist>
@@ -798,6 +801,7 @@ function doLogin(){
   const room=($('l-room')?.value.trim()||'').toUpperCase();
   if(!email||!pass){toast('Introduce email y contraseña','error');return;}
   clearLoginError();
+  _lastLogoutCreds = null;
   setLoginLoading(true);
   saveCreds({email,pass,room});
   connectWS({type:'UNIFIED_LOGIN',payload:{email,password:pass,roomCode:room||undefined}});
