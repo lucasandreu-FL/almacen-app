@@ -861,20 +861,6 @@ app.post('/api/beacon-disconnect', express.text({ type: '*/*' }), (req, res) => 
 });
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
-app.get('/api/debug-persistence', (_, res) => {
-  const exists = fs.existsSync(DATA_FILE);
-  let size = null;
-  try { size = exists ? fs.statSync(DATA_FILE).size : 0; } catch(e) {}
-  res.json({
-    DATA_DIR: process.env.DATA_DIR || '(no definida)',
-    DATA_FILE,
-    fileExists: exists,
-    fileSizeBytes: size,
-    people: users.people.length,
-    teams: users.teams.length,
-    sessions: Object.keys(sessions).length
-  });
-});
 app.get('/api/sessions/public', (_, res) => {
   res.json(Object.values(sessions)
     .filter(s => s.status !== 'FINISHED')

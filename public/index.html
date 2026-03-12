@@ -431,7 +431,11 @@ function handleMsg(m){
         S.skippedByTeam=m.session.skipTeamId
           ?{id:m.session.skipTeamId,name:m.session.teams?.find(t=>t.id===m.session.skipTeamId)?.teamName||'Equipo'}
           :null;
-        S.answered=false; S.selectedAnswer=null; S.answeredCount=Object.keys(m.session.answers||{}).length;
+        // Restaurar respuesta ya enviada (evita doble respuesta tras reconexión)
+        const _myAns=m.session.answers?.[m.team.id];
+        S.answered=!!_myAns;
+        S.selectedAnswer=_myAns?.answerIndex??null;
+        S.answeredCount=Object.keys(m.session.answers||{}).length;
       } else {
         S.leaderboard=[]; S.lastResults=null;
         S.answered=false; S.selectedAnswer=null; S.skipDone=false;
@@ -1315,6 +1319,7 @@ function renderLogEntry(e){
   const ts=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
   const colorMap={
     SESSION_STARTED:'var(--green)',SESSION_FINISHED:'var(--accent)',
+    SESSION_PARTICIPANTS_SNAPSHOT:'var(--blue)',
     STAGE_CHANGE:'var(--blue)',CASE_RESOLVED:'var(--accent)',NEXT_CASE:'var(--accent)',
     TEAM_SKIP:'#f97316',TEAM_ANSWER:'var(--blue)',
     TIMER_PAUSED:'var(--red)',TIMER_RESUMED:'var(--green)',
@@ -1322,7 +1327,10 @@ function renderLogEntry(e){
     SERVER_RESTART:'#c084fc',
   };
   const col=colorMap[e.ev]||'var(--text-dim)';
-  const caseTag=e.ci!==undefined&&e.ci!==null?`<span style="color:var(--text-dim)">[Caso ${e.ci+1}]</span> `:'';
+  // Solo mostrar [Caso N] si estamos en sesión activa (no en LOBBY)
+  const caseTag=e.ci!==undefined&&e.ci!==null&&e.stage&&e.stage!=='LOBBY'?`<span style="color:var(--text-dim)">[Caso ${e.ci+1}]</span> `:'';
+  // Etapa abreviada para conexiones/desconexiones
+  const stageShort={'STAGE_1':'E1','STAGE_1_DEBATE':'E1D','STAGE_2':'E2','STAGE_2_DEBATE':'E2D','STAGE_3':'E3','STAGE_3_DEBATE':'E3D','STAGE_4':'E4','RESULTS':'RES','LOBBY':'LOBBY'};
   let detail='';
   if(e.ev==='TEAM_ANSWER'){
     const ok=e.correctAnswerIndex!==undefined&&e.answerIndex===e.correctAnswerIndex;
@@ -1337,7 +1345,11 @@ function renderLogEntry(e){
   } else if(e.ev==='NEXT_CASE'){
     detail=` → Caso ${(e.newCaseIndex||0)+1} "${e.caseTitle||''}"`;
   } else if(e.ev==='CLIENT_CONNECTED'||e.ev==='CLIENT_DISCONNECTED'){
-    detail=` — ${e.name} (${e.role})`;
+    const stageInfo=e.stage?` <span style="color:var(--text-dim);font-size:.7rem">[${stageShort[e.stage]||e.stage}]</span>`:'';
+    const reasonInfo=e.reason&&e.ev==='CLIENT_DISCONNECTED'?` <span style="color:var(--text-dim)">(${e.reason})</span>`:'';
+    detail=` — ${e.name} (${e.role})${stageInfo}${reasonInfo}`;
+  } else if(e.ev==='SESSION_PARTICIPANTS_SNAPSHOT'){
+    detail=` — ${(e.participants||[]).map(p=>p.startsWith('team:')?p.slice(5):p).join(', ')}`;
   } else if(e.ev==='TIMER_PAUSED'){
     detail=` — ${e.remaining}s restantes${e.byDisconnect?' (desconexión)':''}`;
   } else if(e.ev==='TIMER_RESUMED'){
