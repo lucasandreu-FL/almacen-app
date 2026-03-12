@@ -415,10 +415,10 @@ wss.on('connection', ws => {
         sessionTeam.connected = true;
       }
       // Verificar que no haya otro usuario del mismo equipo ya conectado
-      if (session.status === 'RUNNING' && clients[sid]) {
+      if (session.status === 'RUNNING' && clients[session.roomCode]) {
         const teamKey = `team:${team.id}`;
         const isReconnecting = session.awaitingReconnect?.has(teamKey);
-        const existingConns = [...clients[sid]].filter(c => c.teamId === team.id);
+        const existingConns = [...clients[session.roomCode]].filter(c => c.teamId === team.id);
         if (existingConns.length > 0) {
           if (!isReconnecting) {
             ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: `Tu equipo "${team.teamName}" ya tiene una sesión activa. Solo puede haber un dispositivo conectado por equipo.` }));
@@ -493,7 +493,8 @@ wss.on('connection', ws => {
       joinSession(sessions[code], 'admin', null, clientPersonId);
       saveData();
       const credentials = users.teams.map(t => {
-        const user = (t.memberIds || []).map(id => users.people.find(p => p.id === id)).find(p => p?.role === 'user');
+        const allMembers = (t.memberIds || []).map(id => users.people.find(p => p.id === id)).filter(Boolean);
+        const user = allMembers.find(p => p.role === 'user') || allMembers[0];
         return user ? { teamName: t.teamName, color: t.color, email: user.email, password: user.password } : null;
       }).filter(Boolean);
       ws.send(JSON.stringify({ type: 'SESSION_CREATED', roomCode: code, session: sessions[code], credentials }));
@@ -553,6 +554,7 @@ wss.on('connection', ws => {
       const idx = users.teams.findIndex(t => t.id === id);
       if (idx < 0) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Equipo no encontrado' })); return; }
       if (memberIds) {
+        if (!memberIds.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'El equipo necesita al menos un miembro' })); return; }
         for (const pid of memberIds) {
           const existing = getPersonTeam(pid);
           if (existing && existing.id !== id) { ws.send(JSON.stringify({ type: 'ERROR', message: `${users.people.find(p=>p.id===pid)?.name||pid} ya pertenece a "${existing.teamName}"` })); return; }
@@ -684,6 +686,14 @@ wss.on('connection', ws => {
     if (type === 'ADMIN_FORCE_STAGE' && clientRole === 'admin') {
       clearTimer(sid);
       session.paused = false; session.pausedByDisconnect = false;
+      // Prevenir doble puntuación: limpiar respuestas al forzar cualquier etapa excepto RESULTS
+      if (payload.stage !== 'RESULTS') {
+        session.answers = {};
+        if (payload.stage !== 'STAGE_4') {
+          session.skipTeamId = null;
+          // skipAvailable se ajusta en advanceToStage para STAGE_2_DEBATE
+        }
+      }
       advanceToStage(sid, payload.stage);
       return;
     }

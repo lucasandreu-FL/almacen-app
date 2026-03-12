@@ -175,6 +175,7 @@ const TEAM_COLORS=['#f5a623','#e85d4a','#22c55e','#3b82f6','#8b5cf6','#06b6d4','
 let _publicSessions = []; // sesiones no finalizadas, para el dropdown de login
 let _lastLogoutCreds = null; // credenciales del último logout, para pre-rellenar el formulario
 let _cdTimer = null, _cdValue = 0, _cdCaseIdx = -1;
+let _pauseInFlight = false;
 
 function startCountdown(caseIdx){
   if(_cdTimer){clearInterval(_cdTimer);_cdTimer=null;}
@@ -258,6 +259,11 @@ function logout(){
 // ══════════════════════════════════════════════════════
 const $=id=>document.getElementById(id);
 const fmt=s=>{const m=Math.floor(s/60),sec=s%60;return `${m}:${sec.toString().padStart(2,'0')}`;};
+function currentTimerTotal(){
+  const s=S.session; if(!s) return 120;
+  const map={STAGE_1:s.config?.stage1Time||60,STAGE_1_DEBATE:s.config?.stage1DebateTime||120,STAGE_2:s.config?.stage2Time||90,STAGE_2_DEBATE:s.config?.stage2DebateTime||300,STAGE_3:s.config?.stage3Time||60,STAGE_3_DEBATE:s.config?.stage3DebateTime||180,STAGE_4:120,RESULTS:s.config?.resultsTime||20};
+  return map[s.currentStage]||120;
+}
 
 function toast(msg,type='info'){
   const el=$('toast');el.textContent=msg;el.className=`show ${type}`;
@@ -331,7 +337,7 @@ window.addEventListener('pagehide', e=>{
     sessionCode: S.session.roomCode,
     role: S.role,
     teamId: S.team?.id||null,
-    personId: S.person?.id||null,
+    personId: S.admin?.id||null,
     name: displayName
   });
   navigator.sendBeacon('/api/beacon-disconnect', payload);
@@ -514,7 +520,7 @@ function handleMsg(m){
       S.session=m.session; S.answered=false; S.selectedAnswer=null;
       S.skippedByTeam=null; S.answeredCount=0; S.paused=false; S.awaitingReconnect=[];
       persistState();
-      if((S.role==='user'||S.role==='projector') && m.session.currentStage==='STAGE_1'){
+      if((S.role==='team'||S.role==='projector') && m.session.currentStage==='STAGE_1'){
         startCountdown(m.session.currentCaseIndex);
       } else {
         render();
@@ -531,6 +537,7 @@ function handleMsg(m){
 
     case 'TIMER_RESUMED':
       S.paused=false; S.timerRemaining=m.remaining;
+      S.awaitingReconnect=[];
       updateTimerUI(); syncPauseBtn(); break;
 
     case 'TEAMS_UPDATED':
@@ -1017,7 +1024,7 @@ function renderControl(){
           <span id="disconnect-badge" class="badge" style="background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.4);display:${S.awaitingReconnect?.length?'inline-flex':'none'}">⚠️ DESCONEXIÓN</span>
           </div>
         </div>
-        ${timerHTML(S.session?.config?.stage2DebateTime||300)}
+        ${timerHTML(currentTimerTotal())}
       </div>
     </div>
 
@@ -1110,9 +1117,12 @@ function showCredentialsModal(roomCode, credentials){
   </div>`);
 }
 function togglePause(){
+  if(_pauseInFlight) return;
+  _pauseInFlight=true;
   S.paused=!S.paused; // optimistic toggle for instant UI feedback
   syncPauseBtn();
   send({type:'ADMIN_TOGGLE_PAUSE'});
+  setTimeout(()=>_pauseInFlight=false,1000);
 }
 
 // ─ Usuarios ─
@@ -1499,7 +1509,7 @@ function projStage(s){
         <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
       <div class="proj-sidebar">
-        ${timerHTML(300)}
+        ${timerHTML(currentTimerTotal())}
         <div class="card"><div class="section-title">Clasificación</div>
           <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
         </div>
@@ -1541,7 +1551,8 @@ function projQuiz(s){
 }
 
 function projResults(s){
-  const lr=S.lastResults; if(!lr) return '';
+  const lr=S.lastResults;
+  if(!lr) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><p style="color:var(--text-dim);font-size:1rem">Sin resultados disponibles aún</p></div>`;
   return `<div class="proj-body">
     <div class="proj-header">
       <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
@@ -1611,7 +1622,6 @@ function teamLobby(){
       <div class="card">
         <div style="font-size:.75rem;color:var(--text-dim)">Equipo</div>
         <div style="font-weight:700;font-size:1.2rem">${S.team?.teamName||S.team?.name}</div>
-        <div style="font-size:.82rem;color:var(--text-dim);margin-top:.2rem">Capitán: ${S.team?.captainName||'—'}</div>
       </div>
       <div class="card text-center" style="padding:2rem">
         <div class="spinner" style="margin:0 auto 1rem"></div>
@@ -1646,7 +1656,7 @@ function teamWaiting(stage){
           <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
         </div>
       </div>
-      <div class="card text-center" style="padding:2rem">${timerHTML(300)}</div>
+      <div class="card text-center" style="padding:2rem">${timerHTML(currentTimerTotal())}</div>
       <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       <div id="skip-banner"></div>
       ${showSkip?`<div class="card" style="border-color:var(--accent)">
@@ -1749,7 +1759,13 @@ function teamFinished(){
   </div>`;
 }
 
-function doSkip(){if(S.skipDone)return;S.skipDone=true;send({type:'TEAM_SKIP',payload:{timestamp:Date.now()}});render();}
+function doSkip(){
+  if(S.skipDone||S.skippedByTeam) return;
+  if(S.ws?.readyState!==1){toast('Sin conexión al servidor','error');return;}
+  S.skipDone=true;
+  S.ws.send(JSON.stringify({type:'TEAM_SKIP',payload:{timestamp:Date.now()}}));
+  render();
+}
 function selAns(i){
   if(S.answered)return;
   S.selectedAnswer=i;
