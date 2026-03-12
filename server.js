@@ -22,7 +22,8 @@ setInterval(() => {
 }, 30000);
 
 // ── Data persistence ──────────────────────────────────────────────────────────
-const DATA_FILE = path.join(__dirname, 'data.json');
+// DATA_DIR permite apuntar a un volumen persistente (ej: Railway Volume en /data)
+const DATA_FILE = path.join(process.env.DATA_DIR || __dirname, 'data.json');
 
 const DEFAULT_PEOPLE = [
   { id: 'person-1', name: 'Lucas Andreu',  email: 'lucas.andreu@factorlibre.com',  password: 'lucas12345',   role: 'admin', createdAt: Date.now() },
