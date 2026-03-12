@@ -397,18 +397,24 @@ wss.on('connection', ws => {
       // role === 'user'
       const team = getPersonTeam(person.id);
       if (!team) {
+        console.log(`[LOGIN] BLOQUEADO: ${person.email} no asignado a ningún equipo`);
         ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'No estás asignado a ningún equipo. Contacta con el administrador.' }));
         return;
       }
       const session = payload.roomCode ? sessions[payload.roomCode] : getActiveSession();
       if (!session) {
+        console.log(`[LOGIN] WAITING: ${person.email} — no hay sesión activa (roomCode=${payload.roomCode||'ninguno'})`);
         waitingClients.add({ ws, loginMsg: { type, payload } });
         ws.send(JSON.stringify({ type: 'WAITING', message: 'No hay ninguna sesión activa en este momento. El moderador iniciará la dinámica pronto.' }));
         return;
       }
+      console.log(`[LOGIN] Equipo "${team.teamName}" (${person.email}) → sesión ${session.roomCode} status=${session.status}`);
       let sessionTeam = session.teams.find(t => t.id === team.id);
       if (!sessionTeam) {
-        if (session.status === 'RUNNING') { ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'La sesión ya ha comenzado y tu equipo no está registrado en ella.' })); return; }
+        if (session.status === 'RUNNING') {
+          console.log(`[LOGIN] BLOQUEADO: equipo "${team.teamName}" no registrado en sesión RUNNING`);
+          ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'La sesión ya ha comenzado y tu equipo no está registrado en ella.' })); return;
+        }
         sessionTeam = { id: team.id, teamName: team.teamName, score: 0, history: [], connected: true };
         session.teams.push(sessionTeam);
       } else {
@@ -419,16 +425,21 @@ wss.on('connection', ws => {
         const teamKey = `team:${team.id}`;
         const isReconnecting = session.awaitingReconnect?.has(teamKey);
         const existingConns = [...clients[session.roomCode]].filter(c => c.teamId === team.id);
+        console.log(`[LOGIN] Equipo "${team.teamName}": isReconnecting=${isReconnecting}, existingConns=${existingConns.length}, awaitingReconnect=[${[...(session.awaitingReconnect||[])].join(',')}]`);
         if (existingConns.length > 0) {
           // Conexión activa = abierta y sin logout procesado (no zombie de race condition)
           const hasActiveConn = existingConns.some(c => !c.ws._logoutProcessed && c.ws.readyState === 1);
+          console.log(`[LOGIN] existingConns detalle: hasActiveConn=${hasActiveConn}, estados=[${existingConns.map(c=>`logoutProcessed=${c.ws._logoutProcessed},readyState=${c.ws.readyState}`).join('|')}]`);
           if (hasActiveConn && !isReconnecting) {
+            console.log(`[LOGIN] BLOQUEADO: equipo "${team.teamName}" ya tiene conexión activa`);
             ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: `Tu equipo "${team.teamName}" ya tiene una sesión activa. Solo puede haber un dispositivo conectado por equipo.` }));
             return;
           }
           // Terminar conexiones zombie (logout explícito, drops de red, etc.)
           existingConns.forEach(c => { c.ws._closeReason = 'replaced'; c.ws.terminate(); });
         }
+      } else {
+        console.log(`[LOGIN] Equipo "${team.teamName}": sin check duplicado (status=${session.status}, clientsExist=${!!clients[session.roomCode]})`);
       }
       joinSession(session, 'team', team.id, person.id);
       ws.send(JSON.stringify({
@@ -782,6 +793,7 @@ wss.on('connection', ws => {
       if (!sid || !sessions[sid]) { try { ws.send(JSON.stringify({ type: 'LOGOUT_OK' })); } catch(e){} return; }
       const session = sessions[sid];
       const name = clientName(clientRole, clientTeamId, clientPersonId, session);
+      console.log(`[LOGOUT] ${name} (role=${clientRole}, team=${clientTeamId}) sesión=${sid} status=${session.status} stage=${session.currentStage}`);
       // Actualizar presencia
       if (clientRole === 'team') {
         const t = session.teams.find(t => t.id === clientTeamId);
@@ -799,6 +811,7 @@ wss.on('connection', ws => {
       if (session.status === 'RUNNING' && isTimerStage(session.currentStage)) {
         const key = disconnectKey(clientRole, clientTeamId, clientPersonId);
         const isRequired = !session.requiredParticipants?.size || session.requiredParticipants.has(key);
+        console.log(`[LOGOUT] auto-pausa check: key=${key}, isRequired=${isRequired}, alreadyAwaiting=${session.awaitingReconnect.has(key)}`);
         if (isRequired && !session.awaitingReconnect.has(key)) {
           session.awaitingReconnect.add(key);
           if (!session.paused) pauseTimer(sid, true);
@@ -807,6 +820,7 @@ wss.on('connection', ws => {
         }
       }
       ws._logoutProcessed = true;
+      console.log(`[LOGOUT] completado: _logoutProcessed=true, awaitingReconnect=[${[...(session.awaitingReconnect||[])].join(',')}]`);
       try { ws.send(JSON.stringify({ type: 'LOGOUT_OK' })); } catch(e) {}
       return;
     }
