@@ -1352,7 +1352,7 @@ function renderConfig(){
 function saveConfig(){
   const keys=['stage1Time','stage1DebateTime','stage2Time','stage2DebateTime','stage3Time','stage3DebateTime','resultsTime'];
   const config={};
-  keys.forEach(k=>config[k]=parseInt($(`cfg-${k}`)?.value)||60);
+  keys.forEach(k=>config[k]=Math.max(5,parseInt($(`cfg-${k}`)?.value)||60));
   send({type:'ADMIN_UPDATE_CONFIG',payload:{config}});
 }
 

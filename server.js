@@ -160,7 +160,7 @@ function getPublicSession(session) {
 }
 function getLeaderboard(session) {
   return [...session.teams]
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || a.teamName.localeCompare(b.teamName))
     .map((t, i) => ({ position: i + 1, teamId: t.id, teamName: t.teamName, score: t.score }));
 }
 
