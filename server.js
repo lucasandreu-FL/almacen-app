@@ -420,11 +420,13 @@ wss.on('connection', ws => {
         const isReconnecting = session.awaitingReconnect?.has(teamKey);
         const existingConns = [...clients[session.roomCode]].filter(c => c.teamId === team.id);
         if (existingConns.length > 0) {
-          if (!isReconnecting) {
+          // Conexión activa = abierta y sin logout procesado (no zombie de race condition)
+          const hasActiveConn = existingConns.some(c => !c.ws._logoutProcessed && c.ws.readyState === 1);
+          if (hasActiveConn && !isReconnecting) {
             ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: `Tu equipo "${team.teamName}" ya tiene una sesión activa. Solo puede haber un dispositivo conectado por equipo.` }));
             return;
           }
-          // Reconexión legítima → terminar conexiones zombie del mismo equipo
+          // Terminar conexiones zombie (logout explícito, drops de red, etc.)
           existingConns.forEach(c => { c.ws._closeReason = 'replaced'; c.ws.terminate(); });
         }
       }
