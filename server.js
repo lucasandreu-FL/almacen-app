@@ -25,6 +25,7 @@ setInterval(() => {
 // ── Data persistence ──────────────────────────────────────────────────────────
 // DATA_DIR permite apuntar a un volumen persistente (ej: Railway Volume en /data)
 const DATA_FILE = path.join(process.env.DATA_DIR || __dirname, 'data.json');
+fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true }); // asegurar que el directorio existe
 console.log(`[PERSISTENCIA] DATA_DIR=${process.env.DATA_DIR||'(no definida)'} → DATA_FILE=${DATA_FILE}`);
 
 const DEFAULT_PEOPLE = [
