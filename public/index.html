@@ -389,7 +389,19 @@ function setLoginLoading(on){
   btn.disabled=on;
   btn.innerHTML=on?'<span class="spinner" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:.4rem"></span>Conectando...':'Entrar →';
 }
-function showLoginError(msg){setLoginLoading(false);toast(msg,'error');}
+function showLoginError(msg){
+  setLoginLoading(false);
+  toast(msg,'error');
+  // Mostrar también en el formulario de forma persistente
+  const el=$('login-error-msg');
+  if(el){el.textContent=msg;el.style.display='block';}
+  S.loginError=msg;
+}
+function clearLoginError(){
+  const el=$('login-error-msg');
+  if(el){el.textContent='';el.style.display='none';}
+  S.loginError=null;
+}
 
 function handleMsg(m){
   switch(m.type){
@@ -469,8 +481,7 @@ function handleMsg(m){
       break;
 
     case 'AUTH_ERROR':
-      setLoginLoading(false);
-      toast(m.message,'error');
+      showLoginError(m.message);
       if(_isReconnecting){
         _isReconnecting=false; hideReconnectOverlay(); clearCreds(); clearPersistedState();
         S.role=null; S.view='HOME'; render();
@@ -740,6 +751,7 @@ function renderHome(){
             </datalist>
           </div>
           <button id="login-btn" class="btn btn-primary w-full" style="margin-top:.25rem" onclick="doLogin()">Entrar →</button>
+          <div id="login-error-msg" style="display:${S.loginError?'block':'none'};margin-top:.75rem;padding:.6rem .9rem;border-radius:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:var(--red);font-size:.85rem">${S.loginError||''}</div>
         </div>
       </div>
 
@@ -778,6 +790,7 @@ function doLogin(){
   const pass=$('l-pass')?.value.trim();
   const room=($('l-room')?.value.trim()||'').toUpperCase();
   if(!email||!pass){toast('Introduce email y contraseña','error');return;}
+  clearLoginError();
   setLoginLoading(true);
   saveCreds({email,pass,room});
   connectWS({type:'UNIFIED_LOGIN',payload:{email,password:pass,roomCode:room||undefined}});
@@ -1033,11 +1046,11 @@ function renderControl(){
           rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${adminConn?'var(--green)':'var(--red)'};background:${adminConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${adminConn?'':'off'}"></div><span style="font-size:.82rem">Admin</span></div>`);
           // Projector
           const projConn=s.projectorConnected&&!dc.has('projector');
-          rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${projConn?'var(--green)':'var(--red)'};background:${projConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${projConn?'':'off'}"></div><span style="font-size:.82rem">Proyector</span></div>`);
+          rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${projConn?'var(--green)':'var(--red)'};background:${projConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${projConn?'':'off'}"></div><span style="font-size:.82rem">Proyector</span>${projConn?`<button onclick="kickClient('projector',null)" title="Forzar desconexión" style="margin-left:.3rem;background:none;border:none;cursor:pointer;color:var(--red);font-size:.75rem;padding:0 .2rem" >✕</button>`:''}</div>`);
           // Teams
           (s.teams||[]).forEach(t=>{
             const tConn=t.connected&&!dc.has(`team:${t.id}`);
-            rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${tConn?'var(--green)':'var(--red)'};background:${tConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${tConn?'':'off'}"></div><span style="font-size:.82rem">${t.teamName}</span></div>`);
+            rows.push(`<div style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:6px;border:1px solid ${tConn?'var(--green)':'var(--red)'};background:${tConn?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}"><div class="dot-conn ${tConn?'':'off'}"></div><span style="font-size:.82rem">${t.teamName}</span>${tConn?`<button onclick="kickClient('team','${t.id}')" title="Forzar desconexión" style="margin-left:.3rem;background:none;border:none;cursor:pointer;color:var(--red);font-size:.75rem;padding:0 .2rem">✕</button>`:''}</div>`);
           });
           return rows.join('');
         })()}
@@ -1059,6 +1072,10 @@ function renderControl(){
 function startSession(){send({type:'ADMIN_START_SESSION'});}
 function forceStage(st){send({type:'ADMIN_FORCE_STAGE',payload:{stage:st}});}
 function nextCase(){send({type:'ADMIN_NEXT_CASE'});}
+function kickClient(role,teamId){
+  if(!confirm(`¿Forzar desconexión de ${role==='projector'?'el Proyector':'el equipo'}?`)) return;
+  send({type:'ADMIN_KICK_CLIENT',payload:{role,teamId}});
+}
 function togglePause(){
   S.paused=!S.paused; // optimistic toggle for instant UI feedback
   syncPauseBtn();

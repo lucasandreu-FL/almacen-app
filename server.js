@@ -744,6 +744,19 @@ wss.on('connection', ws => {
 
     if (type === 'PING') { ws._isAlive = true; ws.send(JSON.stringify({ type: 'PONG' })); return; }
 
+    // ── Admin: forzar desconexión de un cliente ──
+    if (type === 'ADMIN_KICK_CLIENT' && clientRole === 'admin') {
+      const { role: kickRole, teamId: kickTeamId } = payload;
+      if (!clients[sid]) return;
+      clients[sid].forEach(c => {
+        const match = kickRole === 'team'      ? c.teamId === kickTeamId
+                    : kickRole === 'projector' ? c.role === 'projector'
+                    : false;
+        if (match) { c.ws._closeReason = 'admin_kick'; c.ws.terminate(); }
+      });
+      return;
+    }
+
     // ── Logout explícito ──
     if (type === 'LOGOUT') {
       if (!sid || !sessions[sid]) { try { ws.send(JSON.stringify({ type: 'LOGOUT_OK' })); } catch(e){} return; }
