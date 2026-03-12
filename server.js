@@ -148,8 +148,10 @@ function broadcast(sessionId, message, excludeWs = null) {
 function broadcastAll(sessionId, message) { broadcast(sessionId, message); }
 
 function getPublicSession(session) {
+  // Excluir timer (circular) y requiredParticipants (Set no serializable)
+  const { timer, requiredParticipants, ...rest } = session;
   return {
-    ...session,
+    ...rest,
     awaitingReconnect: [...(session.awaitingReconnect || [])],
     cases: session.cases.map((c, i) => {
       const isPast = i < session.currentCaseIndex;
@@ -486,7 +488,7 @@ wss.on('connection', ws => {
       const session = sessions[payload.roomCode];
       if (!session) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Sala no encontrada' })); return; }
       joinSession(session, 'admin', null, clientPersonId);
-      ws.send(JSON.stringify({ type: 'SESSION_STATE', session, leaderboard: getLeaderboard(session), timerEnd: session.timerEnd, paused: session.paused, pausedRemaining: session.pausedRemaining, awaitingReconnect: [...(session.awaitingReconnect||[])] }));
+      ws.send(JSON.stringify({ type: 'SESSION_STATE', session: getPublicSession(session), leaderboard: getLeaderboard(session), timerEnd: session.timerEnd, paused: session.paused, pausedRemaining: session.pausedRemaining, awaitingReconnect: [...(session.awaitingReconnect||[])] }));
       return;
     }
 
@@ -510,7 +512,7 @@ wss.on('connection', ws => {
         const user = allMembers.find(p => p.role === 'user') || allMembers[0];
         return user ? { teamName: t.teamName, color: t.color, email: user.email, password: user.password } : null;
       }).filter(Boolean);
-      ws.send(JSON.stringify({ type: 'SESSION_CREATED', roomCode: code, session: sessions[code], credentials }));
+      ws.send(JSON.stringify({ type: 'SESSION_CREATED', roomCode: code, session: getPublicSession(sessions[code]), credentials }));
       return;
     }
 
