@@ -92,6 +92,8 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .proj-quiz-card.reveal-correct{border-color:var(--green)!important;background:rgba(34,197,94,.2)!important;color:var(--green)!important;animation:pulseCorrect .7s ease forwards;box-shadow:0 0 28px rgba(34,197,94,.35)}
 .proj-quiz-card.reveal-wrong{opacity:.28;border-color:rgba(239,68,68,.25)!important;background:rgba(239,68,68,.04)!important}
 @keyframes pulseCorrect{0%{transform:scale(1)}40%{transform:scale(1.03);box-shadow:0 0 32px rgba(34,197,94,.5)}100%{transform:scale(1);box-shadow:0 0 14px rgba(34,197,94,.3)}}
+@keyframes cdPulse{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+#countdown-overlay .cd-num{animation:cdPulse .25s ease-out!important}
 
 .dot-conn{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite;flex-shrink:0}
 .dot-conn.off{background:var(--red);animation:none}
@@ -184,6 +186,10 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .gl-label-bug{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
 .gl-label-ops{background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.25)}
 .gl-label-urgent{background:rgba(239,68,68,.3);color:#ff8080;border:1px solid rgba(239,68,68,.5)}
+.gl-label-expedite{background:rgba(239,68,68,.25);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
+.gl-label-almacen{background:rgba(245,166,35,.2);color:#fcd34d;border:1px solid rgba(245,166,35,.35)}
+.gl-label-mante{background:rgba(59,130,246,.2);color:#93c5fd;border:1px solid rgba(59,130,246,.35)}
+.gl-label-desa{background:rgba(139,92,246,.2);color:#c4b5fd;border:1px solid rgba(139,92,246,.35)}
 .gl-thread{flex:1;overflow-y:auto;padding:.65rem 1.25rem;display:flex;flex-direction:column;gap:.65rem}
 .gl-comment{display:flex;gap:.75rem;align-items:flex-start;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
 .gl-comment.visible{opacity:1;transform:none}
@@ -246,15 +252,18 @@ function startCountdown(caseIdx){
   if(_cdTimer){clearInterval(_cdTimer);_cdTimer=null;}
   _cdValue=5; _cdCaseIdx=caseIdx;
   _showCd();
+  _playCountdownBeep(5);
   _cdTimer=setInterval(()=>{
     _cdValue--;
     if(_cdValue<=0){
       clearInterval(_cdTimer);_cdTimer=null;
-      _showCd(); // show "¡Go!" for 700ms then hide
+      _showCd();
+      _playGoSound();
       setTimeout(()=>{$('countdown-overlay').style.display='none';render();},700);
       return;
     }
     _showCd();
+    _playCountdownBeep(_cdValue);
   },1000);
 }
 function _showCd(){
@@ -746,6 +755,33 @@ function _playUrgentBeep(){
   }catch(e){}
 }
 // ── Slack notification sounds ──
+function _playCountdownBeep(n){
+  try{
+    const ctx=new AudioContext();
+    const freqs=[0,494,523,587,659,784]; // índices 1-5
+    const f=freqs[Math.min(n,5)]||523;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type='square';o.frequency.value=f;
+    g.gain.setValueAtTime(.22,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.18);
+    o.start(ctx.currentTime);o.stop(ctx.currentTime+.2);
+  }catch(e){}
+}
+function _playGoSound(){
+  try{
+    const ctx=new AudioContext();
+    [{f:784,t:0,d:.1},{f:988,t:.09,d:.1},{f:1175,t:.18,d:.15},{f:1568,t:.27,d:.45},{f:1175,t:.27,d:.45},{f:988,t:.27,d:.45}]
+    .forEach(({f,t,d})=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='square';o.frequency.value=f;
+      g.gain.setValueAtTime(.15,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+d);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+d+.05);
+    });
+  }catch(e){}
+}
 function _playSlackDing(){
   try{
     const ctx=_getAudioCtx();
@@ -775,27 +811,40 @@ function _playSlackUrgent(){
   }catch(e){}
 }
 
+// ── Avatar helper ──
+function _av(imgFile,initials,grad,cls='slack-avatar'){
+  return `<div class="${cls}" style="background:${grad};position:relative;overflow:hidden">
+    <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:inherit;font-weight:inherit;letter-spacing:inherit">${initials}</span>
+    <img src="/img/${imgFile}" alt="${initials}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.style.display='none'">
+  </div>`;
+}
+
 // ── SM names (deterministic per caseIdx) ──
-const _smNames=['Mayte','Ilse','Sergio del Castillo'];
-const _smAvatars=['MY','IL','SC'];
-function _smName(idx){return _smNames[idx%3];}
-function _smAvatar(idx){return _smAvatars[idx%3];}
+const _sms=[
+  {name:'Mayte González',av:'MY',img:'avatar_mayte_gonzalez.jpg',grad:'linear-gradient(135deg,#be185d,#4a154b)'},
+  {name:'Ilse Tomasini',av:'IL',img:'avatar_ilse_tomasini.jpg',grad:'linear-gradient(135deg,#92400e,#78350f)'},
+  {name:'Sergio del Castillo',av:'SC',img:'avatar_sergio_castillo.jpg',grad:'linear-gradient(135deg,#0369a1,#0c4a6e)'},
+];
+function _sm(idx){return _sms[idx%3];}
+
+// ── Luis Novalio ──
+const _luis={name:'Luis Novalio',av:'LN',img:'avatar_luis_novalio.jpg',grad:'linear-gradient(135deg,#0ea5e9,#0369a1)'};
 
 // ── Equipo almacén FactorLibre ──
 const _devMembers=[
-  {name:'Adrian Cifuentes',av:'AC',grad:'linear-gradient(135deg,#6366f1,#4f46e5)'},
-  {name:'Oscar Indias',av:'OI',grad:'linear-gradient(135deg,#f59e0b,#b45309)'},
-  {name:'Álvaro Gómez',av:'AG',grad:'linear-gradient(135deg,#10b981,#065f46)'},
-  {name:'Sergio Bustamante',av:'SB',grad:'linear-gradient(135deg,#ec4899,#9d174d)'},
+  {name:'Adrián Cifuentes',av:'AC',img:'avatar_adrian_cifuentes.jpg',grad:'linear-gradient(135deg,#6366f1,#4f46e5)'},
+  {name:'Óscar Indias',av:'OI',img:'avatar_oscar_indias.jpg',grad:'linear-gradient(135deg,#f59e0b,#b45309)'},
+  {name:'Álvaro Gómez',av:'AG',img:'avatar_alvaro_gomez.jpg',grad:'linear-gradient(135deg,#10b981,#065f46)'},
+  {name:'Sergio Bustamante',av:'SB',img:'avatar_sergio_bustamante.jpg',grad:'linear-gradient(135deg,#ec4899,#9d174d)'},
 ];
 const _funMembers=[
-  {name:'Javier Sánchez',av:'JS',grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)'},
-  {name:'Fabio García',av:'FG',grad:'linear-gradient(135deg,#8b5cf6,#5b21b6)'},
-  {name:'Jesús Sánchez',av:'JES',grad:'linear-gradient(135deg,#06b6d4,#0e7490)'},
-  {name:'Nacho Morales',av:'NM',grad:'linear-gradient(135deg,#f97316,#c2410c)'},
-  {name:'Sabrina Iborra',av:'SI',grad:'linear-gradient(135deg,#e879f9,#a21caf)'},
-  {name:'Daniel Cagigas',av:'DC',grad:'linear-gradient(135deg,#a78bfa,#6d28d9)'},
-  {name:'Nuria Delgado',av:'ND',grad:'linear-gradient(135deg,#34d399,#047857)'},
+  {name:'Javier Sánchez',av:'JS',img:'avatar_javier_sanchez.jpg',grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)'},
+  {name:'Fabio García',av:'FG',img:'avatar_fabio_garcia.jpg',grad:'linear-gradient(135deg,#8b5cf6,#5b21b6)'},
+  {name:'Jesús Sánchez',av:'JES',img:'avatar_jesus_sanchez.jpg',grad:'linear-gradient(135deg,#06b6d4,#0e7490)'},
+  {name:'Nacho Morales',av:'NM',img:'avatar_nacho_morales.jpg',grad:'linear-gradient(135deg,#f97316,#c2410c)'},
+  {name:'Sabrina Iborra',av:'SI',img:'avatar_sabrina_iborra.jpg',grad:'linear-gradient(135deg,#e879f9,#a21caf)'},
+  {name:'Daniel Cagigas',av:'DC',img:'avatar_daniel_cagigas.jpg',grad:'linear-gradient(135deg,#a78bfa,#6d28d9)'},
+  {name:'Nuria Delgado',av:'ND',img:'avatar_nuria_delgado.jpg',grad:'linear-gradient(135deg,#34d399,#047857)'},
 ];
 const _allTeam=[..._devMembers,..._funMembers];
 function _devMember(idx){return _devMembers[idx%_devMembers.length];}
@@ -1068,8 +1117,12 @@ function closeModal(){$('modal-root').innerHTML='';}
 function renderHome(){
   return `<div class="center-page" style="background:radial-gradient(ellipse at 50% 0%,rgba(245,166,35,.08) 0%,transparent 70%)">
     <div style="max-width:420px;width:100%;text-align:center">
-      <div style="font-family:var(--font-mono);font-size:.72rem;letter-spacing:.2em;color:var(--accent);margin-bottom:1rem">FACTORLIBRE</div>
-      <h1 style="font-size:3rem;font-weight:800;line-height:1.1;margin-bottom:.5rem">GÜERJAUS<br>TBT</h1>
+      <div style="margin-bottom:1.25rem">
+        <img src="/img/logo_factorlibre.png" alt="FactorLibre" style="height:28px;object-fit:contain;filter:brightness(0) invert(1);opacity:.55" onerror="this.style.display='none'">
+      </div>
+      <div style="margin-bottom:1rem">
+        <img src="/img/logo_tbt.png" alt="GÜERJAUS TBT" style="max-height:110px;max-width:220px;object-fit:contain;border-radius:14px" onerror="this.outerHTML='<h1 style=\\'font-size:3rem;font-weight:800;line-height:1.1\\'>GÜERJAUS<br>TBT</h1>'">
+      </div>
       <p style="color:var(--text-dim);margin-bottom:2rem">El 'Throwback Thursday' de Almacén</p>
 
       <div class="card" style="text-align:left;margin-bottom:.75rem">
@@ -1825,8 +1878,7 @@ function projStage(s){
     const titulo=cc?.stage1Titulo||cc?.title||'';
     const contexto=cc?.stage1Contexto||cc?.stage1||'';
     const impactoDetalle=cc?.stage1Impacto||'';
-    const smName=_smName(s.currentCaseIndex);
-    const smAv=_smAvatar(s.currentCaseIndex);
+    const sm=_sm(s.currentCaseIndex);
     // En debate ya están todos visibles; en STAGE_1 la animación los muestra
     const v1=isDebate1?'visible':'', v2=isDebate1?'visible':'', v3=isDebate1?'visible':'';
     const vLuis=isDebate1?'visible':''; // Luis visible en debate si ya entró en rojo
@@ -1849,51 +1901,51 @@ function projStage(s){
             <div class="slack-msgs" id="slack-msgs">
               <!-- Mensaje 1: título del expedite -->
               <div class="slack-typing-row" id="slack-typing-1">
-                <div class="slack-avatar">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${smName} está escribiendo...</span>
+                <span class="slack-typing-label">${sm.name} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v1}" id="slack-m1">
-                <div class="slack-avatar">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
                 </div>
               </div>
               <!-- Mensaje 2: contexto / descripción -->
               <div class="slack-typing-row" id="slack-typing-2">
-                <div class="slack-avatar">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${smName} está escribiendo...</span>
+                <span class="slack-typing-label">${sm.name} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v2}" id="slack-m2">
-                <div class="slack-avatar">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text">📋 ${contexto}</div>
                 </div>
               </div>
               <!-- Mensaje 3: impacto -->
               <div class="slack-typing-row" id="slack-typing-3">
-                <div class="slack-avatar sm-urgent">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad,'slack-avatar sm-urgent')}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${smName} está escribiendo...</span>
+                <span class="slack-typing-label">${sm.name} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v3}" id="slack-m3">
-                <div class="slack-avatar sm-urgent">${smAv}</div>
+                ${_av(sm.img,sm.av,sm.grad,'slack-avatar sm-urgent')}
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text"><div class="slack-impact-box">🔴 ${impactoDetalle}</div></div>
                 </div>
               </div>
               <!-- Mensaje 4: Luis Novalio (aparece al entrar en zona roja del timer) -->
               <div class="slack-typing-row" id="slack-typing-luis">
-                <div class="slack-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                ${_av(_luis.img,_luis.av,_luis.grad)}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
                 <span class="slack-typing-label">Luis Novalio está escribiendo...</span>
               </div>
               <div class="slack-msg ${vLuis}" id="slack-m-luis">
-                <div class="slack-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                ${_av(_luis.img,_luis.av,_luis.grad)}
                 <div class="slack-msg-body">
                   <div class="slack-msg-meta"><span class="slack-author">Luis Novalio</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text">Nos ponemos con ello 💪</div>
@@ -1921,6 +1973,7 @@ function projStage(s){
     const isDebate2=stage==='STAGE_2_DEBATE';
     const v1=isDebate2?'visible':'', v2=isDebate2?'visible':'', vLuis2=isDebate2?'visible':'';
     const issueNum=`#${100+s.currentCaseIndex*7}`;
+    const labelTipo=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa">Desarrollo y acciones técnicas</span>`;
     return `<div class="proj-body">
       ${_projHeader(s,stage)}
       <div class="proj-area">
@@ -1935,25 +1988,25 @@ function projStage(s){
               <div class="gl-issue-title">🔍 ${cc?.stage1Titulo||cc?.title||''} <span style="color:#8b949e;font-weight:400">${issueNum}</span></div>
               <div class="gl-issue-meta">
                 <span>abierto hace un momento</span>
-                <span class="gl-label gl-label-urgent">🔴 urgente</span>
-                <span class="gl-label gl-label-ops">almacén-ops</span>
-                <span class="gl-label gl-label-bug">bug</span>
+                <span class="gl-label gl-label-expedite">🚨 Expedite</span>
+                <span class="gl-label gl-label-almacen">Almacén</span>
+                ${labelTipo}
               </div>
             </div>
             <div class="gl-thread" id="gl-thread">
               <!-- Typing 1 -->
               <div class="gl-typing-row" id="gl-typing-1">
-                <div class="gl-avatar" style="background:${dev.grad}">${dev.av}</div>
+                ${_av(dev.img,dev.av,dev.grad,'gl-avatar')}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
                 <span class="slack-typing-label">${dev.name} está comentando...</span>
               </div>
               <!-- Comment 1: Dev -->
               <div class="gl-comment ${v1}" id="gl-c1">
-                <div class="gl-avatar" style="background:${dev.grad}">${dev.av}</div>
+                ${_av(dev.img,dev.av,dev.grad,'gl-avatar')}
                 <div class="gl-comment-box">
                   <div class="gl-comment-hdr">
                     <span class="gl-comment-author">${dev.name}</span>
-                    <span class="gl-role-badge gl-role-dev">Dev</span>
+                    <span class="gl-role-badge gl-role-dev">Técnico</span>
                     <span>comentó hace un momento</span>
                   </div>
                   <div class="gl-comment-body">${part1}</div>
@@ -1961,13 +2014,13 @@ function projStage(s){
               </div>
               <!-- Typing 2 -->
               <div class="gl-typing-row" id="gl-typing-2">
-                <div class="gl-avatar" style="background:${fun.grad}">${fun.av}</div>
+                ${_av(fun.img,fun.av,fun.grad,'gl-avatar')}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
                 <span class="slack-typing-label">${fun.name} está comentando...</span>
               </div>
               <!-- Comment 2: Fun -->
               <div class="gl-comment ${v2}" id="gl-c2">
-                <div class="gl-avatar" style="background:${fun.grad}">${fun.av}</div>
+                ${_av(fun.img,fun.av,fun.grad,'gl-avatar')}
                 <div class="gl-comment-box">
                   <div class="gl-comment-hdr">
                     <span class="gl-comment-author">${fun.name}</span>
@@ -1979,13 +2032,13 @@ function projStage(s){
               </div>
               <!-- Typing Luis -->
               <div class="gl-typing-row" id="gl-typing-luis">
-                <div class="gl-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
                 <span class="slack-typing-label">Luis Novalio está comentando...</span>
               </div>
               <!-- Comment Luis -->
               <div class="gl-comment ${vLuis2}" id="gl-c-luis">
-                <div class="gl-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
                 <div class="gl-comment-box">
                   <div class="gl-comment-hdr">
                     <span class="gl-comment-author">Luis Novalio</span>
@@ -2014,37 +2067,151 @@ function projStage(s){
     const member=_stage3Member(s.currentCaseIndex);
     const isDebate3=stage==='STAGE_3_DEBATE';
     const vMsg=isDebate3?'visible':'';
+
+    // Para el debate final necesitamos los datos de las otras etapas también
+    const smD=_sm(s.currentCaseIndex);
+    const devD=_devMember(s.currentCaseIndex);
+    const funD=_funMember(s.currentCaseIndex);
+    const [p1,p2]=_splitStage2(cc?.stage2||'');
+    const titulo=cc?.stage1Titulo||cc?.title||'';
+    const contexto=cc?.stage1Contexto||cc?.stage1||'';
+    const impacto=cc?.stage1Impacto||'';
+    const labelTipo3=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante" style="font-size:.6rem">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa" style="font-size:.6rem">Desarrollo y acciones técnicas</span>`;
+
+    const s3Content = isDebate3 ? `
+    <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:.65rem;min-height:0;flex:1;overflow:hidden">
+      <!-- Columna 1: Slack Stage 1 -->
+      <div class="slack-sim" style="font-size:.78rem">
+        <div class="slack-sim-header" style="padding:.4rem .75rem">
+          <svg width="14" height="14" viewBox="0 0 124 124" fill="none"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+          <span class="slack-hash" style="font-size:.85rem">#</span>
+          <span class="slack-ch-name" style="font-size:.78rem">soporte-almacen</span>
+        </div>
+        <div class="slack-msgs" style="padding:.6rem .75rem;gap:.05rem">
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">🚨 <strong>${titulo}</strong></div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem">📋 ${contexto}</div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar sm-urgent')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🔴 ${impacto}</div></div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(_luis.img,_luis.av,_luis.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">Luis Novalio</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">Nos ponemos con ello 💪</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Columna 2: GitLab Stage 2 -->
+      <div class="gl-wrap" style="font-size:.78rem">
+        <div class="gl-issue-head" style="padding:.5rem .75rem">
+          <div class="gl-issue-title" style="font-size:.9rem;margin-bottom:.3rem">🔍 ${titulo}</div>
+          <div class="gl-issue-meta" style="gap:.35rem">
+            <span class="gl-label gl-label-expedite" style="font-size:.6rem">🚨 Expedite</span>
+            <span class="gl-label gl-label-almacen" style="font-size:.6rem">Almacén</span>
+            ${labelTipo3}
+          </div>
+        </div>
+        <div class="gl-thread" style="padding:.4rem .6rem;gap:.4rem">
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(devD.img,devD.av,devD.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">${devD.name}</span>
+                <span class="gl-role-badge gl-role-dev" style="font-size:.6rem">Técnico</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p1}</div>
+            </div>
+          </div>
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(funD.img,funD.av,funD.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">${funD.name}</span>
+                <span class="gl-role-badge gl-role-fun" style="font-size:.6rem">Funcional</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p2}</div>
+            </div>
+          </div>
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">Luis Novalio</span>
+                <span class="gl-role-badge gl-role-boss" style="font-size:.6rem">Jefe Operaciones</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${_luisGlMsg(s.currentCaseIndex)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Columna 3: Slack Stage 3 — pista clave -->
+      <div class="slack-sim" style="font-size:.78rem">
+        <div class="slack-sim-header" style="padding:.4rem .75rem">
+          <svg width="14" height="14" viewBox="0 0 124 124" fill="none"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+          <span class="slack-hash" style="font-size:.85rem">#</span>
+          <span class="slack-ch-name" style="font-size:.78rem">soporte-almacen</span>
+        </div>
+        <div class="slack-msgs" style="padding:.6rem .75rem">
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(member.img,member.av,member.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${member.name}</span></div>
+              <div class="slack-msg-text" style="font-size:.82rem;color:#fff">🔑 ${cc?.stage3||''}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="slack-sim">
+      <div class="slack-sim-header">
+        <svg width="18" height="18" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+        <span class="slack-hash">#</span>
+        <span class="slack-ch-name">soporte-almacen</span>
+        <span class="slack-ch-desc">— Incidencias críticas de operaciones</span>
+      </div>
+      <div class="slack-msgs" id="s3-msgs">
+        <div class="slack-typing-row" id="s3-typing">
+          ${_av(member.img,member.av,member.grad)}
+          <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+          <span class="slack-typing-label">${member.name} está escribiendo...</span>
+        </div>
+        <div class="slack-msg ${vMsg}" id="s3-msg">
+          ${_av(member.img,member.av,member.grad)}
+          <div class="slack-msg-body">
+            <div class="slack-msg-meta"><span class="slack-author">${member.name}</span><span class="slack-time">hace un momento</span></div>
+            <div class="slack-msg-text">🔑 ${cc?.stage3||''}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
     return `<div class="proj-body">
       ${_projHeader(s,stage)}
       <div class="proj-area">
-        <div class="proj-content" style="min-height:0">
-          <div>
+        <div class="proj-content" style="min-height:0;${isDebate3?'overflow:hidden;':''}">
+          ${isDebate3?'':`<div>
             <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.3rem">Escenario</div>
             <h1 style="font-size:2rem;font-weight:800;line-height:1.2;margin-bottom:.5rem">${cc?.title||''}</h1>
-          </div>
-          ${isDebate3?`<div class="slack-debate-banner">💬 Debate final — valorad todas las pistas antes de decidir</div>`:''}
-          <div class="slack-sim">
-            <div class="slack-sim-header">
-              <svg width="18" height="18" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
-              <span class="slack-hash">#</span>
-              <span class="slack-ch-name">soporte-almacen</span>
-              <span class="slack-ch-desc">— Incidencias críticas de operaciones</span>
-            </div>
-            <div class="slack-msgs" id="s3-msgs">
-              <div class="slack-typing-row" id="s3-typing">
-                <div class="slack-avatar" style="background:${member.grad}">${member.av}</div>
-                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${member.name} está escribiendo...</span>
-              </div>
-              <div class="slack-msg ${vMsg}" id="s3-msg">
-                <div class="slack-avatar" style="background:${member.grad}">${member.av}</div>
-                <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">${member.name}</span><span class="slack-time">hace un momento</span></div>
-                  <div class="slack-msg-text">🔑 ${cc?.stage3||''}</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          </div>`}
+          ${isDebate3?`<div class="slack-debate-banner" style="margin:.3rem 0 .5rem">💬 Debate final — valorad <strong>todo el contexto</strong> antes de decidir</div>`:''}
+          ${s3Content}
           <div data-disconnect-banner>${disconnectBannerHTML()}</div>
         </div>
         <div class="proj-sidebar">
