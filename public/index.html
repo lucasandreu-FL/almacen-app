@@ -137,6 +137,37 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .ctx-box h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.75rem}
 .clue-box{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.4);border-radius:12px;padding:1.5rem}
 
+/* ── Slack simulation ── */
+.slack-sim{background:#1a1d21;border-radius:12px;flex:1;display:flex;flex-direction:column;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;min-height:0}
+.slack-sim-header{background:#19171d;border-bottom:1px solid #332f38;padding:.75rem 1.25rem;display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.slack-hash{color:#ababad;font-size:1.1rem;font-weight:800}
+.slack-ch-name{color:#fff;font-weight:700;font-size:1rem}
+.slack-ch-desc{color:#ababad;font-size:.8rem}
+.slack-msgs{flex:1;overflow-y:auto;padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:.1rem;scroll-behavior:smooth}
+.slack-msg{display:flex;gap:.75rem;align-items:flex-start;opacity:0;transform:translateY(6px);padding:.35rem .5rem;border-radius:6px;transition:background .15s}
+.slack-msg.visible{animation:slack-pop .3s ease-out forwards}
+.slack-msg:hover{background:rgba(255,255,255,.04)}
+@keyframes slack-pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.slack-avatar{width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#e01563,#4a154b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.72rem;flex-shrink:0;margin-top:2px;letter-spacing:.05em}
+.slack-avatar.sm-urgent{background:linear-gradient(135deg,#c0392b,#7b0000)}
+.slack-msg-body{flex:1;min-width:0}
+.slack-msg-meta{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.2rem}
+.slack-author{font-weight:700;font-size:.9rem;color:#fff}
+.slack-time{font-size:.72rem;color:#696969}
+.slack-msg-text{color:#d1d2d3;font-size:.95rem;line-height:1.55}
+.slack-msg-text strong{color:#fff}
+.slack-impact-box{background:rgba(200,30,30,.1);border-left:3px solid #c0392b;padding:.6rem .9rem;border-radius:0 6px 6px 0;margin-top:.2rem;color:#ffaaaa}
+.slack-impact-box strong{color:#ff7070}
+.slack-typing-row{display:none;align-items:center;gap:.6rem;padding:.3rem .5rem;opacity:.7}
+.slack-typing-row.show{display:flex}
+.slack-typing-dots{display:flex;gap:4px;align-items:center}
+.slack-typing-dots span{width:7px;height:7px;border-radius:50%;background:#ababad;animation:typing-b .9s infinite ease-in-out}
+.slack-typing-dots span:nth-child(2){animation-delay:.18s}
+.slack-typing-dots span:nth-child(3){animation-delay:.36s}
+@keyframes typing-b{0%,60%,100%{transform:translateY(0);opacity:.6}30%{transform:translateY(-4px);opacity:1}}
+.slack-typing-label{font-size:.78rem;color:#ababad}
+.slack-debate-banner{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:.6rem 1rem;text-align:center;color:var(--accent);font-size:.85rem;margin:.75rem 1.5rem .25rem;flex-shrink:0}
+
 @media(max-width:768px){.admin-layout{grid-template-columns:1fr}.sidebar{display:none}.proj-area{flex-direction:column}.proj-sidebar{width:100%}}
 
 .reconnect-overlay{position:fixed;inset:0;background:rgba(10,14,26,.93);z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;text-align:center;padding:2rem}
@@ -524,6 +555,7 @@ function handleMsg(m){
       S.skippedByTeam=null; S.answeredCount=0; S.paused=false; S.awaitingReconnect=[];
       persistState();
       if((S.role==='team'||S.role==='projector') && m.session.currentStage==='STAGE_1'){
+        _resetSlackAnim(m.session.currentCaseIndex); // reset so animation plays fresh
         startCountdown(m.session.currentCaseIndex);
       } else {
         render();
@@ -634,6 +666,60 @@ function _playUrgentBeep(){
     osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.12);
   }catch(e){}
 }
+// ── Slack notification sounds ──
+function _playSlackDing(){
+  try{
+    const ctx=_getAudioCtx();
+    [[587,0,.18,.13],[784,.1,.14,.1]].forEach(([freq,start,dur,vol])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;o.type='sine';
+      g.gain.setValueAtTime(0,ctx.currentTime+start);
+      g.gain.linearRampToValueAtTime(vol,ctx.currentTime+start+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start);o.stop(ctx.currentTime+start+dur+0.05);
+    });
+  }catch(e){}
+}
+function _playSlackUrgent(){
+  try{
+    const ctx=_getAudioCtx();
+    [[880,0,.1,.2],[660,.12,.1,.2],[440,.24,.12,.18]].forEach(([freq,start,dur,vol])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=freq;o.type='triangle';
+      g.gain.setValueAtTime(0,ctx.currentTime+start);
+      g.gain.linearRampToValueAtTime(vol,ctx.currentTime+start+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start);o.stop(ctx.currentTime+start+dur+0.05);
+    });
+  }catch(e){}
+}
+
+// ── Slack animation state ──
+let _slackAnimated={}; // caseIdx → true when animation started
+function _resetSlackAnim(caseIdx){delete _slackAnimated[caseIdx];}
+
+function _runSlackAnim(caseIdx){
+  if(_slackAnimated[caseIdx]) return;
+  _slackAnimated[caseIdx]=true;
+  const showMsg=(n,sound,cb)=>{
+    const typing=document.getElementById('slack-typing-'+n);
+    if(typing) typing.classList.add('show');
+    const msgs=document.getElementById('slack-msgs');
+    if(msgs) msgs.scrollTop=msgs.scrollHeight;
+    setTimeout(()=>{
+      if(typing) typing.classList.remove('show');
+      const msg=document.getElementById('slack-m'+n);
+      if(msg){msg.classList.add('visible');setTimeout(()=>{if(msgs)msgs.scrollTop=msgs.scrollHeight;},50);}
+      if(sound==='ding') _playSlackDing();
+      else if(sound==='urgent') _playSlackUrgent();
+      if(cb) setTimeout(cb,900);
+    },1600);
+  };
+  setTimeout(()=>showMsg(1,'ding',()=>showMsg(2,'ding',()=>showMsg(3,'urgent',null))),600);
+}
+
 let _lastBeepSec=-1;
 function updateTimerUI(){
   document.querySelectorAll('.timer-display').forEach(el=>{
@@ -1495,32 +1581,119 @@ function projLobby(s){
   </div>`;
 }
 
+function _projHeader(s,stage){
+  const total=s.cases.length;
+  return `<div class="proj-header">
+    <div class="flex items-center gap-3">
+      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+      <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
+      ${S.paused?`<span class="badge badge-paused">⏸ PAUSADO</span>`:''}
+      ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ ${S.skippedByTeam.name} adelantó</span>`:''}
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="progress-dots">${Array.from({length:total},(_,i)=>`<div class="pdot ${i<s.currentCaseIndex?'done':i===s.currentCaseIndex?'active':''}"></div>`).join('')}</div>
+      <div style="font-size:.85rem;color:var(--text-dim)">Caso ${s.currentCaseIndex+1}/${total}</div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+    </div>
+  </div>`;
+}
+
 function projStage(s){
   const stage=s.currentStage, cc=s.cases[s.currentCaseIndex], total=s.cases.length;
   const s1=stage.includes('1'), s2=stage.includes('2'), s3=stage.includes('3');
+  const isDebate1=stage==='STAGE_1_DEBATE';
+
+  // ── STAGE_1 y STAGE_1_DEBATE: simulación Slack ──
+  if(s1){
+    const titulo=cc?.stage1Titulo||cc?.title||'';
+    const contexto=cc?.stage1Contexto||cc?.stage1||'';
+    const impacto=cc?.stage1Impacto||'';
+    // En debate ya están todos visibles; en STAGE_1 la animación los muestra
+    const v1=isDebate1?'visible':'', v2=isDebate1?'visible':'', v3=isDebate1?'visible':'';
+    return `<div class="proj-body">
+      ${_projHeader(s,stage)}
+      <div class="proj-area">
+        <div class="proj-content" style="min-height:0">
+          <div>
+            <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.3rem">Escenario</div>
+            <h1 style="font-size:2rem;font-weight:800;line-height:1.2;margin-bottom:.5rem">${cc?.title||''}</h1>
+          </div>
+          ${isDebate1?`<div class="slack-debate-banner">💬 Debate interno — analizad el contexto antes de pasar a la siguiente etapa</div>`:''}
+          <div class="slack-sim">
+            <div class="slack-sim-header">
+              <span style="font-size:1.3rem;line-height:1">
+                <svg width="20" height="20" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:4px"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+              </span>
+              <span class="slack-hash">#</span>
+              <span class="slack-ch-name">soporte-almacen</span>
+              <span class="slack-ch-desc">— Incidencias críticas de operaciones</span>
+            </div>
+            <div class="slack-msgs" id="slack-msgs">
+              <!-- Mensaje 1: título del expedite -->
+              <div class="slack-typing-row" id="slack-typing-1">
+                <div class="slack-avatar">SM</div>
+                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+              </div>
+              <div class="slack-msg ${v1}" id="slack-m1">
+                <div class="slack-avatar">SM</div>
+                <div class="slack-msg-body">
+                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-text">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
+                </div>
+              </div>
+              <!-- Mensaje 2: contexto / descripción -->
+              <div class="slack-typing-row" id="slack-typing-2">
+                <div class="slack-avatar">SM</div>
+                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+              </div>
+              <div class="slack-msg ${v2}" id="slack-m2">
+                <div class="slack-avatar">SM</div>
+                <div class="slack-msg-body">
+                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-text">📋 ${contexto}</div>
+                </div>
+              </div>
+              <!-- Mensaje 3: impacto -->
+              <div class="slack-typing-row" id="slack-typing-3">
+                <div class="slack-avatar sm-urgent">SM</div>
+                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+              </div>
+              <div class="slack-msg ${v3}" id="slack-m3">
+                <div class="slack-avatar sm-urgent">SM</div>
+                <div class="slack-msg-body">
+                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-text"><div class="slack-impact-box">🔴 <strong>Impacto en operativa:</strong> ${impacto}</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+        </div>
+        <div class="proj-sidebar">
+          ${timerHTML(currentTimerTotal())}
+          <div class="card"><div class="section-title">Clasificación</div>
+            <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── STAGE_2, STAGE_3 y debates: vista clásica ──
   return `<div class="proj-body">
-    <div class="proj-header">
-      <div class="flex items-center gap-3">
-        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
-        <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
-        ${S.paused?`<span class="badge badge-paused">⏸ PAUSADO</span>`:''}
-        ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ ${S.skippedByTeam.name} adelantó</span>`:''}
-      </div>
-      <div class="flex items-center gap-3">
-        <div class="progress-dots">${Array.from({length:total},(_,i)=>`<div class="pdot ${i<s.currentCaseIndex?'done':i===s.currentCaseIndex?'active':''}"></div>`).join('')}</div>
-        <div style="font-size:.85rem;color:var(--text-dim)">Caso ${s.currentCaseIndex+1}/${total}</div>
-        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
-      </div>
-    </div>
+    ${_projHeader(s,stage)}
     <div class="proj-area">
       <div class="proj-content">
         <div>
           <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.4rem">Escenario</div>
           <h1 style="font-size:2.5rem;font-weight:800;line-height:1.2">${cc?.title||''}</h1>
         </div>
-        ${s1||s2?`<div class="ctx-box">
-          <h3>Contexto inicial</h3><div ${s2?'style="color:var(--text-dim);margin-bottom:1.25rem"':''}>${cc?.stage1||''}</div>
-          ${s2?`<h3>Contexto ampliado</h3>${cc?.stage2||''}`:''}
+        ${s2?`<div class="ctx-box">
+          <h3>Contexto inicial</h3><div style="color:var(--text-dim);margin-bottom:1.25rem">${cc?.stage1||''}</div>
+          <h3>Contexto ampliado</h3>${cc?.stage2||''}
         </div>`:''}
         ${s3?`<div class="ctx-box" style="margin-bottom:0">
           <h3>Contexto</h3><div style="color:var(--text-dim);font-size:.9rem;margin-bottom:1rem">${cc?.stage1||''} ${cc?.stage2||''}</div>
@@ -1530,7 +1703,7 @@ function projStage(s){
           <div style="font-size:1rem;line-height:1.7">${cc?.stage3||''}</div>
         </div>`:''}
         ${stage==='STAGE_2_DEBATE'?`<div class="card card-sm" style="border-color:var(--accent);background:rgba(245,166,35,.08);text-align:center">⚡ Debate activo — los equipos pueden <strong>adelantar a la resolución</strong></div>`:''}
-        ${['STAGE_1_DEBATE','STAGE_3_DEBATE'].includes(stage)?`<div class="card card-sm" style="text-align:center;color:var(--text-dim)">💬 Tiempo de debate interno</div>`:''}
+        ${stage==='STAGE_3_DEBATE'?`<div class="card card-sm" style="text-align:center;color:var(--text-dim)">💬 Tiempo de debate final</div>`:''}
         <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
       <div class="proj-sidebar">
@@ -1817,6 +1990,11 @@ function render(){
   updateTimerUI();
   refreshLeaderboards();
   refreshDisconnectBanner();
+  // Slack animation: trigger after DOM update for STAGE_1 projector
+  if(S.role==='projector' && S.session?.currentStage==='STAGE_1'){
+    const idx=S.session.currentCaseIndex;
+    requestAnimationFrame(()=>_runSlackAnim(idx));
+  }
   // Tema de color por vista
   const r=document.documentElement;
   if(S.view==='TEAM'){
