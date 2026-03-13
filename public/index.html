@@ -85,6 +85,13 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .answer-opt.selected{border-color:var(--blue);background:rgba(59,130,246,.12)}
 .answer-opt.correct{border-color:var(--green);background:rgba(34,197,94,.15);color:var(--green)}
 .answer-opt.wrong{border-color:var(--red);background:rgba(239,68,68,.1);color:var(--red)}
+/* Quiz reveal — estilo "¿Quién quiere ser millonario?" */
+.answer-opt.reveal-correct{border-color:var(--green)!important;background:rgba(34,197,94,.22)!important;color:var(--green)!important;animation:pulseCorrect .7s ease forwards;cursor:default}
+.answer-opt.reveal-wrong{opacity:.3;border-color:rgba(239,68,68,.3)!important;background:rgba(239,68,68,.05)!important;color:rgba(239,68,68,.6)!important;cursor:default}
+.proj-quiz-card{padding:1.25rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);font-size:.95rem;line-height:1.5;transition:all .4s ease}
+.proj-quiz-card.reveal-correct{border-color:var(--green)!important;background:rgba(34,197,94,.2)!important;color:var(--green)!important;animation:pulseCorrect .7s ease forwards;box-shadow:0 0 28px rgba(34,197,94,.35)}
+.proj-quiz-card.reveal-wrong{opacity:.28;border-color:rgba(239,68,68,.25)!important;background:rgba(239,68,68,.04)!important}
+@keyframes pulseCorrect{0%{transform:scale(1)}40%{transform:scale(1.03);box-shadow:0 0 32px rgba(34,197,94,.5)}100%{transform:scale(1);box-shadow:0 0 14px rgba(34,197,94,.3)}}
 
 .dot-conn{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite;flex-shrink:0}
 .dot-conn.off{background:var(--red);animation:none}
@@ -223,7 +230,7 @@ const S = {
   adminTab:'sesiones', adminSubTab:'personas', editingCase:null,
   leaderboard:[], lastResults:null,
   answered:false, selectedAnswer:null, skipDone:false,
-  skippedByTeam:null, answeredCount:0,
+  skippedByTeam:null, answeredCount:0, quizReveal:null,
   users:{ people:[], teams:[] }, allSessions:[],
   awaitingReconnect:[], // keys de clientes desconectados pendientes de reconexión
   waitingMsg:'',        // mensaje cuando no hay sesión activa
@@ -286,6 +293,7 @@ function restoreState(){
     if(!raw)return false;
     const snap=JSON.parse(raw);
     Object.assign(S,snap);
+    S.quizReveal=null; // nunca restaurar el estado de reveal (el timeout se perdería)
     return true;
   }catch{return false;}
 }
@@ -306,7 +314,7 @@ function logout(){
   Object.assign(S,{
     view:'HOME',role:null,session:null,team:null,admin:null,roomCode:null,
     leaderboard:[],lastResults:null,answered:false,selectedAnswer:null,
-    skipDone:false,answeredCount:0,skippedByTeam:null,awaitingReconnect:[],
+    skipDone:false,answeredCount:0,skippedByTeam:null,awaitingReconnect:[],quizReveal:null,
     paused:false,timerRemaining:0,timerEnd:null,waitingMsg:'',teamColor:'#f5a623'
   });
   render();
@@ -470,6 +478,45 @@ function clearLoginError(){
   S.loginError=null;
 }
 
+// ══════════════════════════════════════════════════════
+// SONIDOS — "¿Quién quiere ser millonario?" style
+// ══════════════════════════════════════════════════════
+function playWinSound(){
+  try{
+    const ctx=new AudioContext();
+    // Fanfarria ascendente: C-E-G-C + acorde final
+    [{f:523,t:0,d:.13},{f:659,t:.12,d:.13},{f:784,t:.24,d:.13},
+     {f:1047,t:.36,d:.55},{f:784,t:.36,d:.55},{f:659,t:.36,d:.55}
+    ].forEach(({f,t,d})=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='square';o.frequency.value=f;
+      g.gain.setValueAtTime(.13,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+d);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+d+.05);
+    });
+  }catch(e){}
+}
+function playLoseSound(){
+  try{
+    const ctx=new AudioContext();
+    // Trombón triste: wah-wah-wah-waaah descendente
+    [{f:466,t:0,d:.38},{f:415,t:.38,d:.38},{f:370,t:.76,d:.38},{f:311,t:1.14,d:.85}
+    ].forEach(({f,t,d})=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      const vib=ctx.createOscillator(),vg=ctx.createGain();
+      vib.frequency.value=5;vg.gain.value=7;
+      vib.connect(vg);vg.connect(o.frequency);
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sawtooth';o.frequency.value=f;
+      g.gain.setValueAtTime(.18,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+t+d);
+      vib.start(ctx.currentTime+t);vib.stop(ctx.currentTime+t+d+.05);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+d+.05);
+    });
+  }catch(e){}
+}
+
 function handleMsg(m){
   switch(m.type){
     case 'ADMIN_LOGIN_OK':
@@ -623,7 +670,13 @@ function handleMsg(m){
     case 'CASE_RESULTS':
       S.lastResults=m; S.leaderboard=m.leaderboard||[];
       if(S.session){ S.session.currentStage='RESULTS'; if(m.eventLog) S.session.eventLog=m.eventLog; }
-      persistState(); render(); break;
+      S.quizReveal={ correctIndex:m.correctAnswerIndex, myResult:m.results?.find(r=>r.teamId===S.team?.id)||null };
+      persistState(); render();
+      if(S.role==='team'){
+        if(S.quizReveal.myResult?.isCorrect) playWinSound(); else if(S.quizReveal.myResult) playLoseSound();
+      }
+      setTimeout(()=>{ S.quizReveal=null; render(); }, 4000);
+      break;
 
     case 'SESSION_FINISHED':
       S.leaderboard=m.leaderboard||[];
@@ -1722,6 +1775,7 @@ function renderProjector(){
   if(!s) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><div class="spinner"></div></div>`;
   if(s.status==='LOBBY') return projLobby(s);
   if(s.status==='FINISHED') return projFinished();
+  if(s.currentStage==='RESULTS' && S.quizReveal) return projQuizReveal(s);
   if(s.currentStage==='RESULTS') return projResults(s);
   if(s.currentStage==='STAGE_4') return projQuiz(s);
   return projStage(s);
@@ -2039,6 +2093,39 @@ function projQuiz(s){
   </div>`;
 }
 
+function projQuizReveal(s){
+  const cc=s.cases[s.currentCaseIndex];
+  const qr=S.quizReveal;
+  return `<div class="proj-body">
+    <div class="proj-header">
+      <div class="flex items-center gap-3">
+        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 GÜERJAUS TBT</span>
+        <span class="badge badge-ok">✅ Solución revelada</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+    </div>
+    <div class="proj-area">
+      <div class="proj-content">
+        <h2 style="font-size:1.8rem;font-weight:700">¡La solución correcta es...</h2>
+        <div class="grid-2">
+          ${cc?.answers?.map((a,i)=>{
+            const isCorr=i===qr.correctIndex;
+            return `<div class="proj-quiz-card ${isCorr?'reveal-correct':'reveal-wrong'}">
+              <div style="font-family:var(--font-mono);font-size:.75rem;font-weight:700;margin-bottom:.4rem">${String.fromCharCode(65+i)}</div>${a}
+            </div>`;
+          }).join('')||''}
+        </div>
+      </div>
+      <div class="proj-sidebar">
+        <div class="card"><div class="section-title">Clasificación</div>
+          <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+        </div>
+        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function projResults(s){
   const lr=S.lastResults;
   if(!lr) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><p style="color:var(--text-dim);font-size:1rem">Sin resultados disponibles aún</p></div>`;
@@ -2096,6 +2183,7 @@ function renderTeam(){
   const s=S.session, stage=s?.currentStage;
   if(!s||s.status==='LOBBY') return teamLobby();
   if(s.status==='FINISHED') return teamFinished();
+  if(stage==='RESULTS' && S.quizReveal) return teamQuizReveal();
   if(stage==='RESULTS') return teamResults();
   if(stage==='STAGE_4') return teamQuiz();
   return teamWaiting(stage);
@@ -2226,6 +2314,34 @@ function teamResults(){
       </div>
       <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       <div style="text-align:center;color:var(--text-dim);font-size:.85rem">Esperando al siguiente caso...</div>
+    </div>
+  </div>`;
+}
+
+function teamQuizReveal(){
+  const s=S.session, cc=s?.cases[s.currentCaseIndex];
+  const qr=S.quizReveal, my=qr?.myResult;
+  const isCorrect=my?.isCorrect;
+  const isSkipper=my?.isSkipper;
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;display:flex;flex-direction:column;gap:1.5rem">
+      <div class="flex justify-between items-center">
+        <div style="font-weight:700">${S.team?.teamName||S.team?.name}</div>
+        <span class="badge badge-ok">✅ Solución</span>
+      </div>
+      <div class="card text-center" style="padding:1.5rem;border-color:${isCorrect?'var(--green)':'var(--red)'};background:${isCorrect?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)'}">
+        <div style="font-size:2.5rem;margin-bottom:.4rem">${isCorrect?'🎉':'😬'}</div>
+        <div style="font-weight:800;font-size:1.3rem;color:${isCorrect?'var(--green)':'var(--red)'}">${isCorrect?'¡CORRECTO!':'¡INCORRECTO!'}</div>
+        ${isSkipper?`<div style="font-size:.85rem;color:var(--text-dim);margin-top:.3rem">${isCorrect?'Bonus por adelantar +30%':'Penalización −50%'}</div>`:''}
+        ${my?.pointsEarned!==undefined?`<div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;margin-top:.4rem;color:${my.pointsEarned>=0?'var(--green)':'var(--red)'}">${my.pointsEarned>=0?'+':''}${my.pointsEarned} pts</div>`:''}
+      </div>
+      <div class="card"><div class="section-title" style="margin-bottom:1rem">La solución era...</div>
+        <div class="flex col gap-2">
+          ${cc?.answers?.map((a,i)=>`<button class="answer-opt ${i===qr.correctIndex?'reveal-correct':'reveal-wrong'}" disabled>
+            <span style="font-family:var(--font-mono);font-size:.72rem;margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
+          </button>`).join('')||''}
+        </div>
+      </div>
     </div>
   </div>`;
 }
