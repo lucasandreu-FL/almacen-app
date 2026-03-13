@@ -1,4 +1,4 @@
-# Guía: Búsqueda de Casos para la Dinámica "El Almacén en Crisis"
+# Guía: Búsqueda de Casos para la Dinámica "GÜERJAUS TBT"
 
 > Este documento permite a cualquier miembro del equipo de almacén buscar de forma autónoma
 > tareas reales de cliente que puedan convertirse en casos para la dinámica de teambuilding.
@@ -214,4 +214,4 @@ para poder importarlo directamente en la app:
 
 ---
 
-*Generado para la dinámica "El Almacén en Crisis" — FactorLibre, marzo 2026*
+*Generado para la dinámica "GÜERJAUS TBT" — FactorLibre, marzo 2026*

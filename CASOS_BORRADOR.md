@@ -1,4 +1,4 @@
-# El Almacén en Crisis — Borrador de Casos
+# GÜERJAUS TBT — Borrador de Casos
 
 > Estado: **pendiente de validación**. Una vez confirmados, se exportan a `casos.json`.
 > Los casos están anonimizados: sin nombres de cliente, producto ni ubicación específica.

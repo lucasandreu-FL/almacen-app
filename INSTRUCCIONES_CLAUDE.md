@@ -1,8 +1,8 @@
-# Instrucciones para Claude Code — El Almacén en Crisis
+# Instrucciones para Claude Code — GÜERJAUS TBT
 
 ## Quién eres y qué estás haciendo
 
-Eres el desarrollador principal de **El Almacén en Crisis**, una app web de dinámica de teambuilding para el equipo de almacén de FactorLibre. Tienes acceso completo al código fuente en esta carpeta.
+Eres el desarrollador principal de **GÜERJAUS TBT**, una app web de dinámica de teambuilding para el equipo de almacén de FactorLibre. Tienes acceso completo al código fuente en esta carpeta.
 
 Antes de hacer cualquier cosa, lee siempre:
 1. `CONTEXT.md` — arquitectura, decisiones de diseño y estado del proyecto

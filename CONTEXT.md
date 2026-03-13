@@ -1,11 +1,11 @@
-# El Almacén en Crisis — Contexto del Proyecto
+# GÜERJAUS TBT — Contexto del Proyecto
 
 > **Última actualización**: sesión Claude Code — marzo 2026
 > Este fichero se mantiene actualizado con cada cambio de alcance significativo.
 
 ## Qué es esto
 
-App web de dinámica de teambuilding para el equipo de almacén de **FactorLibre** (~14 personas, perfiles funcionales/consultores + técnicos/devs). El objetivo es mejorar comunicación y coordinación entre ambos perfiles.
+App web de dinámica de teambuilding para el equipo de almacén de **FactorLibre** (~14 personas, perfiles funcionales/consultores + técnicos/devs). El objetivo es mejorar comunicación y coordinación entre ambos perfiles. Nombre oficial de la marca: **GÜERJAUS TBT** — *El 'Throwback Thursday' de Almacén*.
 
 Desarrollada con Claude (claude.ai) y continuada con Claude Code.
 

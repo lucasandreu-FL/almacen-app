@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>El Almacén en Crisis</title>
+<title>GÜERJAUS TBT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -1016,8 +1016,8 @@ function renderHome(){
   return `<div class="center-page" style="background:radial-gradient(ellipse at 50% 0%,rgba(245,166,35,.08) 0%,transparent 70%)">
     <div style="max-width:420px;width:100%;text-align:center">
       <div style="font-family:var(--font-mono);font-size:.72rem;letter-spacing:.2em;color:var(--accent);margin-bottom:1rem">FACTORLIBRE</div>
-      <h1 style="font-size:3rem;font-weight:800;line-height:1.1;margin-bottom:.5rem">El Almacén<br>en Crisis</h1>
-      <p style="color:var(--text-dim);margin-bottom:2rem">Dinámica de equipo</p>
+      <h1 style="font-size:3rem;font-weight:800;line-height:1.1;margin-bottom:.5rem">GÜERJAUS<br>TBT</h1>
+      <p style="color:var(--text-dim);margin-bottom:2rem">El 'Throwback Thursday' de Almacén</p>
 
       <div class="card" style="text-align:left;margin-bottom:.75rem">
         <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);margin-bottom:1rem">Admin / Equipo</div>
@@ -1107,7 +1107,7 @@ function renderAdmin(){
   const s=S.session;
   return `<div class="admin-layout">
     <div class="sidebar">
-      <div class="logo">🏭 ALMACÉN EN CRISIS</div>
+      <div class="logo">🏭 GÜERJAUS TBT</div>
       <div class="card card-sm" style="margin-bottom:.5rem">
         <div style="font-size:.7rem;color:var(--text-dim)">Admin conectado</div>
         <div style="font-weight:700;font-size:.95rem">${S.admin?.name}</div>
@@ -1366,7 +1366,7 @@ function kickClient(role,teamId){
 }
 function showCredentialsModal(roomCode, credentials){
   const url = window.location.origin;
-  let lines = `🚨 *El Almacén en Crisis* — ¡La dinámica está lista!\n\n`;
+  let lines = `🏭 *GÜERJAUS TBT* — ¡La dinámica está lista!\n\n`;
   lines += `🔗 ${url}\n`;
   lines += `🏠 Código de sala: *${roomCode}*\n\n`;
   if(credentials.length){
@@ -1731,7 +1731,7 @@ function projLobby(s){
   return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(245,166,35,.1) 0%,transparent 70%)">
     <div class="text-center" style="max-width:600px;padding:2rem">
       <div style="font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;color:var(--accent);margin-bottom:2rem">FACTORLIBRE — TEAMBUILDING</div>
-      <h1 style="font-size:4.5rem;font-weight:800;line-height:1;margin-bottom:1.5rem">El Almacén<br>en Crisis</h1>
+      <h1 style="font-size:4.5rem;font-weight:800;line-height:1;margin-bottom:1.5rem">GÜERJAUS<br>TBT</h1>
       <div class="card" style="display:inline-block;padding:1.2rem 2.5rem;margin-bottom:2rem">
         <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.3rem">Código de sala</div>
         <div style="font-family:var(--font-mono);font-size:3.5rem;font-weight:700;color:var(--accent);letter-spacing:.2em">${s.roomCode}</div>
@@ -1748,7 +1748,7 @@ function _projHeader(s,stage){
   const total=s.cases.length;
   return `<div class="proj-header">
     <div class="flex items-center gap-3">
-      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 GÜERJAUS TBT</span>
       <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
       ${S.paused?`<span class="badge badge-paused">⏸ PAUSADO</span>`:''}
       ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ ${S.skippedByTeam.name} adelantó</span>`:''}
@@ -2012,7 +2012,7 @@ function projQuiz(s){
   return `<div class="proj-body">
     <div class="proj-header">
       <div class="flex items-center gap-3">
-        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+        <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 GÜERJAUS TBT</span>
         <span class="badge badge-4">⚡ Resolución</span>
         ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ Adelantado por ${S.skippedByTeam.name}</span>`:''}
       </div>
@@ -2044,7 +2044,7 @@ function projResults(s){
   if(!lr) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><p style="color:var(--text-dim);font-size:1rem">Sin resultados disponibles aún</p></div>`;
   return `<div class="proj-body">
     <div class="proj-header">
-      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 EL ALMACÉN EN CRISIS</span>
+      <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)">🏭 GÜERJAUS TBT</span>
       <div class="flex items-center gap-2">
         <span class="badge badge-ok">✅ Resultados del caso</span>
         <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
@@ -2106,7 +2106,7 @@ function teamLobby(){
     <div style="max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:1.5rem">
       <div style="display:flex;justify-content:flex-end"><button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.75rem">← Salir</button></div>
       <div><div style="font-size:2rem;margin-bottom:.5rem">🏭</div>
-        <h2 style="font-size:1.5rem;font-weight:800">El Almacén en Crisis</h2>
+        <h2 style="font-size:1.5rem;font-weight:800">GÜERJAUS TBT</h2>
       </div>
       <div class="card">
         <div style="font-size:.75rem;color:var(--text-dim)">Equipo</div>

@@ -954,4 +954,4 @@ app.get('/api/sessions/public', (_, res) => {
 app.get('/{*splat}', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🏭 Almacén en Crisis → http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`🏭 GÜERJAUS TBT → http://localhost:${PORT}`));
