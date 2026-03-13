@@ -290,17 +290,29 @@ function resolveCase(sid) {
   const correct = cc.correctAnswerIndex;
   const base = cc.points;
   const results = [];
+
+  // ── Speed bonus: 1º correcto=+5, 2º=+3, 3º=+1, 4º+=0 ──
+  const _speedBonuses = [5, 3, 1];
+  const _correctByTime = Object.entries(s.answers)
+    .filter(([, ans]) => ans.answerIndex === correct)
+    .sort(([, a], [, b]) => (a.timestamp || 0) - (b.timestamp || 0));
+  const _speedBonusMap = {};
+  _correctByTime.forEach(([teamId], i) => { _speedBonusMap[teamId] = _speedBonuses[i] !== undefined ? _speedBonuses[i] : 0; });
+  console.log('[resolveCase] correct:', correct, '| correctByTime:', _correctByTime.map(([tid,a])=>({tid,ts:a.timestamp})), '| bonusMap:', _speedBonusMap);
+
   s.teams.forEach(team => {
     const ans = s.answers[team.id];
     const isSkipper = team.id === s.skipTeamId;
     const didAnswer = ans !== undefined;
     const isCorrect = didAnswer && ans.answerIndex === correct;
+    const speedBonus = isCorrect ? (_speedBonusMap[team.id] ?? 0) : 0;
+    const speedPosition = isCorrect ? _correctByTime.findIndex(([tid]) => tid === team.id) + 1 : null;
     let pts = 0;
-    if (isCorrect) pts = isSkipper ? Math.round(base * 1.3) : base;
+    if (isCorrect) pts = (isSkipper ? Math.round(base * 1.3) : base) + speedBonus;
     else if (isSkipper) pts = -Math.round(base * 0.5);
     team.score += pts;
-    team.history.push({ caseIndex: s.currentCaseIndex, caseTitle: cc.title, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts });
-    results.push({ teamId: team.id, teamName: team.teamName, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts, totalScore: team.score, didAnswer, bonus: isSkipper && isCorrect, penalty: isSkipper && !isCorrect });
+    team.history.push({ caseIndex: s.currentCaseIndex, caseTitle: cc.title, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts, speedBonus });
+    results.push({ teamId: team.id, teamName: team.teamName, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts, totalScore: team.score, didAnswer, speedBonus, speedPosition });
   });
   logEvent(sid, 'CASE_RESOLVED', {
     caseTitle: cc.title,
@@ -758,7 +770,7 @@ wss.on('connection', ws => {
     if (type === 'TEAM_ANSWER' && clientRole === 'team') {
       if (session.currentStage !== 'STAGE_4') return;
       if (session.answers[clientTeamId] !== undefined) return;
-      session.answers[clientTeamId] = { answerIndex: payload.answerIndex, timestamp: payload.timestamp };
+      session.answers[clientTeamId] = { answerIndex: payload.answerIndex, timestamp: Date.now() };
       const cc = session.cases[session.currentCaseIndex];
       const tname = session.teams.find(t => t.id === clientTeamId)?.teamName;
       logEvent(sid, 'TEAM_ANSWER', {
