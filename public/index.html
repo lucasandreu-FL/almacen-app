@@ -148,46 +148,47 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .slack-msg.visible{animation:slack-pop .3s ease-out forwards}
 .slack-msg:hover{background:rgba(255,255,255,.04)}
 @keyframes slack-pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-.slack-avatar{width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#e01563,#4a154b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.72rem;flex-shrink:0;margin-top:2px;letter-spacing:.05em}
+.slack-avatar{width:42px;height:42px;border-radius:6px;background:linear-gradient(135deg,#e01563,#4a154b);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.8rem;flex-shrink:0;margin-top:2px;letter-spacing:.05em}
 .slack-avatar.sm-urgent{background:linear-gradient(135deg,#c0392b,#7b0000)}
 .slack-msg-body{flex:1;min-width:0}
-.slack-msg-meta{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.2rem}
-.slack-author{font-weight:700;font-size:.9rem;color:#fff}
-.slack-time{font-size:.72rem;color:#696969}
-.slack-msg-text{color:#d1d2d3;font-size:.95rem;line-height:1.55}
+.slack-msg-meta{display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem}
+.slack-author{font-weight:700;font-size:1rem;color:#fff}
+.slack-time{font-size:.8rem;color:#696969}
+.slack-msg-text{color:#d1d2d3;font-size:1.1rem;line-height:1.6}
 .slack-msg-text strong{color:#fff}
-.slack-impact-box{background:rgba(200,30,30,.1);border-left:3px solid #c0392b;padding:.6rem .9rem;border-radius:0 6px 6px 0;margin-top:.2rem;color:#ffaaaa}
+.slack-impact-box{background:rgba(200,30,30,.1);border-left:3px solid #c0392b;padding:.7rem 1rem;border-radius:0 6px 6px 0;margin-top:.25rem;color:#ffaaaa;font-size:1.05rem}
 .slack-impact-box strong{color:#ff7070}
 .slack-typing-row{display:none;align-items:center;gap:.6rem;padding:.3rem .5rem;opacity:.7}
 .slack-typing-row.show{display:flex}
 .slack-typing-dots{display:flex;gap:4px;align-items:center}
-.slack-typing-dots span{width:7px;height:7px;border-radius:50%;background:#ababad;animation:typing-b .9s infinite ease-in-out}
+.slack-typing-dots span{width:8px;height:8px;border-radius:50%;background:#ababad;animation:typing-b .9s infinite ease-in-out}
 .slack-typing-dots span:nth-child(2){animation-delay:.18s}
 .slack-typing-dots span:nth-child(3){animation-delay:.36s}
 @keyframes typing-b{0%,60%,100%{transform:translateY(0);opacity:.6}30%{transform:translateY(-4px);opacity:1}}
-.slack-typing-label{font-size:.78rem;color:#ababad}
-.slack-debate-banner{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:.6rem 1rem;text-align:center;color:var(--accent);font-size:.85rem;margin:.75rem 1.5rem .25rem;flex-shrink:0}
+.slack-typing-label{font-size:.88rem;color:#ababad}
+.slack-debate-banner{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:.65rem 1rem;text-align:center;color:var(--accent);font-size:.95rem;margin:.75rem 1.5rem .25rem;flex-shrink:0}
 
 /* ── GitLab issue format (STAGE_2) ── */
 .gl-wrap{background:#0d1117;border-radius:12px;flex:1;display:flex;flex-direction:column;overflow:hidden;font-family:-apple-system,'Segoe UI',system-ui,sans-serif;min-height:0}
 .gl-issue-head{background:#161b22;border-bottom:1px solid #30363d;padding:1rem 1.25rem;flex-shrink:0}
-.gl-issue-title{font-size:1.2rem;font-weight:700;color:#e6edf3;margin-bottom:.45rem;line-height:1.3}
-.gl-issue-meta{font-size:.72rem;color:#8b949e;display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
-.gl-label{padding:.18rem .6rem;border-radius:10px;font-size:.67rem;font-weight:600;letter-spacing:.04em}
+.gl-issue-title{font-size:1.4rem;font-weight:700;color:#e6edf3;margin-bottom:.5rem;line-height:1.3}
+.gl-issue-meta{font-size:.82rem;color:#8b949e;display:flex;gap:.55rem;align-items:center;flex-wrap:wrap}
+.gl-label{padding:.2rem .65rem;border-radius:10px;font-size:.75rem;font-weight:600;letter-spacing:.04em}
 .gl-label-bug{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
 .gl-label-ops{background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.25)}
 .gl-label-urgent{background:rgba(239,68,68,.3);color:#ff8080;border:1px solid rgba(239,68,68,.5)}
 .gl-thread{flex:1;overflow-y:auto;padding:.65rem 1.25rem;display:flex;flex-direction:column;gap:.65rem}
-.gl-comment{display:flex;gap:.65rem;align-items:flex-start;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
+.gl-comment{display:flex;gap:.75rem;align-items:flex-start;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
 .gl-comment.visible{opacity:1;transform:none}
-.gl-avatar{width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:700;flex-shrink:0;color:#fff;margin-top:1px}
+.gl-avatar{width:2.4rem;height:2.4rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;color:#fff;margin-top:1px}
 .gl-comment-box{background:#161b22;border:1px solid #30363d;border-radius:8px;flex:1;overflow:hidden}
-.gl-comment-hdr{padding:.32rem .75rem;border-bottom:1px solid #21262d;background:#1c2128;display:flex;align-items:center;gap:.45rem;font-size:.72rem;color:#8b949e}
+.gl-comment-hdr{padding:.38rem .8rem;border-bottom:1px solid #21262d;background:#1c2128;display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:#8b949e}
 .gl-comment-author{color:#e6edf3;font-weight:600}
-.gl-comment-body{padding:.65rem .75rem;color:#c9d1d9;font-size:.88rem;line-height:1.65}
-.gl-role-badge{padding:.1rem .4rem;border-radius:4px;font-size:.62rem;font-weight:600}
+.gl-comment-body{padding:.75rem .85rem;color:#c9d1d9;font-size:1.05rem;line-height:1.7}
+.gl-role-badge{padding:.12rem .45rem;border-radius:4px;font-size:.7rem;font-weight:600}
 .gl-role-dev{background:rgba(99,102,241,.2);color:#a5b4fc}
 .gl-role-fun{background:rgba(34,197,94,.15);color:#86efac}
+.gl-role-boss{background:rgba(14,165,233,.2);color:#7dd3fc}
 .gl-typing-row{display:none;align-items:center;gap:.6rem;padding:.25rem .5rem}
 .gl-typing-row.show{display:flex}
 
@@ -748,6 +749,21 @@ function _devMember(idx){return _devMembers[idx%_devMembers.length];}
 function _funMember(idx){return _funMembers[idx%_funMembers.length];}
 function _stage3Member(idx){return _allTeam[(idx*3+5)%_allTeam.length];}
 
+// ── Mensajes de Luis Novalio para STAGE_2 (almacén humor andaluz) ──
+const _luisGlMsgs=[
+  'Equipazo, que esto lo resolvemos antes del próximo picking. ¡Aquí no para ni el turno de noche! 💪',
+  'Más pistas que una hoja de picking doble. ¡Vosotros podéis, venga! 💪',
+  'Si hubiéramos ubicado el problema en prime location desde el principio... pero llegamos. ¡A tope! 💪',
+  '¡Menos stock sin movimiento y más ideas en circulación! Confío en este equipo. 💪',
+  'El hueco en el rack ya está reservao pa\' la solución que vais a encontrar. ¡Dale! 💪',
+  '¡Que no se quede ninguna incidencia sin expedir! ¡Pa\'lante equipo! 💪',
+  'Menos FIFO de problemas que los viejos también hay que sacarlos. ¡Vamos! 💪',
+  'Esto tiene más salida que un pedido urgente de viernes por la tarde. ¡Ánimo! 💪',
+  '¡Como dice el maestro del muelle: todo bulto tiene su destino! ¡Encontradle la vuelta! 💪',
+  'En el almacén no hay incidencia sin solución, solo operarios sin café. ¡Venga! 💪',
+];
+function _luisGlMsg(idx){return _luisGlMsgs[idx%_luisGlMsgs.length];}
+
 function _splitStage2(text){
   if(!text) return ['',''];
   const mid=Math.floor(text.length/2);
@@ -764,9 +780,10 @@ function _splitStage2(text){
 let _slackAnimated={}; // caseIdx → true when animation started
 let _luisAnimated={}; // caseIdx → true when Luis msg triggered
 let _gitlabAnimated={}; // caseIdx → true when gitlab anim started
+let _luisGlAnimated={}; // caseIdx → true when Luis GL msg triggered
 let _stage3Animated={}; // caseIdx → true when stage3 slack anim started
 function _resetSlackAnim(caseIdx){delete _slackAnimated[caseIdx];delete _luisAnimated[caseIdx];}
-function _resetGitlabAnim(caseIdx){delete _gitlabAnimated[caseIdx];}
+function _resetGitlabAnim(caseIdx){delete _gitlabAnimated[caseIdx];delete _luisGlAnimated[caseIdx];}
 function _resetStage3Anim(caseIdx){delete _stage3Animated[caseIdx];}
 
 function _runSlackAnim(caseIdx){
@@ -813,6 +830,18 @@ function _runGitlabAnim(caseIdx){
   if(!t1||!c1) return;
   _gitlabAnimated[caseIdx]=true;
   const thread=document.getElementById('gl-thread');
+  const showLuis=()=>{
+    if(_luisGlAnimated[caseIdx]) return;
+    _luisGlAnimated[caseIdx]=true;
+    const tl=document.getElementById('gl-typing-luis');
+    if(tl){tl.classList.add('show');if(thread)thread.scrollTop=thread.scrollHeight;}
+    setTimeout(()=>{
+      if(tl) tl.classList.remove('show');
+      const cl=document.getElementById('gl-c-luis');
+      if(cl){cl.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
+      _playSlackDing();
+    },1800);
+  };
   setTimeout(()=>{
     if(t1) t1.classList.add('show');
     if(thread) thread.scrollTop=thread.scrollHeight;
@@ -829,6 +858,7 @@ function _runGitlabAnim(caseIdx){
       if(t2) t2.classList.remove('show');
       if(c2){c2.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
       _playSlackDing();
+      setTimeout(showLuis, 10000); // Luis ~10s después del último comentario
     },2700);
   },2000);
 }
@@ -1835,7 +1865,7 @@ function projStage(s){
     const fun=_funMember(s.currentCaseIndex);
     const [part1,part2]=_splitStage2(cc?.stage2||'');
     const isDebate2=stage==='STAGE_2_DEBATE';
-    const v1=isDebate2?'visible':'', v2=isDebate2?'visible':'';
+    const v1=isDebate2?'visible':'', v2=isDebate2?'visible':'', vLuis2=isDebate2?'visible':'';
     const issueNum=`#${100+s.currentCaseIndex*7}`;
     return `<div class="proj-body">
       ${_projHeader(s,stage)}
@@ -1891,6 +1921,24 @@ function projStage(s){
                     <span>comentó hace un momento</span>
                   </div>
                   <div class="gl-comment-body">${part2}</div>
+                </div>
+              </div>
+              <!-- Typing Luis -->
+              <div class="gl-typing-row" id="gl-typing-luis">
+                <div class="gl-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+                <span class="slack-typing-label">Luis Novalio está comentando...</span>
+              </div>
+              <!-- Comment Luis -->
+              <div class="gl-comment ${vLuis2}" id="gl-c-luis">
+                <div class="gl-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                <div class="gl-comment-box">
+                  <div class="gl-comment-hdr">
+                    <span class="gl-comment-author">Luis Novalio</span>
+                    <span class="gl-role-badge gl-role-boss">Jefe de Operaciones</span>
+                    <span>comentó hace un momento</span>
+                  </div>
+                  <div class="gl-comment-body">${_luisGlMsg(s.currentCaseIndex)}</div>
                 </div>
               </div>
             </div>
