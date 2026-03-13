@@ -696,9 +696,16 @@ function _playSlackUrgent(){
   }catch(e){}
 }
 
+// ── SM names (deterministic per caseIdx) ──
+const _smNames=['Mayte','Ilse','Sergio del Castillo'];
+const _smAvatars=['MY','IL','SC'];
+function _smName(idx){return _smNames[idx%3];}
+function _smAvatar(idx){return _smAvatars[idx%3];}
+
 // ── Slack animation state ──
 let _slackAnimated={}; // caseIdx → true when animation started
-function _resetSlackAnim(caseIdx){delete _slackAnimated[caseIdx];}
+let _luisAnimated={}; // caseIdx → true when Luis msg triggered
+function _resetSlackAnim(caseIdx){delete _slackAnimated[caseIdx];delete _luisAnimated[caseIdx];}
 
 function _runSlackAnim(caseIdx){
   if(_slackAnimated[caseIdx]) return;
@@ -720,6 +727,21 @@ function _runSlackAnim(caseIdx){
   setTimeout(()=>showMsg(1,'ding',()=>showMsg(2,'ding',()=>showMsg(3,'urgent',null))),600);
 }
 
+function _runLuisMsg(caseIdx){
+  if(_luisAnimated[caseIdx]) return;
+  _luisAnimated[caseIdx]=true;
+  const typing=document.getElementById('slack-typing-luis');
+  if(typing) typing.classList.add('show');
+  const msgs=document.getElementById('slack-msgs');
+  if(msgs) msgs.scrollTop=msgs.scrollHeight;
+  setTimeout(()=>{
+    if(typing) typing.classList.remove('show');
+    const msg=document.getElementById('slack-m-luis');
+    if(msg){msg.classList.add('visible');setTimeout(()=>{if(msgs)msgs.scrollTop=msgs.scrollHeight;},50);}
+    _playSlackDing();
+  },1600);
+}
+
 let _lastBeepSec=-1;
 function updateTimerUI(){
   document.querySelectorAll('.timer-display').forEach(el=>{
@@ -738,6 +760,10 @@ function updateTimerUI(){
   if(r>0&&r/total<=0.15&&!S.paused&&r!==_lastBeepSec){
     _lastBeepSec=r;
     _playUrgentBeep();
+    // Mensaje de Luis Novalio al entrar en zona roja durante STAGE_1 (proyector)
+    if(S.role==='projector'&&S.session?.currentStage==='STAGE_1'){
+      _runLuisMsg(S.session.currentCaseIndex);
+    }
   }
 }
 
@@ -1607,9 +1633,12 @@ function projStage(s){
   if(s1){
     const titulo=cc?.stage1Titulo||cc?.title||'';
     const contexto=cc?.stage1Contexto||cc?.stage1||'';
-    const impacto=cc?.stage1Impacto||'';
+    const impactoDetalle=cc?.stage1Impacto||'';
+    const smName=_smName(s.currentCaseIndex);
+    const smAv=_smAvatar(s.currentCaseIndex);
     // En debate ya están todos visibles; en STAGE_1 la animación los muestra
     const v1=isDebate1?'visible':'', v2=isDebate1?'visible':'', v3=isDebate1?'visible':'';
+    const vLuis=isDebate1?'visible':''; // Luis visible en debate si ya entró en rojo
     return `<div class="proj-body">
       ${_projHeader(s,stage)}
       <div class="proj-area">
@@ -1621,9 +1650,7 @@ function projStage(s){
           ${isDebate1?`<div class="slack-debate-banner">💬 Debate interno — analizad el contexto antes de pasar a la siguiente etapa</div>`:''}
           <div class="slack-sim">
             <div class="slack-sim-header">
-              <span style="font-size:1.3rem;line-height:1">
-                <svg width="20" height="20" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:4px"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
-              </span>
+              <svg width="18" height="18" viewBox="0 0 124 124" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
               <span class="slack-hash">#</span>
               <span class="slack-ch-name">soporte-almacen</span>
               <span class="slack-ch-desc">— Incidencias críticas de operaciones</span>
@@ -1631,41 +1658,54 @@ function projStage(s){
             <div class="slack-msgs" id="slack-msgs">
               <!-- Mensaje 1: título del expedite -->
               <div class="slack-typing-row" id="slack-typing-1">
-                <div class="slack-avatar">SM</div>
+                <div class="slack-avatar">${smAv}</div>
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+                <span class="slack-typing-label">${smName} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v1}" id="slack-m1">
-                <div class="slack-avatar">SM</div>
+                <div class="slack-avatar">${smAv}</div>
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
                 </div>
               </div>
               <!-- Mensaje 2: contexto / descripción -->
               <div class="slack-typing-row" id="slack-typing-2">
-                <div class="slack-avatar">SM</div>
+                <div class="slack-avatar">${smAv}</div>
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+                <span class="slack-typing-label">${smName} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v2}" id="slack-m2">
-                <div class="slack-avatar">SM</div>
+                <div class="slack-avatar">${smAv}</div>
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
                   <div class="slack-msg-text">📋 ${contexto}</div>
                 </div>
               </div>
               <!-- Mensaje 3: impacto -->
               <div class="slack-typing-row" id="slack-typing-3">
-                <div class="slack-avatar sm-urgent">SM</div>
+                <div class="slack-avatar sm-urgent">${smAv}</div>
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">Sara M. está escribiendo...</span>
+                <span class="slack-typing-label">${smName} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v3}" id="slack-m3">
-                <div class="slack-avatar sm-urgent">SM</div>
+                <div class="slack-avatar sm-urgent">${smAv}</div>
                 <div class="slack-msg-body">
-                  <div class="slack-msg-meta"><span class="slack-author">Sara M.</span><span class="slack-time">hace un momento</span></div>
-                  <div class="slack-msg-text"><div class="slack-impact-box">🔴 <strong>Impacto en operativa:</strong> ${impacto}</div></div>
+                  <div class="slack-msg-meta"><span class="slack-author">${smName}</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-text"><div class="slack-impact-box">🔴 No pueden sacar los pedidos y tienen muchos ${impactoDetalle}</div></div>
+                </div>
+              </div>
+              <!-- Mensaje 4: Luis Novalio (aparece al entrar en zona roja del timer) -->
+              <div class="slack-typing-row" id="slack-typing-luis">
+                <div class="slack-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
+                <span class="slack-typing-label">Luis Novalio está escribiendo...</span>
+              </div>
+              <div class="slack-msg ${vLuis}" id="slack-m-luis">
+                <div class="slack-avatar" style="background:linear-gradient(135deg,#0ea5e9,#0369a1)">LN</div>
+                <div class="slack-msg-body">
+                  <div class="slack-msg-meta"><span class="slack-author">Luis Novalio</span><span class="slack-time">hace un momento</span></div>
+                  <div class="slack-msg-text">Nos ponemos con ello 💪</div>
                 </div>
               </div>
             </div>
