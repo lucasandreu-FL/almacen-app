@@ -649,9 +649,7 @@ Moderador: pendiente decidir (candidatos: Adriana Saiz / Álvaro Gómez / Lucas 
 
 ## Los casos del evento — `casos_template.json`
 
-`casos_template.json` contiene **30 casos reales** extraídos de issues de git.factorlibre.com, totalmente anonimizados para el quiz. Cada caso tiene su bloque `retro` con los datos GitLab reales que se revelan en STAGE_RETRO.
-
-Se importan en bloque desde **Admin → Casos → 📥 Importar JSON**. Para el evento se seleccionará un subconjunto (recomendado: 6-10 casos).
+Los casos se gestionan en la **biblioteca global** del servidor. El admin importa el JSON que decida desde **Admin → Casos → 📥 Importar JSON** — los casos del fichero pasan a la biblioteca. Desde la biblioteca, el admin selecciona cuáles serán elegibles para cada sesión y establece el orden de juego.
 
 ### Criterios de selección para el evento
 - Variedad de proyectos/clientes (están representados: noon, visionario, holiday-golf, fisura, lonbali, 226ers, refruiting, safeguru, bimani, paris64, boxnox, masmusculo...)
@@ -681,8 +679,8 @@ Se importan en bloque desde **Admin → Casos → 📥 Importar JSON**. Para el 
 ### Checklist post-deploy
 - [x] Push a main → Railway redeploy automático
 - [ ] Admin → Config: configurar `retroTime` (recomendado 600 seg = 10 min por caso de retro)
-- [ ] Admin → Casos → importar `casos_template.json` (30 casos con datos retro GL) — **necesario tras cada deploy si no hay Volume configurado**
-- [ ] Seleccionar subconjunto de casos para el evento (6-10 recomendado) mediante biblioteca + elegibles
+- [ ] Admin → Casos → 📥 Importar JSON con el fichero de casos que se quiera usar → los casos van a la biblioteca global
+- [ ] Seleccionar casos elegibles para la sesión (checkbox) y ordenarlos (drag & drop)
 - [ ] Decidir moderador (candidatos: Adriana / Álvaro / Lucas)
 - [ ] Prueba end-to-end antes del evento: quiz completo → RESULTS → STAGE_RETRO × 3 sub-etapas → FINISHED → podio suspense → podio reveal
 

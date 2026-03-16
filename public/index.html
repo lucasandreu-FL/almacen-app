@@ -3338,7 +3338,7 @@ function teamQuiz(){
       </div>`:`
       <div class="card"><div class="section-title" style="margin-bottom:1rem">¿Cuál es la solución?</div>
         ${S.wildcardUsed?`<div style="font-size:.75rem;color:var(--accent);background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:.4rem .7rem;margin-bottom:.75rem">🃏 Comodín activo — solo las opciones disponibles son seleccionables</div>`:''}
-        <div class="flex col gap-2">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
           ${(()=>{
             const titans=cc?.titanAnswerIndices||[];
             return cc?.answers?.map((a,i)=>{
@@ -3468,7 +3468,7 @@ function teamQuizReveal(){
         ${my?.pointsEarned!==undefined?`<div style="font-family:var(--font-mono);font-size:1.4rem;font-weight:700;margin-top:.4rem;color:${my.pointsEarned>=0?'var(--green)':'var(--red)'}">${my.pointsEarned>=0?'+':''}${my.pointsEarned} pts</div>`:''}
       </div>
       <div class="card"><div class="section-title" style="margin-bottom:1rem">La solución era...</div>
-        <div class="flex col gap-2">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
           ${cc?.answers?.map((a,i)=>`<button class="answer-opt ${i===qr.correctIndex?'reveal-correct':'reveal-wrong'}" disabled>
             <span style="font-family:var(--font-mono);font-size:.72rem;margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
           </button>`).join('')||''}
