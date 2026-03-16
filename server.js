@@ -112,18 +112,6 @@ function loadData() {
       };
     }
 
-    // Migración: colectar casos de sesiones anteriores a la biblioteca (solo si está vacía)
-    if (caseLibrary.length === 0) {
-      const seen = new Set();
-      for (const s of Object.values(data.sessions || {})) {
-        if (Array.isArray(s.cases)) {
-          for (const c of s.cases) {
-            if (c.id && !seen.has(c.id)) { seen.add(c.id); caseLibrary.push(c); }
-          }
-        }
-      }
-      if (caseLibrary.length > 0) console.log(`[MIGRACIÓN] ${caseLibrary.length} casos migrados a biblioteca global`);
-    }
 
     console.log(`Cargados: ${users.people.length} personas, ${users.teams.length} equipos, ${Object.keys(sessions).length} sesiones, ${caseLibrary.length} casos en biblioteca`);
 
