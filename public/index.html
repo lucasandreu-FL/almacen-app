@@ -3296,35 +3296,34 @@ function teamLobby(){
 function teamWaiting(stage){
   const showSkip=stage==='STAGE_2_DEBATE'&&!S.skipDone&&!S.skippedByTeam;
   const skipTakenByOther=S.skippedByTeam&&S.skippedByTeam.id!==S.team?.id;
-  return `<div class="center-page">
-    <div style="max-width:900px;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
-      <div style="display:flex;flex-direction:column;gap:1.5rem">
-        <div class="flex justify-between items-center">
-          <div>
-            <div style="font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;color:var(--text-dim)">EQUIPO</div>
-            <div style="font-weight:700;font-size:1.1rem">${S.team?.teamName||S.team?.name}</div>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="dot-conn"></div>
-            <span class="badge ${stageBadge(stage)}">${stageLabel(stage)}</span>
-            ${S.paused?'<span class="badge badge-paused">⏸</span>':''}
-            <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
-          </div>
+  return `<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 1.5rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <div class="dot-conn"></div>
+        <span style="font-weight:700;font-size:.95rem">${S.team?.teamName||S.team?.name}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem">
+        ${S.paused?'<span class="badge badge-paused">⏸ PAUSADO</span>':''}
+        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.25rem .65rem">← Salir</button>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;gap:2.5rem">
+      <span class="badge ${stageBadge(stage)}" style="font-size:1.05rem;padding:.55rem 1.75rem;letter-spacing:.08em">${stageLabel(stage)}</span>
+      <div style="width:216px;height:216px;display:flex;align-items:center;justify-content:center">
+        <div style="transform:scale(1.8);transform-origin:center">${timerHTML(currentTimerTotal())}</div>
+      </div>
+      <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+      <div id="skip-banner"></div>
+      ${showSkip?`<div style="max-width:620px;width:100%;background:rgba(245,166,35,.07);border:2px solid var(--accent);border-radius:16px;padding:2rem 2.5rem;text-align:center">
+        <div style="font-size:1rem;color:var(--text);margin-bottom:.55rem">¿Tenéis la respuesta? Podéis saltar a la resolución ahora.</div>
+        <div style="font-size:.98rem;font-weight:600;margin-bottom:1.5rem">
+          <span style="color:var(--accent)">+30% si acertáis</span>
+          <span style="color:var(--text-dim);margin:0 .6rem">·</span>
+          <span style="color:var(--red)">−50% si falláis</span>
         </div>
-        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
-        <div id="skip-banner"></div>
-        ${showSkip?`<div class="card" style="border-color:var(--accent)">
-          <div style="font-size:.85rem;color:var(--text-dim);margin-bottom:1rem;text-align:center">
-            ¿Tenéis la respuesta? Podéis saltar a la resolución ahora.<br>
-            <span style="color:var(--accent);font-weight:600">+30% si acertáis · −50% si falláis</span>
-          </div>
-          <button class="btn btn-skip" onclick="doSkip()">⚡ ¡TENEMOS LA RESPUESTA! Adelantar</button>
-        </div>`:''}
-        ${skipTakenByOther?`<div class="card text-center" style="border-color:var(--accent)">⚡ <strong>${S.skippedByTeam.name}</strong> ha adelantado — el quiz llegará enseguida</div>`:''}
-      </div>
-      <div>
-        <div class="card text-center" style="padding:2rem">${timerHTML(currentTimerTotal())}</div>
-      </div>
+        <button class="btn btn-skip" style="font-size:1.1rem;padding:.9rem 2.5rem;width:100%;letter-spacing:.03em" onclick="doSkip()">⚡ ¡TENEMOS LA RESPUESTA! — Adelantar a resolución</button>
+      </div>`:''}
+      ${skipTakenByOther?`<div style="max-width:480px;width:100%;text-align:center;padding:1rem 1.5rem;border:1px solid var(--accent);border-radius:12px;color:var(--accent)">⚡ <strong>${S.skippedByTeam.name}</strong> ha adelantado — el quiz llegará enseguida</div>`:''}
     </div>
   </div>`;
 }
@@ -3332,41 +3331,66 @@ function teamWaiting(stage){
 function teamQuiz(){
   const s=S.session, cc=s?.cases[s.currentCaseIndex];
   const isSkipper=S.skippedByTeam?.id===S.team?.id;
-  return `<div class="center-page">
-    <div style="max-width:900px;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start">
-      <div style="display:flex;flex-direction:column;gap:1.5rem">
-        <div class="flex justify-between items-center">
-          <div style="font-weight:700">${S.team?.teamName||S.team?.name}</div>
-          <span class="badge badge-4">⚡ Resolución</span>
-        </div>
-        ${isSkipper?`<div class="card card-sm text-center" style="border-color:var(--accent)">⚡ Habéis adelantado — <strong>+30% si acertáis, −50% si falláis</strong></div>`:''}
-        <div data-disconnect-banner>${disconnectBannerHTML()}</div>
-        ${S.answered?`<div class="card text-center" style="padding:2rem;color:var(--text-dim)">
-          ⏳ Respuesta enviada — esperando resultados
-        </div>`:`
-        <div class="card"><div class="section-title" style="margin-bottom:1rem">¿Cuál es la solución?</div>
-          ${S.wildcardUsed?`<div style="font-size:.75rem;color:var(--accent);background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:.4rem .7rem;margin-bottom:.75rem">🃏 Comodín activo — solo las opciones disponibles son seleccionables</div>`:''}
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-            ${(()=>{
-              const titans=cc?.titanAnswerIndices||[];
-              return cc?.answers?.map((a,i)=>{
-                const isDimmed=S.wildcardUsed&&titans.length&&!titans.includes(i);
-                return `<button class="answer-opt ${S.selectedAnswer===i?'selected':''} ${isDimmed?'wildcard-dim':''}" onclick="selAns(${i})" ${isDimmed?'disabled':''} style="${isDimmed?'opacity:.35;pointer-events:none;':''}">
-                  <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
-                </button>`;
-              }).join('')||'';
-            })()}
-          </div>
-          ${!S.wildcardUsed?`<button class="btn w-full" style="margin-top:.75rem;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.4);color:var(--accent);font-size:.85rem" onclick="useWildcard()">
-            🃏 Usar comodín — reduce los puntos al 50%
-          </button>`:''}
-          <button id="confirm-btn" class="btn btn-primary w-full" style="margin-top:.6rem" onclick="submitAns()" ${S.selectedAnswer===null?'disabled':''}>
-            Confirmar respuesta →
-          </button>
-        </div>`}
+  const teamLabel=S.team?.teamName||S.team?.name||'Equipo';
+  if(S.answered) return `<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 1.5rem;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span style="font-weight:700;font-size:.95rem">${teamLabel}</span>
+        <span class="conn-dot ${S.connected?'green':'red'}"></span>
       </div>
-      <div>
-        <div class="card text-center" style="padding:1.5rem">${timerHTML(120)}</div>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span class="badge badge-4" style="font-size:.75rem">⚡ Resolución</span>
+        <div style="transform:scale(.65);transform-origin:center right">${timerHTML(currentTimerTotal())}</div>
+        <button class="btn" style="font-size:.8rem;padding:.3rem .75rem" onclick="leaveTeam()">Salir</button>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <div style="text-align:center;color:var(--text-dim);font-size:1.1rem">⏳ Respuesta enviada — esperando resultados</div>
+    </div>
+  </div>`;
+  const titans=cc?.titanAnswerIndices||[];
+  return `<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--bg)">
+    <!-- topbar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span style="font-weight:700;font-size:.95rem">${teamLabel}</span>
+        <span class="conn-dot ${S.connected?'green':'red'}"></span>
+        ${isSkipper?`<span style="font-size:.72rem;color:var(--accent);background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.35);border-radius:8px;padding:.2rem .55rem">⚡ Adelantado</span>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span class="badge badge-4" style="font-size:.75rem">⚡ Resolución</span>
+        <div style="width:78px;height:78px;display:flex;align-items:center;justify-content:center">
+          <div style="transform:scale(.65);transform-origin:center">${timerHTML(currentTimerTotal())}</div>
+        </div>
+        <button class="btn" style="font-size:.8rem;padding:.3rem .75rem" onclick="leaveTeam()">Salir</button>
+      </div>
+    </div>
+    <!-- main -->
+    <div style="flex:1;display:flex;flex-direction:column;padding:1rem 1.5rem;gap:.75rem;min-height:0">
+      <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+      ${S.wildcardUsed?`<div style="font-size:.78rem;color:var(--accent);background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:.4rem .75rem;text-align:center">🃏 Comodín activo — solo disponibles las 2 opciones resaltadas</div>`:''}
+      <div style="font-size:1rem;font-weight:600;color:var(--text-dim);text-align:center">¿Cuál es la solución?</div>
+      <!-- 2×2 answer grid filling remaining height -->
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.75rem;min-height:0">
+        ${(()=>{
+          return (cc?.answers||[]).map((a,i)=>{
+            const isDimmed=S.wildcardUsed&&titans.length&&!titans.includes(i);
+            const isSel=S.selectedAnswer===i;
+            return `<button class="answer-opt ${isSel?'selected':''} ${isDimmed?'wildcard-dim':''}" onclick="selAns(${i})" ${isDimmed?'disabled':''} style="height:100%;min-height:80px;display:flex;align-items:center;padding:1rem 1.4rem;gap:.85rem;text-align:left;border-radius:10px;${isDimmed?'opacity:.3;pointer-events:none;':''}">
+              <span style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:${isSel?'var(--accent)':'var(--text-dim)'};flex-shrink:0">${String.fromCharCode(65+i)}</span>
+              <span style="font-size:.95rem;line-height:1.4">${a}</span>
+            </button>`;
+          }).join('');
+        })()}
+      </div>
+      <!-- bottom actions -->
+      <div style="display:flex;gap:.75rem;flex-shrink:0;padding-top:.25rem">
+        ${!S.wildcardUsed?`<button class="btn" style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.35);color:var(--accent);font-size:.85rem;flex:1" onclick="useWildcard()">
+          🃏 Comodín — reduce puntos 50%
+        </button>`:'<div style="flex:1"></div>'}
+        <button id="confirm-btn" class="btn btn-primary" style="flex:2;font-size:1rem;padding:.7rem" onclick="submitAns()" ${S.selectedAnswer===null?'disabled':''}>
+          Confirmar respuesta →
+        </button>
       </div>
     </div>
   </div>`;
