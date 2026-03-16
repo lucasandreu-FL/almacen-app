@@ -3224,13 +3224,18 @@ function projPodiumReveal(){
       }).join('')}
     </div>
     <!-- Clasificación completa (aparece a los 8s) -->
-    ${rest.length?`<div style="z-index:2;width:100%;max-width:500px;animation:fullLbIn .8s 8s both;margin-bottom:1rem">
-      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.2em;color:var(--text-dim);text-align:center;margin-bottom:.5rem">Clasificación completa</div>
-      ${rest.map(t=>`<div style="display:flex;align-items:center;gap:1rem;padding:.4rem .75rem;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:.3rem">
-        <span style="font-family:var(--font-mono);color:var(--text-dim);width:1.5rem">#${t.position}</span>
-        <span style="flex:1;font-weight:600">${t.teamName}</span>
-        <span style="font-family:var(--font-mono);color:var(--accent)">${t.score} pts</span>
-      </div>`).join('')}
+    ${lb.length?`<div style="z-index:2;width:100%;max-width:780px;margin:0 auto;animation:fullLbIn .8s 8s both;margin-bottom:1.5rem;text-align:center">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.28em;color:rgba(245,166,35,.6);margin-bottom:1rem">🏆 Clasificación Final</div>
+      ${lb.map(t=>{
+        const medals=['🥇','🥈','🥉'];
+        const medal=medals[t.position-1]||'';
+        const isTop=t.position<=3;
+        return `<div style="display:flex;align-items:center;gap:1.25rem;padding:${isTop?'.75rem 1.25rem':'.55rem 1.25rem'};border-radius:12px;background:${isTop?'rgba(255,255,255,.06)':'rgba(255,255,255,.02)'};border:1px solid ${isTop?'rgba(245,166,35,.25)':'var(--border)'};margin-bottom:.45rem;justify-content:center">
+          <span style="font-size:${isTop?'1.5rem':'1.1rem'};width:2rem;text-align:center">${medal||`<span style="font-family:var(--font-mono);color:var(--text-dim);font-size:.95rem">#${t.position}</span>`}</span>
+          <span style="flex:1;font-weight:${isTop?'700':'600'};font-size:${isTop?'1.2rem':'1rem'};text-align:left">${t.teamName}</span>
+          <span style="font-family:var(--font-mono);font-size:${isTop?'1.2rem':'1rem'};color:${isTop?'var(--accent)':'var(--text-dim)'};font-weight:700">${t.score} pts</span>
+        </div>`;
+      }).join('')}
     </div>`:''}
   </div>`;
 }
