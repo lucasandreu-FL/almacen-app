@@ -3322,11 +3322,8 @@ function teamWaiting(stage){
         </div>`:''}
         ${skipTakenByOther?`<div class="card text-center" style="border-color:var(--accent)">⚡ <strong>${S.skippedByTeam.name}</strong> ha adelantado — el quiz llegará enseguida</div>`:''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:1.5rem">
+      <div>
         <div class="card text-center" style="padding:2rem">${timerHTML(currentTimerTotal())}</div>
-        <div class="card"><div class="section-title">Clasificación</div>
-          <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
-        </div>
       </div>
     </div>
   </div>`;
@@ -3368,11 +3365,8 @@ function teamQuiz(){
           </button>
         </div>`}
       </div>
-      <div style="display:flex;flex-direction:column;gap:1.5rem">
+      <div>
         <div class="card text-center" style="padding:1.5rem">${timerHTML(120)}</div>
-        <div class="card"><div class="section-title">Clasificación</div>
-          <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
-        </div>
       </div>
     </div>
   </div>`;
@@ -3394,7 +3388,6 @@ function teamResults(){
           ${my.isSkipper?`<div style="font-size:.85rem;color:var(--text-dim)">${my.isCorrect?'Bonus por adelantar +30%':'Penalización −50%'}</div>`:''}
           ${my.isCorrect&&my.speedBonus>0?`<div style="font-size:.82rem;color:var(--accent);font-family:var(--font-mono)">${['🥇','🥈','🥉'][(my.speedPosition||1)-1]||''} +${my.speedBonus} pts por respuesta rápida</div>`:''}
           <div class="result-pts ${my.pointsEarned>=0?'pos':'neg'}" style="font-size:1.5rem">${my.pointsEarned>=0?'+':''}${my.pointsEarned} pts</div>
-          <div style="font-size:.85rem;color:var(--text-dim)">Total acumulado: ${my.totalScore} pts</div>
         </div>`:''}
         <div class="card card-sm" style="display:flex;flex-direction:column;gap:.6rem">
           ${myAnsText?`<div style="display:flex;gap:.5rem;align-items:flex-start">
@@ -3408,11 +3401,6 @@ function teamResults(){
         </div>
         <div data-disconnect-banner>${disconnectBannerHTML()}</div>
         <div style="color:var(--text-dim);font-size:.85rem">Esperando al siguiente caso...</div>
-      </div>
-      <div>
-        <div class="card"><div class="section-title">Nueva clasificación</div>
-          <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
-        </div>
       </div>
     </div>
   </div>`;
@@ -3504,19 +3492,11 @@ function teamQuizReveal(){
 }
 
 function teamFinished(){
-  const my=S.leaderboard.find(r=>r.teamId===S.team?.id);
   return `<div class="center-page">
     <div style="max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;gap:1.5rem">
-      <div style="font-size:3rem">${my?.position===1?'🥇':my?.position===2?'🥈':my?.position===3?'🥉':'🏁'}</div>
+      <div style="font-size:3rem">⏳</div>
       <h2 style="font-size:1.5rem;font-weight:800">¡Dinámica finalizada!</h2>
-      ${my?`<div class="card">
-        <div style="font-size:.85rem;color:var(--text-dim)">Posición final</div>
-        <div style="font-size:2.5rem;font-weight:800;color:var(--accent)">#${my.position}</div>
-        <div style="font-family:var(--font-mono);font-size:1.2rem">${my.score} pts</div>
-      </div>`:''}
-      <div class="card"><div class="section-title">Clasificación final</div>
-        <div data-lb="${S.team?.id}" class="flex col gap-1" style="margin-top:.5rem">${lbHTML(S.team?.id)}</div>
-      </div>
+      <div style="color:var(--text-dim)">En breve el moderador revelará los resultados...</div>
     </div>
   </div>`;
 }
