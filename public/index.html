@@ -1426,6 +1426,19 @@ function renderAdmin(){
         :'<div style="font-size:.75rem;color:var(--text-dim);margin-top:.3rem">Sin sesión activa</div>'}
       </div>
       ${tabs.map(t=>`<div class="nav-item ${S.adminTab===t.id?'active':''}" onclick="setTab('${t.id}')">${t.icon} ${t.label}</div>`).join('')}
+      ${(()=>{
+        const rs=S.session;
+        if(!rs||rs.status!=='RUNNING') return '';
+        const canForce=rs.currentCaseIndex>=1||rs.currentStage==='STAGE_RETRO';
+        if(!canForce) return '';
+        return `<div style="margin-top:.75rem;padding:.75rem;border-radius:10px;background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.35)">
+          <div style="font-size:.68rem;color:rgba(245,166,35,.7);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.45rem">⚠️ Finalización anticipada</div>
+          <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.6rem;line-height:1.4">${rs.currentCaseIndex} caso(s) completado(s). Puedes cerrar la sesión y mostrar el podio con los puntos actuales.</div>
+          <button class="btn" style="width:100%;background:rgba(245,166,35,.18);border:1px solid rgba(245,166,35,.55);color:#f5a623;font-weight:700;font-size:.85rem;padding:.5rem" onclick="confirmForcePodium()">
+            🏆 Finalizar y mostrar podio
+          </button>
+        </div>`;
+      })()}
       <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--border)">
         <button class="btn btn-ghost btn-sm w-full" onclick="logout()" style="color:var(--text-dim)">← Salir</button>
       </div>
@@ -1776,6 +1789,12 @@ function renderControl(){
 function startSession(){send({type:'ADMIN_START_SESSION'});}
 function forceStage(st){send({type:'ADMIN_FORCE_STAGE',payload:{stage:st}});}
 function nextCase(){send({type:'ADMIN_NEXT_CASE'});}
+function confirmForcePodium(){
+  const s=S.session;
+  const done=s?.currentCaseIndex||0;
+  const ok=confirm(`⚠️ FINALIZACIÓN ANTICIPADA\n\nEsto terminará la sesión ahora mismo con ${done} caso(s) completado(s).\n\nSe mostrará el podio con las puntuaciones actuales.\nLos equipos pasarán a la pantalla de espera.\n\n¿Confirmas que quieres acabar la sesión?`);
+  if(ok) send({type:'ADMIN_FORCE_PODIUM'});
+}
 function retroNextSubstep(){send({type:'RETRO_ADVANCE_SUBSTEP'});}
 function retroGoSubstep(n){send({type:'RETRO_GO_SUBSTEP',payload:{substep:n}});}
 function kickClient(role,teamId){

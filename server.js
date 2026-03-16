@@ -862,6 +862,23 @@ wss.on('connection', ws => {
       return;
     }
 
+    // Finalizar sesión anticipadamente y mostrar podio con los puntos acumulados hasta ahora
+    if (type === 'ADMIN_FORCE_PODIUM' && clientRole === 'admin') {
+      if (session.status !== 'RUNNING') return;
+      // Requiere al menos 1 caso con scoring completado (currentCaseIndex>0 o en STAGE_RETRO)
+      const canForce = session.currentCaseIndex >= 1 || session.currentStage === 'STAGE_RETRO';
+      if (!canForce) return;
+      logEvent(sid, 'SESSION_FINISHED_EARLY', { leaderboard: getLeaderboard(session).map(e => ({ teamName: e.teamName, score: e.score })), casesCompleted: session.currentCaseIndex });
+      session.status = 'FINISHED';
+      session.podiumReady = true;
+      saveData();
+      // Avisar a todos los clientes que la sesión terminó
+      broadcastAll(sid, { type: 'SESSION_FINISHED', leaderboard: getLeaderboard(session) });
+      // Inmediatamente poner el proyector en pantalla de suspense de podio
+      broadcastAll(sid, { type: 'SHOW_PODIUM', leaderboard: getLeaderboard(session) });
+      return;
+    }
+
     if (type === 'ADMIN_TOGGLE_PAUSE' && clientRole === 'admin') {
       if (session.paused) {
         // Admin fuerza reanudación aunque haya desconectados
