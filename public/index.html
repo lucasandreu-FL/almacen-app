@@ -71,6 +71,8 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .badge-4{background:rgba(232,93,74,.2);color:var(--accent2);border:1px solid rgba(232,93,74,.4)}
 .badge-ok{background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.4)}
 .badge-gray{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)}
+.badge-retro{background:rgba(139,92,246,.2);color:#c4b5fd;border:1px solid rgba(139,92,246,.4)}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 .badge-paused{background:rgba(245,166,35,.2);color:var(--accent);border:1px solid var(--accent);animation:blink-b 1s ease-in-out infinite}
 @keyframes blink-b{0%,100%{opacity:1}50%{opacity:.45}}
 
@@ -134,6 +136,7 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 #toast.success{background:var(--green);color:#000}
 #toast.error{background:var(--accent2);color:#fff}
 #toast.info{background:var(--blue);color:#fff}
+#toast.wildcard{background:rgba(245,166,35,.95);color:#000;font-size:.95rem}
 
 .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1.5rem}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto}
@@ -142,7 +145,7 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .proj-header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
 .proj-area{flex:1;display:flex;padding:2rem;gap:2rem}
 .proj-content{flex:1;display:flex;flex-direction:column;gap:1.5rem}
-.proj-sidebar{width:300px;display:flex;flex-direction:column;gap:1rem}
+.proj-sidebar{width:300px;display:flex;flex-direction:column;gap:1rem;position:sticky;top:1rem;align-self:flex-start}
 .ctx-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;flex:1;overflow-y:auto;font-size:1rem;line-height:1.7}
 .ctx-box h3{font-size:.7rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text-dim);margin-bottom:.75rem}
 .clue-box{background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.4);border-radius:12px;padding:1.5rem}
@@ -217,6 +220,14 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .login-hint{font-size:.75rem;color:var(--text-dim);padding:.4rem .75rem;border-radius:6px;background:var(--surface2);border:1px solid var(--border);text-align:left;line-height:1.6}
 .login-hint strong{color:var(--text)}
 .field-row{display:flex;flex-direction:column;gap:.3rem}
+/* ── Podio ──────────────────────────────────────────────────────────── */
+@keyframes suspenseText{0%,100%{opacity:1;text-shadow:0 0 40px rgba(245,166,35,.8)}50%{opacity:.3;text-shadow:none}}
+@keyframes smokeRise{0%{transform:translateY(0) scale(1);opacity:.18}100%{transform:translateY(-120px) scale(2.2);opacity:0}}
+@keyframes podiumRise{from{transform:scaleY(0);opacity:0;transform-origin:bottom}to{transform:scaleY(1);opacity:1;transform-origin:bottom}}
+@keyframes podiumFadeIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+@keyframes champBounce{0%,100%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(.95)}}
+@keyframes fullLbIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -242,6 +253,9 @@ const S = {
   answered:false, selectedAnswer:null, skipDone:false,
   skippedByTeam:null, answeredCount:0, quizReveal:null,
   users:{ people:[], teams:[] }, allSessions:[],
+  library:[],           // biblioteca global de casos (independiente de sesiones)
+  podiumMode:null,      // null | 'suspense' | 'reveal' — estado de la pantalla de podio en proyector
+  adminPodiumOpen:false,// true cuando el admin tiene abierta la vista de podio
   awaitingReconnect:[], // keys de clientes desconectados pendientes de reconexión
   waitingMsg:'',        // mensaje cuando no hay sesión activa
   teamColor:'#f5a623',  // color de acento del equipo (se aplica en vista TEAM)
@@ -340,13 +354,13 @@ const $=id=>document.getElementById(id);
 const fmt=s=>{const m=Math.floor(s/60),sec=s%60;return `${m}:${sec.toString().padStart(2,'0')}`;};
 function currentTimerTotal(){
   const s=S.session; if(!s) return 120;
-  const map={STAGE_1:s.config?.stage1Time||60,STAGE_1_DEBATE:s.config?.stage1DebateTime||120,STAGE_2:s.config?.stage2Time||90,STAGE_2_DEBATE:s.config?.stage2DebateTime||300,STAGE_3:s.config?.stage3Time||60,STAGE_3_DEBATE:s.config?.stage3DebateTime||180,STAGE_4:120,RESULTS:s.config?.resultsTime||20};
+  const map={STAGE_1:s.config?.stage1Time||60,STAGE_1_DEBATE:s.config?.stage1DebateTime||120,STAGE_2:s.config?.stage2Time||90,STAGE_2_DEBATE:s.config?.stage2DebateTime||300,STAGE_3:s.config?.stage3Time||60,STAGE_3_DEBATE:s.config?.stage3DebateTime||180,STAGE_4:120,RESULTS:s.config?.resultsTime||20,STAGE_RETRO:s.config?.retroTime||0};
   return map[s.currentStage]||120;
 }
 
-function toast(msg,type='info'){
-  const el=$('toast');el.textContent=msg;el.className=`show ${type}`;
-  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3200);
+function toast(msg,type='info',duration=3200){
+  const el=$('toast');el.innerHTML=msg;el.className=`show ${type}`;
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),duration);
 }
 function send(msg){
   if(S.ws?.readyState===1) S.ws.send(JSON.stringify(msg));
@@ -356,7 +370,7 @@ function stageLabel(s){
   return ({LOBBY:'Sala de espera',STAGE_1:'Etapa 1 — Contexto inicial',STAGE_1_DEBATE:'Debate interno',
     STAGE_2:'Etapa 2 — Contexto ampliado',STAGE_2_DEBATE:'Debate (adelantar disponible)',
     STAGE_3:'Etapa 3 — Pista clave',STAGE_3_DEBATE:'Debate final',
-    STAGE_4:'⚡ Resolución',RESULTS:'Resultados',FINISHED:'Finalizado'})[s]||s;
+    STAGE_4:'⚡ Resolución',RESULTS:'Resultados',STAGE_RETRO:'🔍 Retrospectiva',FINISHED:'Finalizado'})[s]||s;
 }
 function stageBadge(s){
   if(!s) return 'badge-gray';
@@ -365,6 +379,7 @@ function stageBadge(s){
   if(s.includes('3')) return 'badge-3';
   if(s.includes('4')) return 'badge-4';
   if(s==='RESULTS') return 'badge-ok';
+  if(s==='STAGE_RETRO') return 'badge-retro';
   return 'badge-gray';
 }
 
@@ -535,6 +550,7 @@ function handleMsg(m){
     case 'ADMIN_LOGIN_OK':
       S.admin=m.admin; S.role='admin';
       S.users=m.users||{people:[],teams:[]}; S.allSessions=m.sessions||[];
+      if(m.library) S.library=m.library;
       S.view='ADMIN';
       hideReconnectOverlay(); setLoginLoading(false);
       persistState(); render();
@@ -634,13 +650,32 @@ function handleMsg(m){
       persistState(); render();
       break;
 
+    case 'RETRO_SUBSTEP':
+      S.retroSubstep=m.substep;
+      if(m.session) S.session=m.session;
+      if(m.substep!==0) _stopRetroScroll();
+      render(); break;
+
     case 'STAGE_CHANGE':
-      S.session=m.session; S.answered=false; S.selectedAnswer=null;
+      S.session=m.session; S.answered=false; S.selectedAnswer=null; S.wildcardUsed=false;
       S.skippedByTeam=null; S.answeredCount=0; S.paused=false; S.awaitingReconnect=[];
+      S.adminPodiumOpen=false;
+      _stopRetroScroll();
+      if(m.session.currentStage==='STAGE_RETRO') S.retroSubstep=m.session.retroSubstep||0;
       persistState();
+      // Cancelar cualquier disparo de Luis pendiente al cambiar de etapa
+      if(_luisTriggerTimer){clearTimeout(_luisTriggerTimer);_luisTriggerTimer=null;}
       if((S.role==='team'||S.role==='projector') && m.session.currentStage==='STAGE_1'){
         _resetSlackAnim(m.session.currentCaseIndex); // reset so animation plays fresh
         startCountdown(m.session.currentCaseIndex);
+        if(S.role==='projector'){
+          // Disparar Luis a la mitad del tiempo configurado (proporcionalmente)
+          // La cadena Luis→Javier→Adrián→SM dura ~22s con 5s de gap entre cada uno
+          const stage1Secs = m.session.config?.stage1Time||45;
+          const delayMs = Math.round(stage1Secs * 0.45) * 1000; // ~45% del tiempo → Ej: 45s → 20s
+          const caseIdx = m.session.currentCaseIndex;
+          _luisTriggerTimer = setTimeout(()=>{ _luisTriggerTimer=null; _runLuisMsg(caseIdx); }, delayMs);
+        }
       } else {
         if(S.role==='projector' && m.session.currentStage==='STAGE_2') _resetGitlabAnim(m.session.currentCaseIndex);
         if(S.role==='projector' && m.session.currentStage==='STAGE_3') _resetStage3Anim(m.session.currentCaseIndex);
@@ -674,11 +709,18 @@ function handleMsg(m){
     case 'TEAM_SKIPPED':
       S.skippedByTeam={id:m.teamId,name:m.teamName};
       toast(`⚡ ${m.teamName} ha adelantado a la resolución!`,'info');
+      _playSkipSound();
       refreshSkipBanner(); break;
 
     case 'TEAM_ANSWERED':
       S.answeredCount=m.totalAnswered;
       refreshAnswerBars(m.totalAnswered,m.totalTeams); break;
+
+    case 'WILDCARD_USED':
+      toast(`🃏 El equipo <strong>${m.teamName}</strong> ha usado el comodín del 50%`,'wildcard',4000);
+      _playWildcardSound();
+      if(S.team && m.teamId===S.team.id) S.wildcardUsed=true;
+      render(); break;
 
     case 'CASE_RESULTS':
       S.lastResults=m; S.leaderboard=m.leaderboard||[];
@@ -696,6 +738,15 @@ function handleMsg(m){
       if(S.session) S.session.status='FINISHED';
       persistState(); render(); break;
 
+    case 'SHOW_PODIUM':
+      S.podiumMode='suspense';
+      if(m.leaderboard) S.leaderboard=m.leaderboard;
+      persistState(); render(); break;
+
+    case 'PODIUM_REVEAL':
+      S.podiumMode='reveal';
+      persistState(); render(); break;
+
     case 'CONFIG_UPDATED':
       if(S.session) S.session.config=m.config;
       toast('Configuración guardada','success'); break;
@@ -707,6 +758,16 @@ function handleMsg(m){
       if(S.session) S.session.cases=m.cases;
       S.editingCase=null;
       if(m.importResult) toast(`Importados: ${m.importResult.imported} casos${m.importResult.skipped?` (${m.importResult.skipped} omitidos por datos incompletos)`:''}`,'success');
+      persistState(); render(); break;
+
+    case 'LIBRARY_DATA':
+      S.library=m.cases||[];
+      S.editingCase=null;
+      if(m.importResult) toast(`Importados a biblioteca: ${m.importResult.imported} casos${m.importResult.skipped?` (${m.importResult.skipped} omitidos)`:''}`,'success');
+      persistState(); render(); break;
+
+    case 'ELIGIBLE_UPDATED':
+      if(S.session) S.session.eligibleCaseIds=m.eligibleCaseIds||[];
       persistState(); render(); break;
 
     case 'STATE_SYNC':
@@ -745,11 +806,9 @@ function handleMsg(m){
 // ══════════════════════════════════════════════════════
 // PARTIAL UPDATES (no full re-render)
 // ══════════════════════════════════════════════════════
-let _audioCtx=null;
-function _getAudioCtx(){if(!_audioCtx)_audioCtx=new(window.AudioContext||window.webkitAudioContext)();return _audioCtx;}
 function _playUrgentBeep(){
   try{
-    const ctx=_getAudioCtx();
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const osc=ctx.createOscillator(),gain=ctx.createGain();
     osc.connect(gain);gain.connect(ctx.destination);
     osc.frequency.value=880;osc.type='sine';
@@ -786,51 +845,103 @@ function _playGoSound(){
     });
   }catch(e){}
 }
-function _playSlackDing(){
-  // Sonido característico de Slack: do-sol cortos, sine suave
+function _playWildcardSound(){
+  // Arpegio mágico descendente para el comodín — cuatro notas en caída con reverb sintético
   try{
-    const ctx=_getAudioCtx(),t=ctx.currentTime;
-    [[523.25,0,.015,.12,.18],[783.99,.13,.015,.1,.16]].forEach(([freq,delay,att,vol,dur])=>{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [[659.25,0,'sine',0.32],[523.25,0.14,'sine',0.28],[415.30,0.28,'triangle',0.24],[261.63,0.42,'sine',0.35]].forEach(([freq,t,type,vol])=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(vol,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.55);
       o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.6);
+    });
+  }catch(e){}
+}
+function _playSelectSound(){
+  // Tick suave de selección — sine corto, muy bajo volumen
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=1046;
+    g.gain.setValueAtTime(0.09,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.07);
+    o.connect(g);g.connect(ctx.destination);
+    o.start(ctx.currentTime);o.stop(ctx.currentTime+0.08);
+  }catch(e){}
+}
+function _playConfirmSound(){
+  // Dos tonos ascendentes — decisión confirmada
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [[523,0,0.12,'square',0.14],[784,0.1,0.22,'square',0.12]].forEach(([freq,t,dur,type,vol])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(vol,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+dur+0.04);
+    });
+  }catch(e){}
+}
+function _playSkipSound(){
+  // Ráfaga de poder ascendente — "ADELANTAR" dramático
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    // Ráfaga rápida ascendente tipo "power up"
+    [[220,0,0.06,'sawtooth',0.18],[330,0.05,0.07,'sawtooth',0.18],[494,0.1,0.07,'sawtooth',0.18],[659,0.16,0.08,'sawtooth',0.18],[880,0.22,0.08,'sawtooth',0.18],[1174,0.28,0.55,'square',0.15]].forEach(([freq,t,dur,type,vol])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(vol,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+dur+0.05);
+    });
+  }catch(e){}
+}
+function _playSlackDing(){
+  // "Pincelada" Slack — dos pings limpios ascendentes La5→Mi6 (880→1318 Hz), sine puro
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)(),t=ctx.currentTime;
+    [[880,0,0.003,0.22,0.09],[1318.5,0.09,0.003,0.18,0.12]].forEach(([freq,delay,att,vol,dur])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
       o.type='sine';o.frequency.value=freq;
       g.gain.setValueAtTime(0,t+delay);
       g.gain.linearRampToValueAtTime(vol,t+delay+att);
-      g.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
-      o.start(t+delay);o.stop(t+delay+dur+.05);
+      g.gain.exponentialRampToValueAtTime(0.001,t+delay+att+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(t+delay);o.stop(t+delay+att+dur+0.03);
     });
   }catch(e){}
 }
 function _playSlackUrgent(){
-  // Triple bajada urgente (Slack @mention)
+  // Urgente Slack — triple ping ascendente La5→Mi6→La6 insistente
   try{
-    const ctx=_getAudioCtx(),t=ctx.currentTime;
-    [[880,0,.015,.22,.12],[659.25,.14,.015,.18,.11],[523.25,.27,.015,.15,.13]].forEach(([freq,delay,att,vol,dur])=>{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)(),t=ctx.currentTime;
+    [[880,0,0.003,0.24,0.08],[1318.5,0.1,0.003,0.21,0.09],[1760,0.2,0.003,0.26,0.14]].forEach(([freq,delay,att,vol,dur])=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
       o.type='sine';o.frequency.value=freq;
       g.gain.setValueAtTime(0,t+delay);
       g.gain.linearRampToValueAtTime(vol,t+delay+att);
-      g.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
-      o.start(t+delay);o.stop(t+delay+dur+.05);
+      g.gain.exponentialRampToValueAtTime(0.001,t+delay+att+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(t+delay);o.stop(t+delay+att+dur+0.03);
     });
   }catch(e){}
 }
 function _playGitlabNotif(){
-  // Sonido GitLab: dos pulsos cortos graves, tipo "blip blip" de sistema
+  // GitLab — bajada Do#5→La4 tipo "merge accepted", triangle cálido
   try{
-    const ctx=_getAudioCtx(),t=ctx.currentTime;
-    [[440,0,.008,.09,.07],[440,.11,.008,.06,.06]].forEach(([freq,delay,att,vol,dur])=>{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)(),t=ctx.currentTime;
+    [[554.37,0,0.005,0.18,0.1,'triangle'],[440,0.12,0.005,0.14,0.13,'triangle']].forEach(([freq,delay,att,vol,dur,type])=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      o.type='square';o.frequency.value=freq;
-      // filtro paso bajo para suavizar el square
-      const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=900;
-      o.connect(f);f.connect(g);o.disconnect(g);
+      o.type=type;o.frequency.value=freq;
       g.gain.setValueAtTime(0,t+delay);
       g.gain.linearRampToValueAtTime(vol,t+delay+att);
-      g.gain.exponentialRampToValueAtTime(0.001,t+delay+dur);
-      o.start(t+delay);o.stop(t+delay+dur+.05);
+      g.gain.exponentialRampToValueAtTime(0.001,t+delay+att+dur);
+      o.connect(g);g.connect(ctx.destination);
+      o.start(t+delay);o.stop(t+delay+att+dur+0.03);
     });
   }catch(e){}
 }
@@ -952,6 +1063,7 @@ function _splitStage2(text){
 // ── Slack animation state ──
 let _slackAnimated={}; // caseIdx → true when animation started
 let _luisAnimated={}; // caseIdx → true when Luis msg triggered
+let _luisTriggerTimer=null; // setTimeout ref para cancelar si cambia etapa
 let _gitlabAnimated={}; // caseIdx → true when gitlab anim started
 let _luisGlAnimated={}; // caseIdx → true when Luis GL msg triggered
 let _stage3Animated={}; // caseIdx → true when stage3 slack anim started
@@ -992,7 +1104,7 @@ function _runLuisMsg(caseIdx){
       const m=document.getElementById('slack-m-'+id);
       if(m){m.classList.add('visible');setTimeout(()=>{if(msgs)msgs.scrollTop=msgs.scrollHeight;},50);}
       _playSlackDing();
-      if(cb) setTimeout(cb,1800);
+      if(cb) setTimeout(cb,5000);
     },1600);
   };
   _showTyping('luis',()=>
@@ -1065,14 +1177,26 @@ function _runStage3Anim(caseIdx){
 let _lastBeepSec=-1;
 function updateTimerUI(){
   document.querySelectorAll('.timer-display').forEach(el=>{
-    const total=parseInt(el.dataset.total)||120, r=S.timerRemaining;
-    const pct=Math.max(0,r/total), radius=50, circ=2*Math.PI*radius;
+    const totalRaw=parseInt(el.dataset.total);
+    const radius=50, circ=2*Math.PI*radius;
+    const prog=el.querySelector('.progress');
+    const tt=el.querySelector('.time-text');
+    const st=el.querySelector('.status-text');
+    if(totalRaw===0){
+      // Sin límite: ring gris estático
+      if(prog){prog.style.strokeDashoffset=0;prog.style.stroke='#374151';prog.style.strokeDasharray=circ;}
+      if(tt) tt.textContent='∞';
+      if(st) st.textContent='sin límite';
+      el.classList.remove('timer-urgent');
+      return;
+    }
+    const total=totalRaw||120, r=S.timerRemaining;
+    const pct=Math.max(0,r/total);
     const isUrgent=r>0&&pct<=0.15;
     const color=pct>0.5?'#22c55e':pct>0.15?'#f5a623':'#ef4444';
-    const prog=el.querySelector('.progress');
     if(prog){prog.style.strokeDashoffset=circ*(1-pct);prog.style.stroke=color;prog.style.strokeDasharray=circ;}
-    const tt=el.querySelector('.time-text'); if(tt) tt.textContent=fmt(r);
-    const st=el.querySelector('.status-text'); if(st) st.textContent=S.paused?'PAUSADO':'restante';
+    if(tt) tt.textContent=fmt(r);
+    if(st) st.textContent=S.paused?'PAUSADO':'restante';
     el.classList.toggle('timer-urgent',isUrgent&&!S.paused);
   });
   // sonido urgente: un beep por segundo sincronizado con el tick
@@ -1080,10 +1204,6 @@ function updateTimerUI(){
   if(r>0&&r/total<=0.15&&!S.paused&&r!==_lastBeepSec){
     _lastBeepSec=r;
     _playUrgentBeep();
-    // Mensaje de Luis Novalio al entrar en zona roja durante STAGE_1 (proyector)
-    if(S.role==='projector'&&S.session?.currentStage==='STAGE_1'){
-      _runLuisMsg(S.session.currentCaseIndex);
-    }
   }
 }
 
@@ -1153,6 +1273,9 @@ function refreshAnswerBars(answered,total){
   document.querySelectorAll('[data-answer-bar]').forEach(el=>{
     el.innerHTML=`<div class="flex justify-between" style="font-size:.8rem;color:var(--text-dim);margin-bottom:.3rem"><span>Respuestas recibidas</span><span>${answered}/${total}</span></div>
     <div class="answers-bar"><div class="answers-bar-fill" style="width:${pct}%"></div></div>`;
+  });
+  document.querySelectorAll('[data-answer-count]').forEach(el=>{
+    el.textContent=`${answered}/${total} respuestas`;
   });
 }
 
@@ -1349,7 +1472,7 @@ function renderCases(){
   const s=S.session; if(!s) return noSession();
   if(S.editingCase!==null){
     const ec=S.editingCase;
-    const c=ec==='new'?{}:s.cases.find(x=>x.id===ec)||{};
+    const c=ec==='new'?{}:S.library.find(x=>x.id===ec)||{};
     return `<div style="max-width:700px">
       <div class="flex items-center gap-2" style="margin-bottom:1.5rem">
         <button class="btn btn-ghost btn-sm" onclick="S.editingCase=null;render()">← Volver</button>
@@ -1364,11 +1487,15 @@ function renderCases(){
         <div><label>Etapa 2 — Contexto ampliado (~70% información)</label><textarea id="c-s2">${c.stage2||''}</textarea></div>
         <div><label>Etapa 3 — Pista clave (sutil, no explícita)</label><textarea id="c-s3" style="min-height:60px">${c.stage3||''}</textarea></div>
         <div>
-          <div class="section-title" style="margin-top:.5rem">Opciones de respuesta — selecciona la correcta</div>
+          <div class="section-title" style="margin-top:.5rem">Opciones de respuesta — selecciona la correcta y marca las 2 opciones Titán (comodín 50%)</div>
           ${[0,1,2,3].map(i=>`<div class="flex items-center gap-2" style="margin-bottom:.5rem">
             <input type="radio" name="correct-ans" value="${i}" ${(c.correctAnswerIndex??0)===i?'checked':''} style="width:auto;flex-shrink:0"/>
             <span style="font-family:var(--font-mono);font-size:.8rem;font-weight:700;color:var(--accent);width:1.2rem;flex-shrink:0">${String.fromCharCode(65+i)}</span>
             <input id="c-a${i}" value="${c.answers?.[i]||''}" placeholder="Opción ${String.fromCharCode(65+i)}${i<2?' (similares entre sí)':''}"/>
+            <label style="display:flex;align-items:center;gap:.3rem;font-size:.72rem;white-space:nowrap;cursor:pointer">
+              <input type="checkbox" name="titan-ans" value="${i}" ${(c.titanAnswerIndices||[]).includes(i)?'checked':''} style="width:auto;flex-shrink:0"/>
+              🃏 Titán
+            </label>
           </div>`).join('')}
         </div>
         <div class="flex gap-2" style="margin-top:.5rem">
@@ -1378,35 +1505,75 @@ function renderCases(){
       </div>
     </div>`;
   }
+
+  const eligible = s.eligibleCaseIds || [];
+  const eligibleSet = new Set(eligible);
+  const isRunning = s.status === 'RUNNING';
+
   return `<div>
-    <div class="flex justify-between items-center" style="margin-bottom:1.5rem;flex-wrap:wrap;gap:.5rem">
+    <div class="flex justify-between items-center" style="margin-bottom:1.25rem;flex-wrap:wrap;gap:.5rem">
       <h2 style="font-size:1.3rem;font-weight:700">Casos · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
       <div class="flex gap-1">
         <button class="btn btn-ghost btn-sm" onclick="openImportCases()">📥 Importar JSON</button>
         <button class="btn btn-primary btn-sm" onclick="S.editingCase='new';render()">+ Nuevo caso</button>
       </div>
     </div>
-    ${!s.cases.length?`<div class="card text-center" style="color:var(--text-dim);padding:3rem">
-      <div style="font-size:2rem;margin-bottom:1rem">📋</div>Sin casos. Crea el primero.
-    </div>`:s.cases.map((c,i)=>`
-    <div class="card flex items-center gap-2" style="margin-bottom:.75rem">
-      <div style="font-family:var(--font-mono);font-size:.8rem;color:var(--text-dim);width:1.5rem">${i+1}</div>
-      <div style="flex:1">
-        <div style="font-weight:600">${c.title||'Sin título'}</div>
-        <div style="font-size:.78rem;color:var(--text-dim)">${c.points} pts · ${c.answers?.filter(Boolean).length||0}/4 opciones · <span style="color:var(--accent);font-family:var(--font-mono)">Correcta: ${c.correctAnswerIndex!==undefined?String.fromCharCode(65+c.correctAnswerIndex):'?'}</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start">
+
+      <!-- BIBLIOTECA GLOBAL -->
+      <div>
+        <div class="section-title" style="margin-bottom:.65rem">📚 Biblioteca global <span style="font-weight:400;color:var(--text-dim)">(${S.library.length})</span></div>
+        ${!S.library.length?`<div class="card text-center" style="color:var(--text-dim);padding:2.5rem">
+          <div style="font-size:1.5rem;margin-bottom:.5rem">📋</div>Biblioteca vacía.<br>Importa o crea el primer caso.
+        </div>`:S.library.map(c=>{
+          const inEl=eligibleSet.has(c.id);
+          return `<div class="card flex items-center gap-2" style="margin-bottom:.45rem;${inEl?'opacity:.55':''}">
+            <input type="checkbox" ${inEl?'checked disabled title="Ya está en elegibles"':'title="Añadir a elegibles"'}
+              onchange="if(this.checked)addEligible('${c.id}')"
+              style="width:auto;flex-shrink:0;cursor:${inEl?'default':'pointer'}"/>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.title||''}">${c.title||'Sin título'}</div>
+              <div style="font-size:.72rem;color:var(--text-dim)">${c.points} pts · Correcta: ${c.correctAnswerIndex!==undefined?String.fromCharCode(65+c.correctAnswerIndex):'?'}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="S.editingCase='${c.id}';render()" style="padding:.2rem .45rem;font-size:.8rem" title="Editar">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="delCase('${c.id}')" style="padding:.2rem .45rem;font-size:.8rem" title="Eliminar">✕</button>
+          </div>`;
+        }).join('')}
       </div>
-      ${(()=>{
-        const isActive=s.status==='RUNNING'&&i===s.currentCaseIndex;
-        const isDone=!isActive&&(s.eventLog||[]).some(e=>e.ev==='CASE_RESOLVED'&&e.ci===i);
-        const isPending=s.status==='RUNNING'&&!isActive&&!isDone;
-        if(isActive) return `<span class="badge badge-ok">ACTIVO</span>`;
-        if(isDone)   return `<span class="badge" style="background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)">HECHO</span>`;
-        if(isPending) return `<span class="badge badge-gray">PENDIENTE</span>`;
-        return '';
-      })()}
-      <button class="btn btn-ghost btn-sm" onclick="S.editingCase='${c.id}';render()">Editar</button>
-      <button class="btn btn-danger btn-sm" onclick="delCase('${c.id}')">✕</button>
-    </div>`).join('')}
+
+      <!-- ELEGIBLES PARA ESTA SESIÓN -->
+      <div>
+        <div class="section-title" style="margin-bottom:.65rem">🎮 Orden de juego <span style="font-weight:400;color:var(--text-dim)">(${eligible.length})</span></div>
+        ${!eligible.length?`<div class="card text-center" style="color:var(--text-dim);padding:2.5rem;border:2px dashed var(--border)">
+          <div style="font-size:1.2rem;margin-bottom:.5rem">☑️</div>Marca casos en la biblioteca<br>para añadirlos aquí
+        </div>`:''}
+        <div id="eligible-list">
+          ${eligible.map((id,i)=>{
+            const c=S.library.find(lc=>lc.id===id);
+            if(!c) return '';
+            const isActive=isRunning&&i===s.currentCaseIndex;
+            const isDone=!isActive&&(s.eventLog||[]).some(e=>e.ev==='CASE_RESOLVED'&&e.ci===i);
+            return `<div class="card flex items-center gap-2" style="margin-bottom:.45rem;cursor:${isRunning?'default':'grab'};${isActive?'border-color:var(--green)':''}"
+              draggable="${isRunning?'false':'true'}"
+              ondragstart="elDragStart(event,'${id}')"
+              ondragover="elDragOver(event)"
+              ondrop="elDrop(event,'${id}')"
+              ondragleave="this.style.outline=''"
+              ondragend="elDragEnd(event)"
+            >
+              <span style="font-family:var(--font-mono);font-size:.75rem;color:var(--text-dim);width:1.3rem;flex-shrink:0;text-align:center">${i+1}</span>
+              ${!isRunning?`<span style="color:var(--text-dim);font-size:1rem;flex-shrink:0;cursor:grab" title="Arrastrar para reordenar">⠿</span>`:''}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.title||'Sin título'}</div>
+                <div style="font-size:.72rem;color:var(--text-dim)">${c.points} pts</div>
+              </div>
+              ${isActive?`<span class="badge badge-ok" style="flex-shrink:0">ACTIVO</span>`:isDone?`<span class="badge" style="flex-shrink:0;background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)">HECHO</span>`:''}
+              ${!isRunning?`<button class="btn btn-ghost btn-sm" onclick="removeEligible('${id}')" style="padding:.2rem .45rem;font-size:.85rem;color:var(--red);flex-shrink:0" title="Quitar de elegibles">✕</button>`:''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 function saveCase(ec){
@@ -1414,12 +1581,32 @@ function saveCase(ec){
   const s1=$('c-s1')?.value.trim(), s2=$('c-s2')?.value.trim(), s3=$('c-s3')?.value.trim();
   const answers=[0,1,2,3].map(i=>$(`c-a${i}`)?.value.trim()||'');
   const correct=parseInt(document.querySelector('input[name="correct-ans"]:checked')?.value??0);
+  const titanAnswerIndices=Array.from(document.querySelectorAll('input[name="titan-ans"]:checked')).map(el=>parseInt(el.value));
   if(!title){toast('El título es obligatorio','error');return;}
   if(!s1||!s2||!s3){toast('Completa las 3 etapas','error');return;}
   if(answers.filter(Boolean).length<4){toast('Añade las 4 opciones de respuesta','error');return;}
-  send({type:'ADMIN_SAVE_CASE',payload:{caseData:{title,points:pts,stage1:s1,stage2:s2,stage3:s3,answers,correctAnswerIndex:correct,id:ec==='new'?null:ec}}});
+  if(titanAnswerIndices.length!==2){toast('Marca exactamente 2 opciones Titán (para el comodín 50%)','error');return;}
+  send({type:'ADMIN_SAVE_CASE',payload:{caseData:{title,points:pts,stage1:s1,stage2:s2,stage3:s3,answers,correctAnswerIndex:correct,titanAnswerIndices,id:ec==='new'?null:ec}}});
 }
-function delCase(id){if(!confirm('¿Eliminar este caso?'))return;send({type:'ADMIN_DELETE_CASE',payload:{caseId:id}});}
+function delCase(id){if(!confirm('¿Eliminar este caso de la biblioteca?'))return;send({type:'ADMIN_DELETE_CASE',payload:{caseId:id}});}
+function addEligible(caseId){send({type:'SESSION_ADD_ELIGIBLE',payload:{caseId}});}
+function removeEligible(caseId){send({type:'SESSION_REMOVE_ELIGIBLE',payload:{caseId}});}
+let _elDragId=null;
+function elDragStart(e,id){_elDragId=id;e.dataTransfer.effectAllowed='move';e.currentTarget.style.opacity='.4';}
+function elDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';e.currentTarget.style.outline='2px solid var(--accent)';}
+function elDrop(e,targetId){
+  e.preventDefault();e.currentTarget.style.outline='';
+  if(!_elDragId||_elDragId===targetId){_elDragId=null;return;}
+  const ids=[...(S.session?.eligibleCaseIds||[])];
+  const from=ids.indexOf(_elDragId),to=ids.indexOf(targetId);
+  if(from<0||to<0){_elDragId=null;return;}
+  ids.splice(from,1);ids.splice(to,0,_elDragId);
+  _elDragId=null;
+  S.session.eligibleCaseIds=ids;
+  send({type:'SESSION_REORDER_ELIGIBLE',payload:{caseIds:ids}});
+  render();
+}
+function elDragEnd(e){e.currentTarget.style.opacity='';e.currentTarget.style.outline='';_elDragId=null;}
 
 function openImportCases(){
   openModal(`<div class="modal">
@@ -1457,14 +1644,14 @@ function renderControl(){
   const s=S.session; if(!s) return noSession();
   const running=s.status==='RUNNING', finished=s.status==='FINISHED';
   const cc=s.cases[s.currentCaseIndex];
-  const stages=['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS'];
+  const stages=['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS','STAGE_RETRO'];
   return `<div style="max-width:680px">
     <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Control · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
 
     ${!running&&!finished?`<div class="card card-accent text-center" style="padding:2.5rem;margin-bottom:1.5rem">
-      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.cases.length} caso(s) · ${s.teams?.length||0} equipo(s) en sala · Proyector: ${s.projectorConnected?'<span style="color:var(--green)">✓ conectado</span>':'<span style="color:var(--red)">✗ no conectado</span>'}</div>
-      <button class="btn btn-primary btn-xl" onclick="startSession()" ${!s.cases.length||!s.teams?.length||!s.projectorConnected?'disabled':''}>🚀 Iniciar dinámica</button>
-      ${!s.cases.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.75rem">Añade casos en la pestaña Casos</div>':''}
+      ${(()=>{const el=(s.eligibleCaseIds||[]).length;return `<div style="color:var(--text-dim);margin-bottom:1.5rem">${el} caso(s) elegido(s) · ${s.teams?.length||0} equipo(s) en sala · Proyector: ${s.projectorConnected?'<span style="color:var(--green)">✓ conectado</span>':'<span style="color:var(--red)">✗ no conectado</span>'}</div>`;})()}
+      <button class="btn btn-primary btn-xl" onclick="startSession()" ${!(s.eligibleCaseIds?.length)||!s.teams?.length||!s.projectorConnected?'disabled':''}>🚀 Iniciar dinámica</button>
+      ${!(s.eligibleCaseIds?.length)?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.75rem">Selecciona casos en la pestaña Casos</div>':''}
       ${!s.teams?.length?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.5rem">Ningún equipo conectado todavía</div>':''}
       ${!s.projectorConnected?'<div style="color:var(--accent2);font-size:.8rem;margin-top:.5rem">El proyector debe conectarse antes de iniciar</div>':''}
     </div>`:''}
@@ -1491,9 +1678,27 @@ function renderControl(){
         <button id="pause-btn" class="btn ${S.paused?'btn-resume':'btn-pause'}" onclick="togglePause()">
           ${S.paused?'▶ Reanudar timer':'⏸ Pausar timer'}
         </button>
-        <button class="btn btn-blue btn-sm" onclick="nextCase()" ${s.currentStage!=='RESULTS'?'disabled':''}>Siguiente caso →</button>
+        <button class="btn btn-blue btn-sm" onclick="nextCase()" ${s.currentStage!=='RESULTS'&&s.currentStage!=='STAGE_RETRO'?'disabled':''}>Siguiente caso →</button>
+        ${s.currentStage==='RESULTS'?`<button class="btn btn-sm" style="background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.5);color:#c4b5fd" onclick="forceStage('STAGE_RETRO')">🔍 Retro →</button>`:''}
       </div>
     </div>
+    ${s.currentStage==='STAGE_RETRO'?`
+    <div class="card" style="margin-bottom:1rem;border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.04)">
+      <div class="section-title" style="color:#c4b5fd">🔍 Retrospectiva — Sub-etapas</div>
+      <div style="margin-top:.65rem;display:flex;gap:.45rem;flex-wrap:wrap">
+        ${[0,1,2].map(i=>{
+          const labels=['🔍 Tarea','💬 Debate','🎓 Lección'];
+          const cur=s.retroSubstep||0;
+          const done=i<cur, active=i===cur;
+          const st=active
+            ?'background:rgba(139,92,246,.3);border-color:rgba(139,92,246,.65);color:#c4b5fd;font-weight:700'
+            :done
+              ?'background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.3);color:#9d7dea'
+              :'background:var(--surface2);border-color:var(--border);color:var(--text-dim)';
+          return `<button class="btn btn-sm" onclick="retroGoSubstep(${i})" style="${st}">${done?'✓ ':active?'▶ ':''}${labels[i]}</button>`;
+        }).join('')}
+      </div>
+    </div>`:''}
 
     <div class="card" style="margin-bottom:1rem">
       <div class="section-title">Avance manual de etapa</div>
@@ -1529,9 +1734,33 @@ function renderControl(){
     </div>
     `:''}
 
-    ${finished?`<div class="card card-accent text-center" style="padding:2rem;margin-bottom:1.5rem">
-      <div style="font-size:2rem;margin-bottom:.5rem">🏆</div>
-      <div style="font-weight:700;font-size:1.2rem">Dinámica finalizada</div>
+    ${finished?`<div class="card" style="margin-bottom:1rem;border-color:rgba(245,166,35,.4);background:rgba(245,166,35,.04)">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-size:1.1rem;font-weight:700">🏆 Dinámica finalizada</div>
+          <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">Puedes mostrar el podio animado en el proyector</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap">
+          ${S.adminPodiumOpen?
+            `<button class="btn btn-sm" style="background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:var(--accent)" onclick="S.adminPodiumOpen=false;render()">← Cerrar podio</button>`:
+            `<button class="btn btn-sm" style="background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:var(--accent)" onclick="S.adminPodiumOpen=true;send({type:'ADMIN_SHOW_PODIUM'});render()">🏆 Pantalla de podio</button>`
+          }
+        </div>
+      </div>
+      ${S.adminPodiumOpen?`
+      <div style="margin-top:1rem;border-top:1px solid rgba(245,166,35,.2);padding-top:1rem">
+        <div style="margin-bottom:.75rem">
+          ${(S.leaderboard||[]).map(t=>`<div style="display:flex;align-items:center;gap:.75rem;padding:.35rem .5rem;border-radius:6px;background:rgba(255,255,255,.03);margin-bottom:.3rem">
+            <span style="font-family:var(--font-mono);color:var(--text-dim);font-size:.8rem;width:1.5rem">#${t.position}</span>
+            <span style="font-weight:600;flex:1">${t.teamName}</span>
+            <span style="font-family:var(--font-mono);color:var(--accent);font-size:.85rem">${t.score} pts</span>
+          </div>`).join('')}
+        </div>
+        <button class="btn btn-primary" style="width:100%;font-size:1rem;padding:.75rem" onclick="send({type:'ADMIN_TRIGGER_RESULTS'})">
+          🎬 Mostrar resultados al proyector
+        </button>
+        <div style="font-size:.72rem;color:var(--text-dim);text-align:center;margin-top:.4rem">El proyector mostrará el podio animado con música</div>
+      </div>`:''}
     </div>`:''}
 
     <div class="card">
@@ -1543,6 +1772,8 @@ function renderControl(){
 function startSession(){send({type:'ADMIN_START_SESSION'});}
 function forceStage(st){send({type:'ADMIN_FORCE_STAGE',payload:{stage:st}});}
 function nextCase(){send({type:'ADMIN_NEXT_CASE'});}
+function retroNextSubstep(){send({type:'RETRO_ADVANCE_SUBSTEP'});}
+function retroGoSubstep(n){send({type:'RETRO_GO_SUBSTEP',payload:{substep:n}});}
 function kickClient(role,teamId){
   if(!confirm(`¿Forzar desconexión de ${role==='projector'?'el Proyector':'el equipo'}?`)) return;
   send({type:'ADMIN_KICK_CLIENT',payload:{role,teamId}});
@@ -1798,6 +2029,7 @@ function renderConfig(){
     ['stage3Time','Etapa 3 — Duración pista clave (seg)','60'],
     ['stage3DebateTime','Etapa 3 — Debate final (seg)','180'],
     ['resultsTime','Resultados — Tiempo de visualización (seg)','20'],
+    ['retroTime','Retrospectiva — Duración global (seg, 0 = sin límite)','0'],
   ];
   return `<div style="max-width:540px">
     <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:1.5rem">Configuración · <span style="color:var(--accent);font-family:var(--font-mono)">${s.roomCode}</span></h2>
@@ -1817,7 +2049,7 @@ function renderConfig(){
   </div>`;
 }
 function saveConfig(){
-  const keys=['stage1Time','stage1DebateTime','stage2Time','stage2DebateTime','stage3Time','stage3DebateTime','resultsTime'];
+  const keys=['stage1Time','stage1DebateTime','stage2Time','stage2DebateTime','stage3Time','stage3DebateTime','resultsTime','retroTime'];
   const config={};
   keys.forEach(k=>config[k]=Math.max(5,parseInt($(`cfg-${k}`)?.value)||60));
   send({type:'ADMIN_UPDATE_CONFIG',payload:{config}});
@@ -1900,28 +2132,33 @@ function noSession(){
 // ══════════════════════════════════════════════════════
 // PROJECTOR
 // ══════════════════════════════════════════════════════
+
 function renderProjector(){
   const s=S.session;
   if(!s) return `<div style="height:100vh;display:flex;align-items:center;justify-content:center"><div class="spinner"></div></div>`;
   if(s.status==='LOBBY') return projLobby(s);
+  if(s.status==='FINISHED'&&S.podiumMode==='suspense') return projPodiumSuspense();
+  if(s.status==='FINISHED'&&S.podiumMode==='reveal') return projPodiumReveal();
   if(s.status==='FINISHED') return projFinished();
   if(s.currentStage==='RESULTS' && S.quizReveal) return projQuizReveal(s);
   if(s.currentStage==='RESULTS') return projResults(s);
+  if(s.currentStage==='STAGE_RETRO') return projRetro(s);
   if(s.currentStage==='STAGE_4') return projQuiz(s);
   return projStage(s);
 }
 
 function projLobby(s){
   return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(245,166,35,.1) 0%,transparent 70%)">
-    <div class="text-center" style="max-width:600px;padding:2rem">
-      <div style="font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;color:var(--accent);margin-bottom:2rem">FACTORLIBRE — TEAMBUILDING</div>
-      <h1 style="font-size:4.5rem;font-weight:800;line-height:1;margin-bottom:1.5rem">GÜERJAUS<br>TBT</h1>
-      <div class="card" style="display:inline-block;padding:1.2rem 2.5rem;margin-bottom:2rem">
+    <div style="display:flex;flex-direction:column;align-items:center;padding:2rem;width:100%;max-width:600px">
+      <div style="font-family:var(--font-mono);font-size:.8rem;letter-spacing:.2em;color:var(--accent);margin-bottom:2rem;text-align:center">FACTORLIBRE — TEAMBUILDING</div>
+      <div style="font-size:4.5rem;font-weight:800;line-height:1;text-align:center;margin-bottom:.1em">GÜERJAUS</div>
+      <div style="font-size:4.5rem;font-weight:800;line-height:1;text-align:center;margin-bottom:1.5rem">TBT</div>
+      <div class="card" style="width:100%;padding:1.2rem 2.5rem;margin-bottom:2rem;text-align:center">
         <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:.3rem">Código de sala</div>
         <div style="font-family:var(--font-mono);font-size:3.5rem;font-weight:700;color:var(--accent);letter-spacing:.2em">${s.roomCode}</div>
       </div>
-      <div style="color:var(--text-dim);margin-bottom:1.5rem">${s.teams?.length||0} equipo(s) conectados</div>
-      <div id="team-list-lobby" class="flex col gap-2" style="max-width:320px;margin:0 auto">
+      <div style="color:var(--text-dim);margin-bottom:1.5rem;text-align:center">${s.teams?.length||0} equipo(s) conectados</div>
+      <div id="team-list-lobby" class="flex col gap-2" style="width:100%;max-width:320px">
         ${s.teams?.map(t=>`<div class="lb-row"><div class="dot-conn ${t.connected?'':'off'}"></div><span style="font-weight:600">${t.teamName||t.name}</span></div>`).join('')||''}
       </div>
     </div>
@@ -1953,8 +2190,8 @@ function projStage(s){
   // ── STAGE_1 y STAGE_1_DEBATE: simulación Slack ──
   if(s1){
     const titulo=cc?.stage1Titulo||cc?.title||'';
-    const contexto=cc?.stage1Contexto||cc?.stage1||'';
-    const impactoDetalle=cc?.stage1Impacto||'';
+    const contexto=applySlackPersonality(cc?.stage1Contexto||cc?.stage1||'');
+    const impactoDetalle=applySlackPersonality(cc?.stage1Impacto||'');
     const sm=_sm(s.currentCaseIndex);
     // En debate ya están todos visibles; en STAGE_1 la animación los muestra
     const v1=isDebate1?'visible':'', v2=isDebate1?'visible':'', v3=isDebate1?'visible':'';
@@ -2085,7 +2322,7 @@ function projStage(s){
   if(s2){
     const dev=_devMember(s.currentCaseIndex);
     const fun=_funMember(s.currentCaseIndex);
-    const [part1,part2]=_splitStage2(cc?.stage2||'');
+    const [part1,part2]=_splitStage2(applySlackPersonality(cc?.stage2||''));
     const isDebate2=stage==='STAGE_2_DEBATE';
     const v1=isDebate2?'visible':'', v2=isDebate2?'visible':'', vLuis2=isDebate2?'visible':'';
     const issueNum=`${8000+s.currentCaseIndex*13}`;
@@ -2190,15 +2427,34 @@ function projStage(s){
     const isDebate3=stage==='STAGE_3_DEBATE';
     const vMsg=isDebate3?'visible':'';
 
+    if(isDebate3){
+      return `<div class="proj-body">
+        ${_projHeader(s,stage)}
+        <div class="proj-area">
+          <div class="proj-content" style="min-height:0;overflow:hidden">
+            <div class="slack-debate-banner" style="margin:.3rem 0 .5rem">💬 Debate final — valorad <strong>todo el contexto</strong> antes de decidir</div>
+            ${_debate3ColsHTML(s)}
+            <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+          </div>
+          <div class="proj-sidebar">
+            ${timerHTML(currentTimerTotal())}
+            <div class="card"><div class="section-title">Clasificación</div>
+              <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+
     // Para el debate final necesitamos los datos de las otras etapas también
     const smD=_sm(s.currentCaseIndex);
     const devD=_devMember(s.currentCaseIndex);
     const funD=_funMember(s.currentCaseIndex);
-    const [p1,p2]=_splitStage2(cc?.stage2||'');
+    const [p1,p2]=_splitStage2(applySlackPersonality(cc?.stage2||''));
     const titulo=cc?.stage1Titulo||cc?.title||'';
     const issueNum3=`${8000+s.currentCaseIndex*13}`;
-    const contexto=cc?.stage1Contexto||cc?.stage1||'';
-    const impacto=cc?.stage1Impacto||'';
+    const contexto=applySlackPersonality(cc?.stage1Contexto||cc?.stage1||'');
+    const impacto=applySlackPersonality(cc?.stage1Impacto||'');
     const labelTipo3=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante" style="font-size:.6rem">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa" style="font-size:.6rem">Desarrollo y acciones técnicas</span>`;
 
     const s3Content = isDebate3 ? `
@@ -2321,7 +2577,7 @@ function projStage(s){
             ${_av(member.img,member.av,member.grad,'slack-avatar')}
             <div class="slack-msg-body">
               <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${member.name}</span></div>
-              <div class="slack-msg-text" style="font-size:.82rem;color:#fff">🔑 ${cc?.stage3||''}</div>
+              <div class="slack-msg-text" style="font-size:.82rem;color:#fff">🔑 ${applySlackPersonality(cc?.stage3||'')}</div>
             </div>
           </div>
         </div>
@@ -2345,7 +2601,7 @@ function projStage(s){
           ${_av(member.img,member.av,member.grad)}
           <div class="slack-msg-body">
             <div class="slack-msg-meta"><span class="slack-author">${member.name}</span><span class="slack-time">hace un momento</span></div>
-            <div class="slack-msg-text">🔑 ${cc?.stage3||''}</div>
+            <div class="slack-msg-text">🔑 ${applySlackPersonality(cc?.stage3||'')}</div>
           </div>
         </div>
       </div>
@@ -2378,14 +2634,188 @@ function projStage(s){
   return `<div class="proj-body">${_projHeader(s,stage)}</div>`;
 }
 
+function _debate3ColsHTML(s){
+  const cc=s.cases[s.currentCaseIndex];
+  const member=_stage3Member(s.currentCaseIndex);
+  const smD=_sm(s.currentCaseIndex);
+  const devD=_devMember(s.currentCaseIndex);
+  const funD=_funMember(s.currentCaseIndex);
+  const [p1,p2]=_splitStage2(cc?.stage2||'');
+  const titulo=cc?.stage1Titulo||cc?.title||'';
+  const issueNum3=`${8000+s.currentCaseIndex*13}`;
+  const contexto=cc?.stage1Contexto||cc?.stage1||'';
+  const impacto=cc?.stage1Impacto||'';
+  const labelTipo3=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante" style="font-size:.6rem">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa" style="font-size:.6rem">Desarrollo y acciones técnicas</span>`;
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:.65rem;min-height:0;flex:1;overflow:hidden">
+      <!-- Columna 1: Slack Stage 1 -->
+      <div class="slack-sim" style="font-size:.78rem">
+        <div class="slack-sim-header" style="padding:.4rem .75rem">
+          <svg width="14" height="14" viewBox="0 0 124 124" fill="none"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+          <span class="slack-hash" style="font-size:.85rem">#</span>
+          <span class="slack-ch-name" style="font-size:.78rem">af-almacen</span>
+        </div>
+        <div class="slack-msgs" style="padding:.6rem .75rem;gap:.05rem">
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">🚨 <strong>${titulo}</strong></div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem">📋 ${contexto}</div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar sm-urgent')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🔴 ${impacto}</div></div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(_luis.img,_luis.av,_luis.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">Luis Novalio</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">Nos ponemos con ello 💪💪💪 <a class="slack-mention">@${smD.name}</a></div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(_funMembers[0].img,_funMembers[0].av,_funMembers[0].grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">Javier Sánchez</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">${_javierSlackMsg(s.currentCaseIndex)}</div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(_devMembers[0].img,_devMembers[0].av,_devMembers[0].grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">Adrián Cifuentes</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem"><a class="slack-mention">@${smD.name}</a> ¿Seguro que es un expedite? 🤔</div>
+            </div>
+          </div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
+              <div class="slack-msg-text" style="font-size:.78rem">${_smExpediteReason(s.currentCaseIndex)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Columna 2: GitLab Stage 2 -->
+      <div class="gl-wrap" style="font-size:.78rem">
+        <div class="gl-topbar" style="padding:.3rem .65rem">
+          <div class="gl-topbar-logo" style="font-size:.72rem">
+            <svg width="14" height="14" viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg"><path d="M282.83 170.73l-.27-.69-26.14-68.22a6.81 6.81 0 00-2.69-3.24 7 7 0 00-8 .43 7 7 0 00-2.32 3.52l-17.65 54H154.29l-17.65-54a6.86 6.86 0 00-2.32-3.52 7 7 0 00-8-.43 6.85 6.85 0 00-2.69 3.24L97.44 170l-.26.69a48.54 48.54 0 0016.1 56.1l.09.07.24.17 39.82 29.82 19.7 14.91 12 9.06a8.07 8.07 0 009.19 0l12-9.06 19.7-14.91 40.06-30 .1-.08a48.56 48.56 0 0016.1-56.04z" fill="#fc6d26"/><path d="M282.83 170.73l-.27-.69a88.3 88.3 0 00-35.15 19.38L190 243.45l47.3 35.46 40.06-30 .1-.08a48.56 48.56 0 005.37-78.1z" fill="#e24329"/><path d="M142.7 278.91L162.4 264l19.7-14.91L190 243.45l-57.43-54.03a88.19 88.19 0 00-35.15-19.38l-.26.69a48.54 48.54 0 005.37 78.1z" fill="#e24329"/></svg>
+            GitLab
+          </div>
+        </div>
+        <div class="gl-issue-head" style="padding:.5rem .75rem">
+          <div class="gl-issue-title" style="font-size:.9rem;margin-bottom:.3rem"><span style="color:#8b949e;font-weight:400">[Almacén] #${issueNum3}</span> ${titulo}</div>
+          <div class="gl-issue-meta" style="gap:.35rem">
+            <span class="gl-label gl-label-expedite" style="font-size:.6rem">🚨 Expedite</span>
+            <span class="gl-label gl-label-almacen" style="font-size:.6rem">Almacén</span>
+            ${labelTipo3}
+          </div>
+        </div>
+        <div class="gl-thread" style="padding:.4rem .6rem;gap:.4rem">
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(devD.img,devD.av,devD.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">${devD.name}</span>
+                <span class="gl-role-badge gl-role-dev" style="font-size:.6rem">Técnico</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p1}</div>
+            </div>
+          </div>
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(funD.img,funD.av,funD.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">${funD.name}</span>
+                <span class="gl-role-badge gl-role-fun" style="font-size:.6rem">Funcional</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p2}</div>
+            </div>
+          </div>
+          <div class="gl-comment visible" style="gap:.45rem">
+            ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
+            <div class="gl-comment-box">
+              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
+                <span class="gl-comment-author" style="font-size:.72rem">Luis Novalio</span>
+                <span class="gl-role-badge gl-role-func" style="font-size:.6rem">Funcional</span>
+              </div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${_luisGlMsg(s.currentCaseIndex)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Columna 3: Slack Stage 3 — pista clave -->
+      <div class="slack-sim" style="font-size:.78rem">
+        <div class="slack-sim-header" style="padding:.4rem .75rem">
+          <svg width="14" height="14" viewBox="0 0 124 124" fill="none"><rect width="124" height="124" rx="24" fill="#4A154B"/><path d="M26.6 79.7a13.3 13.3 0 1 1-13.3-13.3h13.3v13.3zm6.7 0a13.3 13.3 0 1 1 26.6 0v33.3a13.3 13.3 0 1 1-26.6 0V79.7zM44.3 26.6a13.3 13.3 0 1 1 13.3-13.3v13.3H44.3zm0 6.7a13.3 13.3 0 1 1 0 26.6H11a13.3 13.3 0 1 1 0-26.6h33.3zM97.4 44.3a13.3 13.3 0 1 1 13.3 13.3H97.4V44.3zm-6.7 0a13.3 13.3 0 1 1-26.6 0V11a13.3 13.3 0 1 1 26.6 0v33.3zM79.7 97.4a13.3 13.3 0 1 1-13.3 13.3V97.4h13.3zm0-6.7a13.3 13.3 0 1 1 0-26.6H113a13.3 13.3 0 1 1 0 26.6H79.7z" fill="white"/></svg>
+          <span class="slack-hash" style="font-size:.85rem">#</span>
+          <span class="slack-ch-name" style="font-size:.78rem">af-almacen</span>
+        </div>
+        <div class="slack-msgs" style="padding:.6rem .75rem">
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(member.img,member.av,member.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${member.name}</span></div>
+              <div class="slack-msg-text" style="font-size:.82rem;color:#fff">🔑 ${applySlackPersonality(cc?.stage3||'')}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function projQuiz(s){
   const cc=s.cases[s.currentCaseIndex];
+  const isSkipped=!!s.skippedByTeam;
+  const answered=Object.keys(s.answers||{}).length;
+  const total=s.teams?.length||0;
+
+  if(!isSkipped){
+    return `<div class="proj-body">
+      <div class="proj-header">
+        <div class="flex items-center gap-3">
+          <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)"><i class="fa-solid fa-warehouse" style="color:#fff"></i> GÜERJAUS TBT</span>
+          <span class="badge badge-4">⚡ Resolución</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
+      </div>
+      <div class="proj-area">
+        <div class="proj-content" style="min-height:0;overflow:hidden">
+          <div class="slack-debate-banner" style="margin:.3rem 0 .5rem">⚡ Resolución — responded con <strong>todo el contexto</strong> en cuenta</div>
+          ${_debate3ColsHTML(s)}
+          <div data-disconnect-banner>${disconnectBannerHTML()}</div>
+        </div>
+        <div class="proj-sidebar">
+          ${timerHTML(120)}
+          <div class="card card-sm" style="text-align:center;padding:.6rem">
+            <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.2rem">Respuestas</div>
+            <div data-answer-count style="font-size:1.1rem;font-weight:700;font-family:var(--font-mono);color:var(--accent)">${answered}/${total}</div>
+          </div>
+          <div class="card"><div class="section-title">Clasificación</div>
+            <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   return `<div class="proj-body">
     <div class="proj-header">
       <div class="flex items-center gap-3">
         <span style="font-family:var(--font-mono);font-size:.78rem;color:var(--accent)"><i class="fa-solid fa-warehouse" style="color:#fff"></i> GÜERJAUS TBT</span>
         <span class="badge badge-4">⚡ Resolución</span>
-        ${S.skippedByTeam?`<span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ Adelantado por ${S.skippedByTeam.name}</span>`:''}
+        <span style="background:rgba(245,166,35,.15);border:1px solid var(--accent);border-radius:6px;padding:.2rem .7rem;font-size:.8rem">⚡ Adelantado por ${s.skippedByTeam.name}</span>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="logout()" style="color:var(--text-dim);font-size:.72rem;padding:.3rem .7rem">← Salir</button>
     </div>
@@ -2487,6 +2917,324 @@ function projResults(s){
   </div>`;
 }
 
+// ── Retro helpers ─────────────────────────────────────────────────────────────
+const _retroTanuki=`<svg width="14" height="14" viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg"><path d="M282.83 170.73l-.27-.69-26.14-68.22a6.81 6.81 0 00-2.69-3.24 7 7 0 00-8 .43 7 7 0 00-2.32 3.52l-17.65 54H154.29l-17.65-54a6.86 6.86 0 00-2.32-3.52 7 7 0 00-8-.43 6.85 6.85 0 00-2.69 3.24L97.44 170l-.26.69a48.54 48.54 0 0016.1 56.1l.09.07.24.17 39.82 29.82 19.7 14.91 12 9.06a8.07 8.07 0 009.19 0l12-9.06 19.7-14.91 40.06-30 .1-.08a48.56 48.56 0 0016.1-56.04z" fill="#fc6d26"/><path d="M282.83 170.73l-.27-.69a88.3 88.3 0 00-35.15 19.38L190 243.45l47.3 35.46 40.06-30 .1-.08a48.56 48.56 0 005.37-78.1z" fill="#e24329"/><path d="M142.7 278.91L162.4 264l19.7-14.91L190 243.45l-57.43-54.03a88.19 88.19 0 00-35.15-19.38l-.26.69a48.54 48.54 0 005.37 78.1z" fill="#e24329"/></svg>`;
+
+function _glAvatar(username,size=30){
+  const initials=(username||'FL').split(/[._@-]/).map(p=>p[0]?.toUpperCase()||'').join('').slice(0,2)||'FL';
+  const cols=['#7c3aed','#2563eb','#0891b2','#059669','#d97706','#dc2626','#db2777','#0d9488'];
+  let h=0; for(const c of(username||'')) h=(h*31+c.charCodeAt(0))&0xffff;
+  const bg=cols[h%cols.length];
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${Math.floor(size*.38)}px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:-.02em">${initials}</div>`;
+}
+
+function _glLabelStyle(label){
+  const l=label.toLowerCase();
+  if(l.includes('critic')||l.includes('urgent')||l.includes('expedite')) return 'background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.35)';
+  if(l.includes('almac')) return 'background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.3)';
+  if(l.includes('desplegado')||l.includes('done')||l.includes('resuelto')) return 'background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.3)';
+  if(l.includes('doing')||l.includes('progress')) return 'background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3)';
+  return 'background:rgba(139,92,246,.1);color:#c4b5fd;border:1px solid rgba(139,92,246,.25)';
+}
+
+let _retroScrollRAF=null;
+function _stopRetroScroll(){if(_retroScrollRAF){cancelAnimationFrame(_retroScrollRAF);_retroScrollRAF=null;}}
+function _startRetroScroll(){
+  _stopRetroScroll();
+  requestAnimationFrame(()=>{
+    const el=document.querySelector('.gl-thread');
+    if(!el) return;
+    el.scrollTop=0;
+    requestAnimationFrame(()=>{
+      const totalScroll=el.scrollHeight-el.clientHeight;
+      if(totalScroll<=0) return;
+      const textLen=el.textContent.length;
+      const durationMs=Math.min(Math.max(textLen*42,22000),90000);
+      const startTime=performance.now();
+      function tick(now){
+        const p=Math.min((now-startTime)/durationMs,1);
+        el.scrollTop=totalScroll*p;
+        if(p<1) _retroScrollRAF=requestAnimationFrame(tick);
+        else _retroScrollRAF=null;
+      }
+      _retroScrollRAF=requestAnimationFrame(tick);
+    });
+  });
+}
+
+// ── Bloque 3: personalidad Slack de Luis y Javi ──────────────────────────────
+function applySlackPersonality(text){
+  if(!text) return text;
+  const luisPfx=['Pisha, ','Churrita, '];
+  const javiPfx=['Illo, ','Ompare, '];
+  return text.split('\n').map((line,li)=>{
+    if(/^Luis:/i.test(line)){
+      const p=luisPfx[li%luisPfx.length];
+      return line.replace(/^(Luis:)\s*/i,`$1 ${p}`);
+    }
+    if(/^Javi(er)?:/i.test(line)){
+      const p=javiPfx[li%javiPfx.length];
+      return line.replace(/^(Javi(?:er)?:)\s*/i,`$1 ${p}`);
+    }
+    return line;
+  }).join('\n');
+}
+
+function _renderMd(text){
+  if(!text) return '';
+  let h=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Fenced code blocks
+  h=h.replace(/```([\s\S]*?)```/g,(_,c)=>`<pre style="background:rgba(13,17,23,.8);border:1px solid #30363d;border-radius:6px;padding:.6rem .9rem;font-family:var(--font-mono);font-size:.82rem;overflow-x:auto;margin:.5rem 0;white-space:pre-wrap">${c.trim()}</pre>`);
+  // Inline code
+  h=h.replace(/`([^`]+)`/g,'<code style="background:rgba(175,184,193,.18);border-radius:4px;padding:.1em .35em;font-family:var(--font-mono);font-size:.88em;color:#e6edf3">$1</code>');
+  // ## Headers
+  h=h.replace(/^#{1,3}\s+(.+)$/gm,'<div style="font-weight:700;font-size:1.02em;color:#e6edf3;margin-top:1em;margin-bottom:.3em;padding-bottom:.25em;border-bottom:1px solid #21262d">$1</div>');
+  // Bold
+  h=h.replace(/\*\*(.+?)\*\*/g,'<strong style="color:#e6edf3">$1</strong>');
+  // Italic _text_
+  h=h.replace(/_(.+?)_/g,'<em>$1</em>');
+  // Numbered list items
+  h=h.replace(/^\d+\.\s+(.+)$/gm,'<div style="padding:.18em 0 .18em 1.4em;position:relative"><span style="position:absolute;left:.1em;color:#8b949e">•</span>$1</div>');
+  // Bullet list items
+  h=h.replace(/^[-*]\s+(.+)$/gm,'<div style="padding:.18em 0 .18em 1.4em;position:relative"><span style="position:absolute;left:.1em;color:#8b949e">•</span>$1</div>');
+  // Paragraph breaks
+  h=h.replace(/\n{2,}/g,'<br><br>');
+  h=h.replace(/\n/g,'<br>');
+  return h;
+}
+
+function _retroGlFrame(cc,r){
+  const projPath=(r.glProjectPath||r.gitlabProject||'—').split('/').pop();
+  const num=r.gitlabIssueNumber;
+  const glTitle=r.glTitle||cc.title;
+  const desc=r.glDescription||'';
+  const comments=r.glComments||[];
+  const closing=r.glClosing;
+  const labels=r.glLabels||[];
+  const corrLabel=String.fromCharCode(65+(cc.correctAnswerIndex||0));
+  const h=cc.hoursImputed??'?';
+  const dias=typeof h==='number'?Math.round(h/8):null;
+  return `<div class="gl-wrap" style="height:100%;border-radius:0;border:none;display:flex;flex-direction:column">
+    <div class="gl-topbar" style="flex-shrink:0">
+      <div class="gl-topbar-logo">${_retroTanuki} &nbsp;<span style="color:#e6edf3;font-size:.85rem">git.factorlibre.com</span><span style="color:#8b949e;margin:0 .4rem">/</span><span style="color:#58a6ff;font-size:.85rem">${projPath}</span>${num?`<span style="color:#8b949e;margin:0 .3rem">/</span><span style="color:#8b949e;font-size:.85rem">issues / <span style="color:#e6edf3">#${num}</span></span>`:''}</div>
+      <span style="margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;background:rgba(34,197,94,.12);color:#56d364;border:1px solid rgba(34,197,94,.3);border-radius:20px;padding:.2rem .75rem;font-size:.78rem;font-weight:600">✓ Closed</span>
+    </div>
+    <div class="gl-issue-head" style="flex-shrink:0;padding:1rem 1.5rem">
+      <div class="gl-issue-title" style="font-size:1.35rem;font-weight:700;line-height:1.35;margin-bottom:.6rem">${num?`<span style="color:#8b949e;font-weight:400">#${num}</span> `:''}${glTitle}</div>
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        ${labels.map(l=>`<span style="padding:.2rem .65rem;border-radius:10px;font-size:.75rem;font-weight:600;letter-spacing:.03em;${_glLabelStyle(l)}">${l}</span>`).join('')}
+        ${!labels.length?'<span style="padding:.2rem .65rem;border-radius:10px;font-size:.75rem;background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.3)">Almacén</span>':''}
+        ${h!=='?'?`<span style="margin-left:auto;font-family:var(--font-mono);font-size:.95rem;font-weight:700;color:var(--accent)">⏱ ${h}h${dias?` · ${dias}d`:''}</span>`:''}
+      </div>
+    </div>
+    <div class="gl-thread" style="flex:1;min-height:0;overflow-y:auto;padding:1rem 1.75rem;gap:1rem">
+      ${desc?`<div style="display:flex;gap:.85rem;align-items:flex-start;padding:.75rem 0;border-bottom:1px solid #21262d">
+        <div style="width:36px;height:36px;border-radius:50%;background:#21262d;border:1px solid #30363d;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0">📋</div>
+        <div class="gl-comment-box" style="flex:1">
+          <div class="gl-comment-hdr"><span class="gl-comment-author" style="font-size:.85rem">Descripción</span></div>
+          <div class="gl-comment-body" style="font-size:1.05rem;line-height:1.7">${_renderMd(desc)}</div>
+        </div>
+      </div>`:''}
+      ${comments.map(c=>`<div class="gl-comment visible" style="padding:.75rem 0;border-bottom:1px solid #21262d">
+        ${_glAvatar(c.author,36)}
+        <div class="gl-comment-box" style="flex:1">
+          <div class="gl-comment-hdr"><span class="gl-comment-author" style="font-size:.85rem">${c.author}</span><span style="margin-left:.6rem;font-size:.78rem;color:#6e7681">comentó</span></div>
+          <div class="gl-comment-body" style="font-size:1.05rem;line-height:1.7">${_renderMd(c.body)}</div>
+        </div>
+      </div>`).join('')}
+      ${closing?`<div class="gl-comment visible" style="padding:.75rem 0;border-bottom:1px solid rgba(34,197,94,.15)">
+        ${_glAvatar(closing.author,36)}
+        <div class="gl-comment-box" style="flex:1;border-color:rgba(34,197,94,.3)">
+          <div class="gl-comment-hdr" style="background:rgba(34,197,94,.06)"><span class="gl-comment-author" style="font-size:.85rem">${closing.author}</span><span style="margin-left:.6rem;font-size:.78rem;color:#56d364">✓ cerró la issue</span></div>
+          <div class="gl-comment-body" style="font-size:1.05rem;line-height:1.7">${_renderMd(closing.body)}</div>
+        </div>
+      </div>`:''}
+      <div class="gl-comment visible" style="padding:.75rem 0">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">✅</div>
+        <div class="gl-comment-box" style="flex:1;border-color:rgba(34,197,94,.3)">
+          <div class="gl-comment-hdr" style="background:rgba(34,197,94,.06)"><span class="gl-comment-author" style="color:#56d364;font-size:.85rem">Solución aplicada en producción</span></div>
+          <div class="gl-comment-body" style="font-size:1.1rem;line-height:1.65"><strong>Opción ${corrLabel}:</strong> ${cc.answers?.[cc.correctAnswerIndex]||''}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _retroHoursPanel(cc){
+  const h=cc.hoursImputed??'?';
+  const dias=typeof h==='number'?Math.round(h/8):null;
+  return `<div style="width:120px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.25);border-radius:14px;padding:.9rem .75rem;text-align:center;animation:fadeSlideIn .7s ease">
+    <div style="font-size:.52rem;text-transform:uppercase;letter-spacing:.15em;color:var(--text-dim);margin-bottom:.5rem">⏱ horas</div>
+    <div style="font-family:var(--font-mono);font-size:2.4rem;font-weight:800;color:var(--accent);line-height:1;text-shadow:0 0 20px rgba(245,166,35,.4);animation:pulse 1.5s ease-out">${h}</div>
+    ${dias?`<div style="font-size:.6rem;color:var(--text-dim);margin-top:.4rem">≈ ${dias} día${dias!==1?'s':''}</div>`:''}
+  </div>`;
+}
+
+function _retroDebateOverlay(cc){
+  const raw=cc.debate||'';
+  const splitRx=/\*\*El Desafío:\*\*/i;
+  const splitIdx=raw.search(splitRx);
+  const pregunta=splitIdx>0?raw.slice(0,splitIdx).trim():raw;
+  const desafio=splitIdx>0?raw.slice(raw.indexOf(':',splitIdx)+1).trim():'';
+  return `<div style="position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:2rem;animation:fadeSlideIn .45s ease">
+    <div style="width:100%;max-width:1080px;background:rgba(10,12,18,.94);border:1.5px solid rgba(139,92,246,.45);border-radius:22px;box-shadow:0 0 80px rgba(139,92,246,.25),0 24px 60px rgba(0,0,0,.6);overflow:hidden">
+      <div style="padding:.55rem 1.75rem;background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.25);display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:.62rem;text-transform:uppercase;letter-spacing:.22em;font-weight:700;color:#c4b5fd">💬 Debate libre</span>
+        <span style="flex:1;height:1px;background:rgba(139,92,246,.2)"></span>
+        <span style="font-size:.65rem;color:#8b949e;font-family:var(--font-mono)">${cc.title}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div style="padding:2rem 2.25rem 2.25rem;border-right:1px solid rgba(139,92,246,.2)">
+          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.2em;font-weight:700;color:#6b7280;margin-bottom:1rem">La Pregunta</div>
+          <div style="font-size:1.55rem;line-height:1.65;font-weight:500;color:#e2e8f0;letter-spacing:-.01em">${pregunta||'—'}</div>
+        </div>
+        <div style="padding:2rem 2.25rem 2.25rem;background:rgba(139,92,246,.06)">
+          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.2em;font-weight:700;color:#c4b5fd;margin-bottom:1rem">⚡ El Desafío</div>
+          <div style="font-size:1.55rem;line-height:1.65;font-weight:600;color:#f8fafc;letter-spacing:-.01em">${desafio||pregunta||'—'}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function projRetro(s){
+  const cc=s.cases[s.currentCaseIndex];
+  const sub=S.retroSubstep||0;
+  const r=cc.retro||{};
+  // Scroll control
+  if(sub===0){if(!_retroScrollRAF) setTimeout(_startRetroScroll,200);}
+  else _stopRetroScroll();
+  // Sub 2: full-screen moraleja
+  if(sub>=2) return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(139,92,246,.18) 0%,transparent 65%)">
+    <div style="text-align:center;max-width:860px;padding:2.5rem;animation:fadeSlideIn .9s ease">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.25em;color:#c4b5fd;margin-bottom:2.5rem">🎓 Lección del caso</div>
+      <div style="font-family:'Syne',sans-serif;font-size:.85rem;color:rgba(139,92,246,.6);font-style:normal;margin-bottom:.25rem;letter-spacing:.05em">— ${cc.title}</div>
+      <div style="font-size:2.2rem;color:rgba(139,92,246,.35);line-height:1;margin-bottom:.75rem">"</div>
+      <div style="font-size:2rem;font-weight:700;line-height:1.55;color:#e2e8f0;font-style:italic">${cc.moraleja||''}</div>
+      <div style="font-size:2.2rem;color:rgba(139,92,246,.35);line-height:1;margin-top:.75rem">"</div>
+    </div>
+  </div>`;
+  // Sub 1: vista dedicada full-screen debate
+  if(sub===1){
+    const raw=cc.debate||'';
+    const splitRx=/\*\*El Desafío:\*\*/i;
+    const splitIdx=raw.search(splitRx);
+    const pregunta=splitIdx>0?raw.slice(0,splitIdx).trim():raw;
+    const desafio=splitIdx>0?raw.slice(raw.indexOf(':',splitIdx)+1).trim():'';
+    return `<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(139,92,246,.2) 0%,transparent 65%);padding:2.5rem">
+      <div style="width:100%;max-width:1280px;animation:fadeSlideIn .7s ease">
+        <div style="text-align:center;margin-bottom:2rem">
+          <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.28em;color:#c4b5fd;margin-bottom:.4rem">💬 Debate del caso</div>
+          <div style="font-size:.82rem;color:rgba(139,92,246,.55);font-family:var(--font-mono)">${cc.title}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem">
+          <div style="background:rgba(10,12,20,.85);border:1.5px solid rgba(139,92,246,.35);border-radius:20px;padding:2.75rem;display:flex;flex-direction:column;gap:1.25rem">
+            <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.22em;font-weight:700;color:#6b7280">La Pregunta</div>
+            <div style="font-size:1.85rem;line-height:1.6;font-weight:500;color:#e2e8f0;letter-spacing:-.01em">${pregunta||'—'}</div>
+          </div>
+          <div style="background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.55);border-radius:20px;padding:2.75rem;display:flex;flex-direction:column;gap:1.25rem;box-shadow:0 0 60px rgba(139,92,246,.15)">
+            <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.22em;font-weight:700;color:#c4b5fd">⚡ El Desafío</div>
+            <div style="font-size:1.85rem;line-height:1.6;font-weight:600;color:#f8fafc;letter-spacing:-.01em">${desafio||pregunta||'—'}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+  // Sub 0: GL thread
+  const rt=s.config?.retroTime||0;
+  return `<div class="proj-body" style="position:relative">
+    ${_projHeader(s,'STAGE_RETRO')}
+    <div style="position:absolute;top:56px;right:1.25rem;z-index:30">
+      ${timerHTML(rt)}
+    </div>
+    <div style="flex:1;min-height:0;overflow:hidden;position:relative">
+      ${_retroGlFrame(cc,r)}
+    </div>
+  </div>`;
+}
+
+function projPodiumSuspense(){
+  const smokes=[...Array(8)].map((_,i)=>`<div style="position:absolute;bottom:${8+i*5}%;left:${10+i*11}%;width:${60+i*18}px;height:${60+i*18}px;border-radius:50%;background:radial-gradient(circle,rgba(245,166,35,.18),transparent 70%);animation:smokeRise ${2.8+i*.4}s ease-out infinite;animation-delay:${i*.35}s"></div>`).join('');
+  return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,rgba(245,166,35,.12) 0%,#0a0e1a 60%);position:relative;overflow:hidden">
+    ${smokes}
+    <div style="text-align:center;z-index:2;padding:2rem">
+      <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.35em;color:rgba(245,166,35,.5);margin-bottom:3rem">GÜERJAUS TBT — DINÁMICA FINALIZADA</div>
+      <div style="font-family:'Syne',sans-serif;font-size:5.5rem;font-weight:800;color:#f5a623;line-height:1;animation:suspenseText 2s ease-in-out infinite;letter-spacing:-.02em">¿QUIÉN HA<br>GANADO?</div>
+      <div style="margin-top:3.5rem;display:flex;justify-content:center;gap:.5rem">
+        ${[...Array(5)].map((_,i)=>`<div style="width:8px;height:8px;border-radius:50%;background:rgba(245,166,35,${.15+i*.18});animation:suspenseText ${1+i*.2}s ease-in-out infinite;animation-delay:${i*.15}s"></div>`).join('')}
+      </div>
+      <div style="margin-top:2rem;font-size:.75rem;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.2em">En espera del moderador</div>
+    </div>
+  </div>`;
+}
+
+function projPodiumReveal(){
+  const lb=S.leaderboard||[];
+  const top=lb.slice(0,3);
+  const rest=lb.slice(3);
+  // Generar confeti para cada posición
+  function confetti(n,colors){
+    return [...Array(n)].map((_,i)=>{
+      const c=colors[i%colors.length];
+      const l=5+Math.random()*90, sz=6+Math.random()*8;
+      const dur=2.5+Math.random()*2, del=Math.random()*3;
+      return `<div style="position:absolute;top:-20px;left:${l}%;width:${sz}px;height:${sz}px;background:${c};animation:confettiFall ${dur}s ${del}s ease-in infinite;transform-origin:center;border-radius:${Math.random()>.5?'50%':'2px'}"></div>`;
+    }).join('');
+  }
+  const medals=['🥇','🥈','🥉'];
+  const delays=[5000,2500,0]; // 1st, 2nd, 3rd
+  const heights=['220px','175px','135px'];
+  const baseColors=[['#ffd700','#fff176','#ffa000'],['#c0c0c0','#e0e0e0','#9e9e9e'],['#cd7f32','#ffb74d','#e65100']];
+  // Ordenar: mostrar 3º primero (delay 0), luego 2º (2.5s), luego 1º (5s)
+  // Pero los renderizamos en orden visual: 2º | 1º | 3º (izq-centro-der clásico del podio)
+  const podiumOrder=[top[1],top[0],top[2]]; // 2º, 1º, 3º para layout visual
+  const podiumDelays=['2500ms','5000ms','0ms'];
+  const podiumHeights=['175px','220px','135px'];
+  const podiumColors=[1,0,2]; // índice de baseColors
+
+  return `<div style="min-height:100vh;background:radial-gradient(ellipse at 50% 80%,rgba(245,166,35,.15) 0%,#0a0e1a 55%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:2rem;position:relative;overflow:hidden">
+    <!-- Confeti por posición -->
+    ${top[2]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 0ms both">${confetti(25,baseColors[2])}</div>`:''}
+    ${top[1]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 2500ms both">${confetti(30,baseColors[1])}</div>`:''}
+    ${top[0]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 5000ms both">${confetti(40,['#ffd700','#fff59d','#ff9800','#fff','#f44336','#2196f3','#4caf50'])}</div>`:''}
+    <!-- YouTube audio -->
+    <iframe id="champion-audio" src="https://www.youtube.com/embed/04854XqcfCY?start=53&autoplay=1&controls=0&mute=0" allow="autoplay" style="display:none" title="champions"></iframe>
+    <button id="music-btn" onclick="document.getElementById('champion-audio').src=document.getElementById('champion-audio').src" style="position:fixed;top:1rem;right:1rem;z-index:100;background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:#f5a623;padding:.4rem .9rem;border-radius:20px;font-size:.78rem;cursor:pointer">▶ Música</button>
+    <!-- Título -->
+    <div style="position:absolute;top:2.5rem;left:50%;transform:translateX(-50%);text-align:center;animation:podiumFadeIn .8s 5s both">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.3em;color:rgba(245,166,35,.6)">🏆 CLASIFICACIÓN FINAL</div>
+    </div>
+    <!-- Podio -->
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:1.5rem;margin-bottom:2.5rem;z-index:2">
+      ${podiumOrder.map((t,vi)=>{
+        if(!t) return '<div style="width:200px"></div>';
+        const delay=podiumDelays[vi];
+        const h=podiumHeights[vi];
+        const isFirst=vi===1;
+        const medal=medals[vi===1?0:vi===0?1:2];
+        const pos=vi===1?1:vi===0?2:3;
+        return `<div style="display:flex;flex-direction:column;align-items:center;animation:podiumFadeIn .8s ${delay} both;width:200px">
+          <div style="font-size:${isFirst?'3.5rem':'2.5rem'};animation:${isFirst?`champBounce 1s 6s infinite`:'none'}">${medal}</div>
+          <div style="font-size:${isFirst?'1.6rem':'1.2rem'};font-weight:800;font-family:'Syne',sans-serif;color:#e2e8f0;text-align:center;margin:.4rem 0;${isFirst?'text-shadow:0 0 30px rgba(255,215,0,.6)':''}">${t.teamName}</div>
+          <div style="font-family:var(--font-mono);font-size:${isFirst?'1.4rem':'1.1rem'};font-weight:700;color:${isFirst?'#ffd700':pos===2?'#c0c0c0':'#cd7f32'};margin-bottom:.75rem">${t.score} pts</div>
+          <div style="width:100%;height:${h};background:linear-gradient(to top,${isFirst?'rgba(255,215,0,.25),rgba(255,215,0,.08)':pos===2?'rgba(192,192,192,.2),rgba(192,192,192,.06)':'rgba(205,127,50,.2),rgba(205,127,50,.06)'});border:1px solid ${isFirst?'rgba(255,215,0,.4)':pos===2?'rgba(192,192,192,.3)':'rgba(205,127,50,.3)'};border-bottom:none;border-radius:8px 8px 0 0;animation:podiumRise .7s ${delay} both;display:flex;align-items:center;justify-content:center">
+            <span style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:${isFirst?'rgba(255,215,0,.3)':pos===2?'rgba(192,192,192,.25)':'rgba(205,127,50,.25)'}">${pos}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <!-- Clasificación completa (aparece a los 8s) -->
+    ${rest.length?`<div style="z-index:2;width:100%;max-width:500px;animation:fullLbIn .8s 8s both;margin-bottom:1rem">
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.2em;color:var(--text-dim);text-align:center;margin-bottom:.5rem">Clasificación completa</div>
+      ${rest.map(t=>`<div style="display:flex;align-items:center;gap:1rem;padding:.4rem .75rem;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid var(--border);margin-bottom:.3rem">
+        <span style="font-family:var(--font-mono);color:var(--text-dim);width:1.5rem">#${t.position}</span>
+        <span style="flex:1;font-weight:600">${t.teamName}</span>
+        <span style="font-family:var(--font-mono);color:var(--accent)">${t.score} pts</span>
+      </div>`).join('')}
+    </div>`:''}
+  </div>`;
+}
+
 function projFinished(){
   return `<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(34,197,94,.08) 0%,transparent 70%)">
     <div class="text-center" style="max-width:600px;padding:2rem">
@@ -2506,6 +3254,7 @@ function renderTeam(){
   if(s.status==='FINISHED') return teamFinished();
   if(stage==='RESULTS' && S.quizReveal) return teamQuizReveal();
   if(stage==='RESULTS') return teamResults();
+  if(stage==='STAGE_RETRO') return teamRetro();
   if(stage==='STAGE_4') return teamQuiz();
   return teamWaiting(stage);
 }
@@ -2588,12 +3337,22 @@ function teamQuiz(){
         ⏳ Respuesta enviada — esperando resultados
       </div>`:`
       <div class="card"><div class="section-title" style="margin-bottom:1rem">¿Cuál es la solución?</div>
+        ${S.wildcardUsed?`<div style="font-size:.75rem;color:var(--accent);background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:6px;padding:.4rem .7rem;margin-bottom:.75rem">🃏 Comodín activo — solo las opciones disponibles son seleccionables</div>`:''}
         <div class="flex col gap-2">
-          ${cc?.answers?.map((a,i)=>`<button class="answer-opt ${S.selectedAnswer===i?'selected':''}" onclick="selAns(${i})">
-            <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
-          </button>`).join('')||''}
+          ${(()=>{
+            const titans=cc?.titanAnswerIndices||[];
+            return cc?.answers?.map((a,i)=>{
+              const isDimmed=S.wildcardUsed&&titans.length&&!titans.includes(i);
+              return `<button class="answer-opt ${S.selectedAnswer===i?'selected':''} ${isDimmed?'wildcard-dim':''}" onclick="selAns(${i})" ${isDimmed?'disabled':''} style="${isDimmed?'opacity:.35;pointer-events:none;':''}">
+                <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);margin-right:.5rem">${String.fromCharCode(65+i)}</span>${a}
+              </button>`;
+            }).join('')||'';
+          })()}
         </div>
-        <button id="confirm-btn" class="btn btn-primary w-full" style="margin-top:1rem" onclick="submitAns()" ${S.selectedAnswer===null?'disabled':''}>
+        ${!S.wildcardUsed?`<button class="btn w-full" style="margin-top:.75rem;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.4);color:var(--accent);font-size:.85rem" onclick="useWildcard()">
+          🃏 Usar comodín — reduce los puntos al 50%
+        </button>`:''}
+        <button id="confirm-btn" class="btn btn-primary w-full" style="margin-top:.6rem" onclick="submitAns()" ${S.selectedAnswer===null?'disabled':''}>
           Confirmar respuesta →
         </button>
       </div>`}
@@ -2636,6 +3395,56 @@ function teamResults(){
       </div>
       <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       <div style="text-align:center;color:var(--text-dim);font-size:.85rem">Esperando al siguiente caso...</div>
+    </div>
+  </div>`;
+}
+
+function teamRetro(){
+  const cc=S.session?.cases?.[S.session?.currentCaseIndex];
+  if(!cc) return `<div class="center-page"><div class="spinner"></div></div>`;
+  const sub=S.retroSubstep||0;
+  const r=cc.retro||{};
+  const corrLabel=String.fromCharCode(65+(cc.correctAnswerIndex||0));
+  const wrongIdx=[0,1,2,3].find(i=>i!==cc.correctAnswerIndex)??0;
+  const wrongLabel=String.fromCharCode(65+wrongIdx);
+  const h=cc.hoursImputed??'?';
+  const steps=[
+    {i:0,lbl:'🔍 Tarea'},
+    {i:1,lbl:'💬 Debate'},
+    {i:2,lbl:'🎓 Lección'},
+  ];
+  // Sub 2: full-screen moraleja
+  if(sub>=2) return `<div class="center-page" style="background:radial-gradient(ellipse at 50% 30%,rgba(139,92,246,.15) 0%,transparent 70%)">
+    <div style="max-width:440px;width:100%;text-align:center;padding:1.5rem;animation:fadeSlideIn .7s ease">
+      <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.2em;color:#c4b5fd;margin-bottom:1.5rem">🎓 Lección del caso</div>
+      <div style="font-size:1.4rem;color:rgba(139,92,246,.5)">"</div>
+      <div style="font-size:1.05rem;font-weight:600;line-height:1.6;font-style:italic;color:#e2e8f0;padding:.5rem 0">${cc.moraleja||''}</div>
+      <div style="font-size:1.4rem;color:rgba(139,92,246,.5)">"</div>
+      <div style="font-size:.75rem;color:var(--text-dim);margin-top:1rem">— ${cc.title}</div>
+    </div>
+  </div>`;
+  // Sub 0-2: progressive reveal
+  return `<div class="center-page">
+    <div style="max-width:460px;width:100%;display:flex;flex-direction:column;gap:.75rem;padding:1rem">
+      <div style="display:flex;gap:.35rem;justify-content:center;flex-wrap:wrap">
+        ${steps.map(({i,lbl})=>`<div style="padding:.2rem .55rem;border-radius:12px;font-size:.68rem;transition:.3s;${i<=sub?'background:rgba(139,92,246,.25);color:#c4b5fd;border:1px solid rgba(139,92,246,.4)':'background:var(--surface2);color:var(--text-dim);border:1px solid var(--border)'}">${lbl}</div>`).join('')}
+      </div>
+      <div class="card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.04);padding:.75rem;animation:fadeSlideIn .5s ease">
+        <div style="font-size:.62rem;color:#c4b5fd;margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.1em">🔍 La tarea real</div>
+        <div style="font-family:var(--font-mono);font-size:.68rem;color:#8b949e;margin-bottom:.3rem">git.factorlibre.com / ${(r.glProjectPath||r.gitlabProject||'—').split('/').pop()}${r.gitlabIssueNumber?` #${r.gitlabIssueNumber}`:''}</div>
+        <div style="font-weight:700;font-size:.92rem;line-height:1.3;margin-bottom:.5rem">${r.glTitle||cc.title}</div>
+        <div style="font-size:.78rem;color:var(--green)">✅ Solución: Opción ${corrLabel}</div>
+        <div style="font-size:.78rem;color:var(--text-dim);margin-top:.15rem">${cc.answers?.[cc.correctAnswerIndex]||''}</div>
+        <div style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border);display:flex;align-items:baseline;gap:.4rem">
+          <span style="font-family:var(--font-mono);font-size:1.6rem;font-weight:800;color:var(--accent)">${h}</span>
+          <span style="font-size:.72rem;color:var(--text-dim)">horas imputadas${typeof h==='number'?' · ≈'+Math.round(h/8)+' días':''}</span>
+        </div>
+      </div>
+      ${sub>=1?`<div class="card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.04);padding:.75rem;animation:fadeSlideIn .5s ease">
+        <div style="font-size:.62rem;color:#c4b5fd;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em">💬 La Pregunta / ⚡ El Desafío</div>
+        <div style="font-size:.82rem;line-height:1.5">${(cc.debate||'').replace(/\*\*El Desafío:\*\*/i,'<br><span style="color:#c4b5fd;font-weight:700">⚡ El Desafío:</span>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
+      </div>`:''}
+      <div style="text-align:center;color:var(--text-dim);font-size:.72rem;padding:.3rem">Moderador controlando el ritmo...</div>
     </div>
   </div>`;
 }
@@ -2696,12 +3505,29 @@ function doSkip(){
 }
 function selAns(i){
   if(S.answered)return;
+  if(S.wildcardUsed){
+    const titans=S.session?.cases?.[S.session?.currentCaseIndex]?.titanAnswerIndices||[];
+    if(titans.length&&!titans.includes(i)){toast('Esta opción está bloqueada por el comodín','info');return;}
+  }
+  _playSelectSound();
   S.selectedAnswer=i;
   document.querySelectorAll('.answer-opt').forEach((el,idx)=>el.classList.toggle('selected',idx===i));
   const btn=$('confirm-btn');if(btn)btn.removeAttribute('disabled');
 }
+function useWildcard(){
+  if(S.wildcardUsed||S.answered)return;
+  const cc=S.session?.cases?.[S.session?.currentCaseIndex];
+  const titans=cc?.titanAnswerIndices||[];
+  if(S.selectedAnswer!==null&&titans.length&&!titans.includes(S.selectedAnswer)){
+    S.selectedAnswer=null;
+  }
+  S.wildcardUsed=true;
+  send({type:'TEAM_WILDCARD'});
+  render();
+}
 function submitAns(){
   if(S.answered||S.selectedAnswer===null)return;
+  _playConfirmSound();
   S.answered=true;
   send({type:'TEAM_ANSWER',payload:{answerIndex:S.selectedAnswer,timestamp:Date.now()}});
   render();

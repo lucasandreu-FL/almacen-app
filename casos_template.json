@@ -1,364 +1,1283 @@
 {
   "cases": [
     {
-      "title": "El Sistema que Durmió el Almacén",
+      "title": "El Colapso de las 10 de la Mañana",
       "points": 200,
-      "stage1Titulo": "Todos los operarios bloqueados — el sistema congela todas las operaciones",
-      "stage1Contexto": "Llevamos 30 minutos sin poder completar ninguna operación de almacén. Al intentar validar cualquier movimiento el sistema se queda colgado y acaba en error genérico. No ha habido despliegues esta semana. Los dos equipos del turno de mañana están completamente parados.",
-      "stage1Impacto": "Más de 1.500 pedidos diarios paralizados. Los pedidos urgentes del turno de mañana no pueden salir y el turno completo está inoperativo.",
-      "stage1": "A las 10 de la mañana, en un almacén con más de mil quinientos pedidos diarios, todos los operarios quedan bloqueados simultáneamente: cada intento de completar una operación en el sistema de gestión se congela y acaba en error. El responsable de turno escala la incidencia como crítica. No ha habido ningún despliegue reciente. Hay pedidos urgentes que no pueden salir.",
-      "stage2": "Los técnicos acceden a los logs del servidor. Detectan errores repetidos en la capa de gestión de stock del tipo \"proceso en espera de recurso ocupado\". El bloqueo comenzó exactamente cuando el turno de mañana arrancó con sus dos equipos trabajando en paralelo sobre el mismo tipo de albaranes. Cuando se prueba con un solo operario activo, el sistema responde con normalidad. La configuración no ha cambiado. No hay errores en los despliegues anteriores.",
-      "stage3": "En el log de base de datos hay dos procesos que llevan más de ocho minutos esperándose mutuamente: cada uno retiene un bloqueo sobre el recurso que el otro necesita para continuar.",
+      "hoursImputed": 46.75,
+      "stage1": "En plena campaña del cliente, el almacén se detiene. Al intentar validar movimientos en la PDA, el sistema lanza errores de 'ShareLock' y timeout. No ha habido despliegues en 48 horas.",
+      "stage2": "Se detectan deadlocks masivos en PostgreSQL. El sistema de reabastecimiento automático está intentando reservar stock al mismo tiempo que los operarios validan salidas en caliente.",
+      "stage3": "El análisis de NewRelic muestra que una query de abastecimientos retiene bloqueos sobre registros que la PDA necesita actualizar. El camión espera fuera.",
       "answers": [
-        "Reiniciar el servidor para liberar los bloqueos y operar con un operario por turno hasta localizar la causa",
-        "Identificar y cancelar los dos procesos bloqueados, analizar qué operación los originó y revisar si el módulo de reservas de stock necesita gestión de concurrencia",
-        "Hacer rollback al despliegue anterior asumiendo que hay un bug reciente no detectado",
-        "Limitar el acceso al sistema a un operario simultáneo por tipo de albarán hasta resolver el problema"
+        "Aumentar la memoria RAM del servidor para procesar las colas de bloqueo más rápido.",
+        "Desactivar el reabastecimiento automático en horario de picking y ejecutarlo manualmente.",
+        "Implementar un sistema de colas (Job Queue) para las validaciones de la PDA.",
+        "Limitar el acceso a un solo operario por pasillo para reducir la concurrencia."
       ],
       "correctAnswerIndex": 1,
-      "moraleja": "Un sistema que funciona perfectamente en pruebas puede colapsar bajo carga concurrente real. La diferencia entre \"funciona en test\" y \"funciona con veinte operarios simultáneos\" solo se descubre con pruebas de carga en condiciones reales."
+      "debate": "¿Cómo podemos transformar este 'incendio' en una oportunidad para diseñar flujos que no compitan por el mismo recurso? **El Desafío:** ¿Qué procesos automáticos hoy en día podríamos desacoplar para que el operario nunca sienta que el sistema es su freno, sino su motor?",
+      "moraleja": "En entornos de alta carga, la solución operativa suele ser la única vía de supervivencia inmediata.",
+      "retro": {
+        "gitlabProject": "noon",
+        "gitlabIssueNumber": 841,
+        "glProjectPath": "customer-environments/noon-pro",
+        "glTitle": "PARADAS DEL SISTEMA",
+        "glDescription": "",
+        "glComments": [
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas  te dejo las\n\nAcción de servidor mejorada\n\nMejorada la acción de [Cancelar albarán](https://noon.gextia.io/web#id=1229&cids=2%2C1&menu_id=25&action=8&model=ir.actions.server&view_type=form) para que lo haga por lotes y no deje bloqueado el sistema\n\nAcciones realizadas…"
+          },
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas   \n\nQuiero comentar todas las cuestiones que hemos ido analizando a lo largo del día y que es importante interioricéis bien para evitar problemas a futuro.\n\nEn primer lugar, el trabajo con grandes volúmenes de pedidos. Vamos a analizar vuestro caso concreto para intentar…"
+          }
+        ],
+        "glClosing": {
+          "author": "sergio.delcastillo",
+          "body": "Buenas  \n\nLa interpretación que saco de tu mensaje es que quieres anular la reserva del albarán `AN/PICKTIE/09731` supongo para utilizar las prendas que tiene asignadas para otro/s albaranes. ¿esto es correcto?"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Doing",
+          "Mantenimiento evolutivo"
+        ]
+      }
     },
     {
-      "title": "La Mejora que Paró el Almacén",
-      "points": 200,
-      "stage1Titulo": "Sistema roto desde el viernes — pantalla en blanco al escanear en preparación de pedidos",
-      "stage1Contexto": "El lunes por la mañana los operarios no pueden trabajar: al escanear productos en las preparaciones de pedido la pantalla se queda en blanco o lanza error genérico. El viernes todo funcionaba con normalidad. Llevamos dos horas con las salidas paralizadas.",
-      "stage1Impacto": "Todas las salidas del almacén llevan dos horas paradas. Hay pedidos con entrega comprometida para hoy que no pueden procesarse.",
-      "stage1": "Lunes por la mañana. Los operarios reportan que el sistema de gestión del almacén \"se ha roto\": al escanear productos en las preparaciones de pedido, la pantalla se queda en blanco o lanza un error genérico. El viernes todo funcionaba. El almacén lleva dos horas con las salidas paralizadas y hay pedidos con entrega comprometida para hoy.",
-      "stage2": "El equipo técnico localiza un despliegue realizado el viernes tarde: una mejora en el módulo que gestiona la selección de líneas cuando un albarán tiene varias del mismo producto. La mejora fue validada en el entorno de pruebas sin incidencias. Al comparar los albaranes reales con los de prueba, se descubre un patrón que no existía en test: hay albaranes con dos líneas del mismo producto que no se diferencian en ningún atributo (mismo lote, misma ubicación, mismo paquete). Este caso no se contempló al redactar las pruebas funcionales.",
-      "stage3": "El módulo actualizado abre siempre la pantalla de selección cuando detecta más de una línea del mismo producto, sin verificar previamente si esas líneas tienen algún campo distinto que el operario pueda escoger.",
-      "answers": [
-        "Pedirle al cliente que consolide manualmente las líneas duplicadas antes de continuar operando",
-        "Revertir el despliegue para restaurar la operativa de inmediato, y abrir una nueva tarea documentando el caso real no contemplado en pruebas",
-        "Corregir el módulo para que solo abra la selección cuando las líneas realmente difieren, sin revertir, y desplegar la corrección hoy mismo",
-        "Deshabilitar la pantalla de selección en todos los albaranes hasta tener el fix"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Una mejora técnica correcta puede romper producción si los datos de test no representan la diversidad real del cliente. Validar funcionalmente con datos reales del entorno de producción es tan crítico como las pruebas técnicas."
-    },
-    {
-      "title": "Los Albaranes que Desaparecieron",
+      "title": "La Pesadilla del Stock Fantasma",
       "points": 150,
-      "stage1Titulo": "No podemos generar etiquetas de envío — más de 40 albaranes sin pedido de venta de origen",
-      "stage1Contexto": "Más de 40 albaranes en estado \"listo\" con los productos físicamente preparados, pero el sistema indica que no tienen pedido de venta de origen asociado. Sin etiqueta no puede salir ningún paquete y no entendemos por qué han perdido el vínculo.",
-      "stage1Impacto": "Más de 40 paquetes físicamente preparados retenidos en el almacén. Sin etiqueta no sale ningún envío del día.",
-      "stage1": "El equipo de logística detecta que no puede generar etiquetas de envío para más de cuarenta albaranes. El sistema indica que esos documentos no tienen asociado ningún pedido de venta de origen. Los albaranes existen, están en estado \"listo\" y los productos están físicamente preparados. Sin etiqueta no puede salir ningún paquete.",
-      "stage2": "Investigando, se descubre que unos días atrás se realizó una operación de limpieza de datos en el sistema: se eliminaron registros que se consideraban de prueba. Los albaranes afectados tienen sus líneas de movimiento con información incompleta: falta el pedido de venta de origen y el grupo de abastecimiento. La empresa gestiona tres almacenes distintos en el mismo sistema. Los albaranes del mismo período de los otros dos almacenes están correctamente vinculados y no presentan ningún problema.",
-      "stage3": "Todos los albaranes afectados pertenecen exclusivamente al almacén donde se ejecutó la operación de limpieza. Ningún albarán de los otros dos almacenes con las mismas fechas está afectado.",
+      "hoursImputed": 16.67,
+      "stage1": "Cierre trimestral en el cliente. El informe de valoración muestra 50.000€ en stock de un producto, pero físicamente la ubicación está vacía (Stock 0).",
+      "stage2": "Se encuentran devoluciones de clientes procesadas sin referencia al albarán original. El sistema asignó el coste estándar actual como una nueva capa FIFO.",
+      "stage3": "El contable exige cerrar hoy. No hay tiempo para auditar 200 devoluciones una a una para buscar su origen real.",
       "answers": [
-        "Regenerar los albaranes afectados desde los pedidos de venta originales y cancelar los actuales",
-        "Restaurar la base de datos al estado anterior a la limpieza, revisar exactamente qué fue eliminado y reasociar los albaranes a sus pedidos originales",
-        "Identificar cada albarán afectado, asociarlo manualmente a su pedido de venta usando la documentación disponible, y revisar el impacto en contabilidad antes de generar las etiquetas",
-        "Emitir las etiquetas sin pedido de venta asociado usando solo la dirección de destino y reconciliar la trazabilidad después del envío"
+        "Cambiar el método de valoración de FIFO a Precio Medio Ponderado retroactivamente.",
+        "Borrar las capas de valoración (valuation layers) erróneas directamente desde base de datos.",
+        "Vincular manualmente cada devolución a su origen (estimado: 1 semana de trabajo).",
+        "Realizar un inventario de ajuste a valor cero y forzar el asiento de diferencia."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Y si nuestra meta fuera un almacén con 'Cero Ajustes'? **El Desafío:** ¿Qué herramientas de apoyo funcional podemos crear para que el error humano en una devolución sea detectado por el sistema antes de que llegue a contaminar la contabilidad?",
+      "moraleja": "A veces la 'limpieza' de datos es inviable por tiempo; el ajuste manual es el mal necesario para el cierre fiscal.",
+      "retro": {
+        "gitlabProject": "visionario",
+        "gitlabIssueNumber": 597,
+        "glProjectPath": "customer-environments/visionario",
+        "glTitle": "[ALMACÉN] - Revisión de la valoración de inventarios de productos con stock 0.",
+        "glDescription": "Business Value [0..500]\n\nContexto\n\nPartimos de: la tarea #571+ donde al volcar el stock de una compañía a otra hemos apreciado que la valoración de stock en Visionario no concuerda con el Informe de Ubicaciones.\n\nEntornos/Casos de prueba\n\nEsta tarea puede revisarse en el entorno de Visionario - PRO\n\nObjetivo\n\nAnalizar el motivo de por qué existe…",
+        "glComments": [
+          {
+            "author": "rodrigo.bonilla",
+            "body": "Buenas,\n\nVoy a dar un poco de seguimiento de los análisis realizados y de acciones realizadas.\n\nRealizando una comprobación entre la capa de valoración y el informe a fecha de ubicación se ha visto que están afectados los siguientes productos.\n\nDe los productos que pone que pone…"
+          },
+          {
+            "author": "rodrigo.bonilla",
+            "body": "Buenas ,\n\nSi ese tema también lo he revisado solo que quería primero dejar solucionado el tema de los productos con cantidad.\n\nLo que pasa con estos productos es que se añadio una _Valoración manual de existencias: sin motivo_ a estos productos y lo que a provocado un desajuste…"
+          }
+        ],
+        "glClosing": {
+          "author": "mayte.gonzalez",
+          "body": "> Mi unica preocupación es que haya pasado lo mismo en la sociedad 2 (REFLECT) por articulos Le Parc. Visionario no debería porque hemos dado de alta el precio de coste por cada material según el mayor de producto de V EYEWEAR.\n\nQuédate tranquilo porque  ha revisado el script…"
+        },
+        "glLabels": [
+          "1- Critico",
+          "Almacen",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Laberinto de las Rutas Infinitas",
+      "points": 150,
+      "hoursImputed": 24.58,
+      "stage1": "el cliente reporta que validar un albarán de solo 5 líneas tarda más de 3 minutos. El sistema no da error, pero el navegador del operario se queda colgado.",
+      "stage2": "El producto usa una ruta mixta MTO+MTS. Por cada línea, el sistema analiza todas las reglas de abastecimiento del almacén para verificar la disponibilidad.",
+      "stage3": "Se detecta que el sistema evalúa todas las necesidades del almacén en lugar de limitarse al ID del movimiento actual, disparando el tiempo de cómputo.",
+      "answers": [
+        "Eliminar todas las rutas MTO y pasar a un modelo de aprovisionamiento manual.",
+        "Dividir los albaranes en documentos de una sola línea para agilizar la carga.",
+        "Aplicar un parche en el core para acotar el recálculo exclusivamente al ID de movimiento.",
+        "Aumentar el stock de seguridad para evitar que el sistema dispare la ruta MTO."
       ],
       "correctAnswerIndex": 2,
-      "moraleja": "Las operaciones de limpieza de datos en producción deben estar acotadas con precisión quirúrgica. En sistemas multisede, una acción aparentemente local puede cortar la trazabilidad de documentos que afectan a contabilidad, logística y cliente final."
+      "debate": "¿Cómo equilibramos la potencia técnica con la agilidad del mundo real? **El Desafío:** Este caso nos invita a pensar como ingenieros de producto: ¿Qué mejoras en nuestro core podrían beneficiar a todos los clientes a partir de este dolor específico?",
+      "moraleja": "La flexibilidad de las rutas es un peligro si el código no acota el alcance del cálculo.",
+      "retro": {
+        "gitlabProject": "holiday-golf",
+        "gitlabIssueNumber": 709,
+        "glProjectPath": "customer-environments/holiday-golf-pre",
+        "glTitle": "[ALMACÉN] Revisar motivo de lentitud en confirmación de albaranes",
+        "glDescription": "Business Value [0..500]\n\nContexto\n<!-- Este apartado contiene la necesidad del cliente, no debería sufrir modificaciones posteriores -->\nTenemos los siguientes albaranes HG1/PICK2P/01723 y HG1/OUT2P/01657, ambos del mismo pedido. Con un total de 5.188 unidades y somos incapaces de validar en segundo plano o primer plano.\n\nEntorno específico\n-…",
+        "glComments": [
+          {
+            "author": "ignacio.morales",
+            "body": "Cerramos ~Expedite, abrimos una nueva tarea para analizar las acciones de servidor que han sido creadas desde el lado del cliente."
+          }
+        ],
+        "glClosing": {
+          "author": "ike.detoro",
+          "body": "¡Ojo! ¿Era cagada de cliente? La etiqueta es ~\"Mantenimiento evolutivo\" y tenemos un palizón de 20 horas que no vamos a facturar. ¿Es correcto ?"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
     },
     {
-      "title": "Más Mercancía de la que Toca",
-      "points": 150,
-      "stage1Titulo": "Stock en negativo en varias referencias — albaranes con más unidades de las asignadas",
-      "stage1Contexto": "Los operarios siguieron el procedimiento habitual, pero el responsable de calidad detecta que varios albaranes de salida tienen más unidades registradas de las que tenían asignadas originalmente. Hay incluso líneas nuevas que no existían al generar el picking. El sistema no lanzó ningún aviso.",
-      "stage1Impacto": "Stock de varias referencias en negativo. Los pedidos ya salieron con más unidades de las registradas sin que el sistema lo detectara.",
-      "stage1": "El responsable de calidad detecta que varios albaranes de salida contienen más unidades registradas como procesadas de las que tenían asignadas originalmente. En algunos hay líneas nuevas que no existían cuando el picking fue generado. El stock de varias referencias aparece en negativo. Los pedidos han salido y los clientes no se han quejado.",
-      "stage2": "Se revisan los albaranes afectados: los operarios procesaron más unidades de las asignadas en el sistema de gestión del almacén y el sistema no lanzó ningún aviso ni bloqueó la operación. Los operarios confirmaron que siguieron el procedimiento habitual. Las líneas extra fueron creadas automáticamente por el sistema al superar la cantidad asignada. El problema se repite con distintos operarios, distintos turnos y distintas referencias de producto.",
-      "stage3": "El módulo de validación del sistema permite procesar más unidades que las reservadas si existe stock físico disponible en la ubicación, generando automáticamente una línea adicional en el albarán en lugar de detener la operación.",
-      "answers": [
-        "Bloquear todos los pickings activos y pedir a los operarios que revisen manualmente cada uno",
-        "Ajustar el stock negativo con un inventario de regularización y activar la opción de \"cantidad exacta\" en los tipos de operación",
-        "Corregir el módulo para que valide contra la cantidad reservada antes de procesar, revertir los albaranes con exceso y regularizar el stock afectado",
-        "Configurar los tipos de operación para que no permitan modificar cantidades y ajustar el stock negativo manualmente"
-      ],
-      "correctAnswerIndex": 2,
-      "moraleja": "Un sistema que facilita la operativa omitiendo validaciones puede generar inconsistencias de datos más costosas de corregir que la fricción que intentaba eliminar. Cada validación que se \"flexibiliza\" debe tener consecuencias controladas."
-    },
-    {
-      "title": "El Cierre Fiscal que No Llega",
-      "points": 200,
-      "stage1Titulo": "No podemos cerrar el ejercicio — diferencia de miles de euros en la valoración del inventario",
-      "stage1Contexto": "Estamos a finales de diciembre y el informe de valoración del inventario no cuadra con nuestros cálculos internos. La diferencia es de varios miles de euros. Ya tuvimos exactamente este mismo problema hace unos meses: se resolvió, se cerró la tarea y ahora ha vuelto.",
-      "stage1Impacto": "Cierre fiscal bloqueado con una diferencia de miles de euros sin justificar. Los auditores llevan días esperando y el balance anual está en el aire.",
-      "stage1": "A finales de diciembre, el departamento financiero no puede cerrar el ejercicio. El informe de valoración del inventario muestra una diferencia de varios miles de euros respecto al valor calculado internamente. No es la primera vez: hace unos meses se produjo la misma situación, se resolvió y se cerró la tarea. El tiempo invertido en aquella resolución no pudo facturarse al cliente.",
-      "stage2": "El equipo analiza el informe de valoración en detalle. Se detectan movimientos de stock con destinos inconsistentes: el movimiento en sí apunta a una ubicación, pero su línea de detalle apunta a otra diferente. Esta divergencia hace que el cálculo del valor del inventario difiera dependiendo de desde qué vista del sistema se consulte. Ambas vistas son internamente coherentes, pero no coinciden entre sí. La antigüedad de estos movimientos inconsistentes se remonta a varios meses atrás.",
-      "stage3": "Varios de los movimientos con destinos inconsistentes fueron generados durante un ajuste de inventario realizado hace un trimestre. Ese ajuste se ejecutó de forma manual sin seguir el procedimiento habitual del sistema.",
-      "answers": [
-        "Realizar un inventario físico completo del almacén y ajustar todos los valores del sistema al recuento real",
-        "Identificar y corregir los movimientos con destinos inconsistentes, documentar el procedimiento de ajuste correcto y revisar todos los ajustes del trimestre anterior",
-        "Usar el valor del informe de inventario como referencia oficial para el cierre y registrar la diferencia como pérdida en la contabilidad",
-        "Reabrir la tarea anterior y escalar a soporte del fabricante del ERP solicitando un parche del módulo de valoración"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Una tarea cerrada sin identificar la causa raíz es tiempo prestado, no ganado: el problema reaparece, y la segunda vez tampoco es facturable. Los ajustes manuales fuera del procedimiento estándar acumulan deuda técnica que aflora siempre en el peor momento."
-    },
-    {
-      "title": "El Albarán que Existía en Dos Mundos",
-      "points": 150,
-      "stage1Titulo": "Pedidos expedidos físicamente que el ERP sigue mostrando como 'en curso'",
-      "stage1Contexto": "Los clientes ya tienen la mercancía, pero el ERP no la marca como expedida. El stock en el sistema no se ha descontado. Todos los albaranes afectados salieron durante un intervalo concreto de ayer. El resto se sincronizaron sin problema.",
-      "stage1Impacto": "Mercancía en manos del cliente que el ERP no refleja como expedida. Stock ficticio bloqueando nuevas ventas y dinero acumulándose sin facturar.",
-      "stage1": "El equipo de almacén recibe una alerta: hay pedidos que el sistema físico del almacén marca como expedidos, pero en el ERP aparecen todavía como \"en curso\". La mercancía ha salido físicamente y el cliente ya la tiene. El stock en el ERP no se ha descontado. Hay dinero sin facturar y compromisos de inventario que no existen en la realidad.",
-      "stage2": "Se revisan los logs de la integración entre el ERP y el sistema físico de almacén. Los mensajes de sincronización de estado se enviaron correctamente desde el sistema físico en el momento de la expedición, pero el ERP no refleja el cambio. El resto de albaranes del mismo período se sincronizaron sin problema. Los albaranes afectados tienen en común que se expidieron durante un intervalo de tiempo concreto del día anterior.",
-      "stage3": "En el historial del ERP se registra un período de mantenimiento programado durante ese intervalo. Los mensajes de sincronización que llegaron mientras el sistema estaba en mantenimiento fueron rechazados y no existe registro de ellos en ninguna cola de reintento.",
-      "answers": [
-        "Ajustar manualmente el stock y los estados de los albaranes en el ERP para que reflejen la realidad física expedida",
-        "Recuperar todos los mensajes de sincronización del intervalo afectado, procesarlos o forzar una resincronización, y revisar que la integración tenga mecanismo de reintentos ante rechazos",
-        "Cancelar los albaranes afectados en el ERP y recrearlos directamente como \"entregados\"",
-        "Configurar la integración para que no envíe mensajes durante ventanas de mantenimiento programado"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Las integraciones que fallan silenciosamente son las más peligrosas. Un mensaje rechazado sin reintento es un dato perdido para siempre. El mantenimiento de un sistema no puede ser invisible para los sistemas que dependen de él."
-    },
-    {
-      "title": "La Preparación Sin Fin",
-      "points": 150,
-      "stage1Titulo": "Timeout al validar preparaciones — pedidos urgentes sin poder salir, transportista en 3 horas",
-      "stage1Contexto": "Los operarios del turno de tarde no pueden completar las preparaciones de pedido. Al intentar validar, la pantalla se congela durante varios minutos y acaba en error de timeout. Solo afecta a un tipo concreto de artículo, el resto de albaranes se validan sin problema.",
-      "stage1Impacto": "Pedidos con transportista comprometido en pocas horas que no pueden completarse. Una familia entera de artículos tiene la operativa de salidas paralizada.",
-      "stage1": "En plena operativa de tarde, los operarios no pueden completar las preparaciones de pedido. Al intentar validar en el sistema de gestión del almacén, la pantalla se congela durante varios minutos y acaba mostrando un error de tiempo de espera superado. Los pedidos con entrega comprometida hoy no pueden salir. El problema afecta solo a un tipo de artículo, no a todos los albaranes.",
-      "stage2": "El equipo analiza qué tienen en común los albaranes que fallan. Todos involucran artículos gestionados con una ruta de aprovisionamiento especial: cada compra a proveedor está vinculada directamente a una venta en firme concreta. Al validar, el sistema ejecuta una cadena de movimientos encadenados. Los albaranes con rutas de aprovisionamiento estándar se validan de forma instantánea. El problema es reproducible de forma consistente con cualquier albarán que contenga estos artículos especiales.",
-      "stage3": "Uno de los artículos con esta ruta especial tiene cuarenta y siete pedidos de venta activos distintos pendientes de aprovisionamiento. Al validar cualquier movimiento que lo involucra, el sistema carga y recalcula las necesidades de los cuarenta y siete pedidos antes de confirmar la operación.",
-      "answers": [
-        "Deshabilitar temporalmente la ruta especial para estos artículos y procesar los albaranes manualmente como entregas directas",
-        "Lanzar las validaciones en modo asíncrono (segundo plano) para evitar el timeout visible en la interfaz del operario",
-        "Identificar por qué el sistema recalcula todas las necesidades del artículo en lugar de solo la vinculada al movimiento actual, corregir el filtro y desbloquear los albaranes pendientes",
-        "Reducir el número de pedidos activos del artículo cancelando los más antiguos hasta que la validación deje de hacer timeout"
-      ],
-      "correctAnswerIndex": 2,
-      "moraleja": "Los flujos de aprovisionamiento vinculados a demanda son potentes pero computacionalmente costosos. Sin acotar el alcance del recálculo a lo estrictamente necesario, un artículo popular puede paralizar toda la operativa de salidas."
-    },
-    {
-      "title": "El Día que Llegó la Integración",
-      "points": 150,
-      "stage1Titulo": "Primer día de integración — no podemos generar etiquetas para los pedidos de la nueva plataforma",
-      "stage1Contexto": "Es el primer día de operativa real de la integración con la nueva plataforma de ventas de alto volumen. Los albaranes se crean correctamente pero el módulo de etiquetado no los reconoce. Tenemos docenas de paquetes preparados físicamente que no pueden moverse.",
-      "stage1Impacto": "El transportista recoge en menos de tres horas y no hay forma de mover los paquetes. La primera jornada de la integración está completamente bloqueada.",
-      "stage1": "Una empresa activa hoy su integración con una plataforma de ventas de alto volumen. Es el primer día de operativa real. A media mañana, los operarios no pueden generar etiquetas de envío para los primeros pedidos: sin etiqueta no puede salir ningún paquete. El transportista recoge en menos de tres horas. Hay docenas de paquetes preparados físicamente que no pueden moverse.",
-      "stage2": "El equipo funcional analiza los albaranes bloqueados. El módulo de etiquetado no reconoce el formato de los albaranes generados por la nueva integración, que usa un tipo de operación diferente al habitual. La plantilla de etiqueta fue desarrollada y validada correctamente con albaranes del flujo estándar. Nadie había probado la plantilla con los albaranes que genera específicamente la nueva integración. La configuración técnica de la integración es correcta: los albaranes se crean bien, solo falla la generación de etiqueta.",
-      "stage3": "La plantilla de etiqueta obtiene algunos campos críticos (referencia, dirección, datos del transportista) a través del pedido de venta asociado al albarán. Los albaranes generados por la nueva integración no tienen pedido de venta vinculado en el ERP: el pedido existe en la plataforma externa pero no se replica localmente.",
-      "answers": [
-        "Crear manualmente en el ERP un pedido de venta por cada albarán afectado para que la plantilla pueda obtener los datos",
-        "Adaptar la plantilla para que obtenga los datos directamente del albarán cuando no existe pedido de venta vinculado, y usar una etiqueta manual provisional para los paquetes de hoy mientras se despliega el fix",
-        "Posponer la operativa de la integración hasta tener el módulo de etiquetado adaptado al nuevo flujo",
-        "Generar las etiquetas manualmente desde la plataforma externa para no bloquear la operativa del día y abrir tarea para corregir el módulo después"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Una integración nueva debe validarse de extremo a extremo: el hecho de que el módulo A genere bien los documentos no garantiza que los módulos B, C y D que dependen de ellos los procesen correctamente. Las dependencias ocultas aparecen siempre en producción."
-    },
-    {
-      "title": "Dos Modos, Un Solo Canal",
-      "points": 200,
-      "stage1Titulo": "Albaranes procesados por el flujo equivocado — operativa mixta completamente descontrolada",
-      "stage1Contexto": "En el almacén con operativa mixta, algunos albaranes que deberían prepararse por el sistema móvil los está cogiendo el backoffice y viceversa. No ocurre siempre: hay días que todo funciona correctamente. No hay ningún error en los logs durante los fallos.",
-      "stage1Impacto": "Albaranes yendo al flujo equivocado sin ningún error visible en los logs. Operarios del sistema móvil y del backoffice trabajando en tareas que no les corresponden.",
-      "stage1": "En un almacén con operativa mixta (parte de los pedidos se gestiona desde el backoffice, parte desde el sistema de gestión móvil del almacén), empiezan a aparecer pedidos procesados por el flujo equivocado: algunos albaranes que deberían prepararse por el sistema móvil los está cogiendo el backoffice, y viceversa. El equipo no entiende la lógica de la distribución. El problema no ocurre siempre: hay días que todo funciona correctamente.",
-      "stage2": "Se analiza la configuración de los dos módulos activos. Cada uno tiene su propio escenario configurado y ambos están correctamente definidos por separado. El problema solo ocurre cuando un albarán podría ser reclamado por cualquiera de los dos módulos: cuando cumple las condiciones de ambos simultáneamente. Cuando un albarán solo puede corresponder a uno de los dos flujos, se procesa correctamente. No hay ningún error en los logs durante los fallos.",
-      "stage3": "Ambos escenarios utilizan el mismo valor en el campo que el sistema emplea internamente para identificar qué módulo debe gestionar cada operación. Cuando los dos coinciden, el sistema asigna la operación al primero que encuentra en su búsqueda interna.",
-      "answers": [
-        "Deshabilitar uno de los dos módulos y operar con un solo flujo hasta encontrar una solución definitiva",
-        "Corregir el campo de identificación para que cada escenario tenga un valor verdaderamente único, añadir una prueba automatizada que detecte este conflicto antes de cualquier despliegue",
-        "Crear un módulo coordinador que analice cada albarán y decida explícitamente qué flujo debe gestionarlo",
-        "Segmentar los usuarios para que los del backoffice y los del sistema móvil nunca accedan a los mismos albaranes"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "La configuración de módulos que comparten el mismo canal de operaciones requiere identificadores verdaderamente únicos. Un campo mal diferenciado puede ser inofensivo en solitario y catastrófico en coexistencia. Lo que funciona en aislado no garantiza que funcione en conjunto."
-    },
-    {
-      "title": "Lo que Salió y No se Cobró",
+      "title": "Líneas Gemelas en el Scanner",
       "points": 100,
-      "stage1Titulo": "Divergencia sistemática entre unidades enviadas y facturadas — afecta a 2 meses de pedidos",
-      "stage1Contexto": "Administración detecta que lo que hemos facturado no cuadra con lo que los clientes han recibido. Afecta a decenas de pedidos de los últimos dos meses. Los clientes no se han quejado, así que no sabemos si estamos cobrando de más o de menos.",
-      "stage1Impacto": "Decenas de pedidos de los últimos dos meses con facturación incorrecta. Sin saber si cobramos de más o de menos y sin poder cerrar la conciliación mensual.",
-      "stage1": "El equipo de administración detecta una divergencia sistemática entre las cantidades que los clientes han recibido y lo que se les ha facturado. Afecta a decenas de pedidos de los últimos dos meses. No hay reclamaciones de clientes, lo que hace imposible saber desde fuera si se está cobrando de más o de menos. El margen de error acumulado es significativo.",
-      "stage2": "Al revisar los registros se encuentran dos problemas entremezclados: por un lado, albaranes con cantidades de reserva incorrectas; por otro, albaranes cancelados que dejaron movimientos de stock en estado incompleto. Algunos de estos albaranes cancelados siguen siendo contados en el cálculo de entregas. El equipo técnico determina que parte del problema proviene de cancelaciones ejecutadas por el cliente sin seguir el procedimiento estándar, y parte de un comportamiento inesperado del sistema al procesar esas cancelaciones.",
-      "stage3": "Cuando un albarán se cancela después de haber sido procesado parcialmente en el sistema de almacén, los movimientos de stock ya ejecutados no se revierten: quedan cantidades residuales que el sistema sigue considerando como reservadas o entregadas.",
+      "hoursImputed": 9.25,
+      "stage1": "Los operarios del cliente informan que el scanner a veces descuenta unidades de la línea equivocada o salta error de 'unidades insuficientes' en carros llenos.",
+      "stage2": "El pedido tiene líneas clónicas (mismo producto, misma ubicación, mismo lote) por promociones comerciales duplicadas en el ERP.",
+      "stage3": "El código del scanner coge la primera línea que encuentra en la base de datos, no la que el operario tiene físicamente delante.",
       "answers": [
-        "Realizar un recuento físico completo del almacén y ajustar el sistema a la realidad física como punto de partida limpio",
-        "Identificar todos los albaranes cancelados con movimientos parciales, corregir las cantidades residuales, revisar las facturas emitidas con divergencia y establecer un protocolo que fuerce la reversión completa al cancelar",
-        "Emitir facturas rectificativas para todos los pedidos con diferencia y congelar nuevas operaciones hasta tener los datos limpios",
-        "Bloquear la opción de cancelar albaranes parcialmente procesados hasta implementar la corrección técnica"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Los flujos de cancelación son tan críticos como los de creación. Un sistema que crea datos correctamente pero no los revierte de forma limpia al cancelar acumula deuda de datos que siempre aflora en la contabilidad. Lo que entra debe poder salir limpiamente."
-    },
-    {
-      "title": "Los Pedidos que No Encontraban su Lugar",
-      "points": 150,
-      "stage1Titulo": "Lotes de preparación en 'listos para preparar' sin asignación de ubicación — operarios parados",
-      "stage1Contexto": "Llevamos varios turnos con el mismo problema: los lotes de preparación generados automáticamente para pedidos confirmados aparecen en estado 'listos para preparar', pero el sistema no asigna ubicaciones a ninguno. No hay error visible, simplemente no asigna.",
-      "stage1Impacto": "Varios turnos con el almacén de alta rotación completamente parado. Los lotes están listos pero ningún operario puede empezar a trabajar en ellos.",
-      "stage1": "Un equipo de almacén de alta rotación lleva varios turnos bloqueado: los lotes de preparación generados automáticamente para pedidos ya confirmados no pueden ser asignados a ninguna ubicación. El sistema no muestra error, simplemente no asigna. Los lotes aparecen en estado \"listos para preparar\" pero ningún operario puede trabajar en ellos.",
-      "stage2": "El equipo técnico analiza los lotes afectados. Todos pertenecen a pedidos marcados como \"venta en firme\": confirmados con stock reservado en el momento del pedido. Al comparar con lotes normales, la diferencia está en cómo se generaron las reservas: en los pedidos en firme el stock se reservó antes de que se asignaran los lotes. El sistema intenta asignar ubicaciones de picking a movimientos que ya tienen reserva sobre ubicaciones no válidas para el tipo de operación del lote.",
-      "stage3": "Los movimientos de los lotes en firme tienen reservas sobre ubicaciones virtuales de \"stock entrante\" que aún no han pasado por recepción. El sistema no puede asignar ubicaciones físicas de picking a movimientos cuya reserva apunta a stock que todavía no está disponible en la ubicación correcta.",
-      "answers": [
-        "Cancelar las reservas incorrectas y volver a reservar desde ubicaciones físicas disponibles antes de regenerar los lotes",
-        "Eliminar los lotes y recrearlos manualmente desde cero para que el sistema asigne ubicaciones desde el principio",
-        "Identificar los movimientos con reservas en ubicaciones virtuales, forzar su disponibilidad mediante un traslado previo y desbloquear los lotes",
-        "Deshabilitar la función de \"venta en firme\" hasta que se resuelva el problema de asignación"
+        "Agrupar virtualmente las líneas idénticas en el SGA y separarlas solo al validar.",
+        "Forzar al operario a seleccionar la línea manualmente en la pantalla antes de cada escaneo.",
+        "Impedir que los comerciales metan líneas duplicadas del mismo SKU en los pedidos.",
+        "Asignar un identificador de paquete único a cada línea del albarán de forma forzosa."
       ],
       "correctAnswerIndex": 0,
-      "moraleja": "Las reservas de stock en pedidos \"en firme\" deben apuntar exclusivamente a stock físicamente disponible en las ubicaciones correctas para el flujo de picking. Reservar contra stock en tránsito bloquea toda la cadena de preparación."
+      "debate": "¿Podemos ser el escudo que protege al operario de la complejidad comercial? **El Desafío:** Imagina una interfaz que 'entienda' la intención del operario sin que él tenga que saber cómo están los datos en el ERP. ¿Cómo de lejos estamos de esa interfaz ideal?",
+      "moraleja": "El SGA debe actuar como un filtro de simplicidad ante el desorden de los datos comerciales.",
+      "retro": {
+        "gitlabProject": "fisura",
+        "gitlabIssueNumber": 1039,
+        "glProjectPath": "odoo-16/fisura",
+        "glTitle": "[ALMACÉN] - Revisar funcionalidad al escanear un producto que tiene varias líneas en el albarán",
+        "glDescription": "Business Value \\[0..500\\]\n\nContexto\n\nPartimos de: la reunión previa al arranque de EDI y la tarea https://git.factorlibre.com/odoo-16/fisura/-/issues/956\n\n- _Como_:\n\n  Usuario de almacén\n- _Quiero_:\n\n  Corregir la funcionalidad del SGA al escanear un producto que tiene varias líneas en el albarán\n- _Para_:\n\n  Que al escanear el EAN de un producto,…",
+        "glComments": [
+          {
+            "author": "nuria.delgado",
+            "body": "Buenas  ,\n\nEstamos corrigiendo este comportamiento para tenerlo cuanto antes.\n\nHe estado revisando los presupuestos y pedidos para identificar los productos que tendrían varias líneas al agruparse en un mismo albarán y son los siguientes:\n\n* Dirección de entrega: Amazon EU SARL…"
+          },
+          {
+            "author": "nuria.delgado",
+            "body": "Hola  , \n\nHe revisado los presupuestos que han entrado hoy y solo se duplicarían los productos _CL1810 Reloj Cuco casita Very peri_\\\n y _PET2520951 Comedero y bebedero mascotas \"dog bar\" acero inoxidable pack de 2_ en los pedidos…"
+          }
+        ],
+        "glClosing": {
+          "author": "nuria.delgado",
+          "body": "Buenas  , \n\nYa se ha corregido el comportamiento al escanear un producto que se encuentra en varias líneas del albarán. \n\nCualquier otro problema, lo tratamos en tarea nueva.\n\nPodemos cerrar por aquí :smiley:"
+        },
+        "glLabels": [
+          "1- Critico",
+          "Almacen",
+          "Desplegado",
+          "Mantenimiento evolutivo"
+        ]
+      }
     },
     {
-      "title": "El Reabastecedor que No Dejaba Trabajar",
-      "points": 150,
-      "stage1Titulo": "Stock físicamente disponible pero el sistema dice que no hay — todos los pickings de la mañana bloqueados",
-      "stage1Contexto": "En plena operativa de mañana el sistema indica que no hay stock disponible en las ubicaciones aunque físicamente los productos están ahí. El problema empezó exactamente cuando se lanzaron automáticamente las órdenes de reposición. Los pedidos urgentes no pueden salir.",
-      "stage1Impacto": "Todo el picking de la mañana bloqueado aunque el stock está físicamente en las ubicaciones. Los pedidos urgentes del día no van a salir a tiempo.",
-      "stage1": "En plena operativa de mañana, el sistema lanza automáticamente las órdenes de reposición de ubicaciones de picking. A partir de ese momento, los operarios no pueden completar ninguna preparación de pedido: el sistema indica que no hay stock disponible en las ubicaciones, aunque físicamente los productos están allí. Los pedidos urgentes no pueden salir.",
-      "stage2": "El equipo investiga. El módulo de reposición automática está reservando todo el stock disponible de las ubicaciones de picking para los movimientos de reabastecimiento, aunque esos movimientos aún no se han ejecutado físicamente. Los pedidos de cliente que llegaron después de la reserva de reposición no encuentran stock libre. La reposición reserva en la misma ubicación que el picking sin tener en cuenta los compromisos de salida ya existentes.",
-      "stage3": "Las órdenes de reposición tienen prioridad de reserva por encima de los pedidos de cliente en el sistema. Al ejecutarse durante el horario de operativa, bloquean el stock que los operarios necesitan para las preparaciones ya asignadas.",
-      "answers": [
-        "Desactivar la reposición automática y lanzarla manualmente solo fuera del horario de picking",
-        "Configurar la reposición para que se ejecute fuera del horario de operativa y revisar las reglas de prioridad de reserva para que los compromisos existentes tengan precedencia",
-        "Liberar manualmente las reservas de reposición que bloquean los pickings urgentes y procesar los pedidos; ajustar la configuración de prioridades para que no vuelva a ocurrir",
-        "Aumentar el stock mínimo de las ubicaciones de picking para que haya suficiente para reposición y pedidos simultáneamente"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Los sistemas de reposición automática deben diseñarse respetando los compromisos de picking existentes. La prioridad de reserva entre reposición y preparación de pedidos es una decisión de negocio crítica que debe estar explícitamente configurada, no dejada al orden de ejecución del sistema."
-    },
-    {
-      "title": "El Valor que No Cuadraba",
-      "points": 200,
-      "stage1Titulo": "Informe de valoración de inventario incorrecto — diferencia con contabilidad en todos los productos FIFO",
-      "stage1Contexto": "Finanzas detecta que el informe de valoración del inventario no coincide con los registros contables. Afecta exclusivamente a productos gestionados con método FIFO. No hay alertas en el sistema. El informe lleva semanas dando valores incorrectos sin que nadie lo hubiera advertido.",
-      "stage1Impacto": "El informe de valoración lleva semanas dando datos incorrectos sin que nadie lo supiera. Los auditores externos ya están encima del caso.",
-      "stage1": "El departamento financiero detecta que el informe de valoración del inventario no coincide con los registros contables. La diferencia aparece exclusivamente en productos gestionados con método de coste FIFO. No hay errores ni alertas en el sistema. El informe ha estado dando valores incorrectos durante semanas sin que nadie lo advirtiera.",
-      "stage2": "El equipo analiza los movimientos de stock de los productos afectados. Todos tienen en común operaciones de devolución de cliente: mercancía devuelta que volvió al almacén y fue reincorporada al stock. En cada devolución, el sistema asignó el coste de la devolución como si fuera una nueva capa FIFO en lugar de recuperar el coste original de la capa consumida. Los informes de movimiento son correctos; el error está exclusivamente en el cálculo de la valoración acumulada.",
-      "stage3": "Cuando una devolución se procesa sin referenciar el albarán original, el sistema no puede recuperar el coste FIFO de la capa que se consumió en la venta. En su lugar, crea una nueva entrada de coste usando el precio de coste actual del producto, que puede diferir del original.",
-      "answers": [
-        "Cambiar el método de valoración de FIFO a precio medio ponderado para evitar el problema de capas",
-        "Corregir el módulo para que las devoluciones recuperen el coste de la capa FIFO original, y ajustar la valoración histórica de los productos afectados con asientos de corrección",
-        "Procesar todas las devoluciones futuras siempre referenciando el albarán original y aceptar la desviación histórica como pérdida contable",
-        "Recalcular manualmente el valor FIFO de todos los productos afectados y ajustar vía inventario de regularización"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "El FIFO es un método de coste que depende de trazar la identidad de las capas de entrada y salida. Cualquier movimiento que corte esa trazabilidad —devoluciones sin referencia, ajustes, transferencias— puede generar divergencias contables silenciosas y difíciles de detectar."
-    },
-    {
-      "title": "El Pedido que No Sabía Dónde Ir",
-      "points": 150,
-      "stage1Titulo": "Pedido de venta intercompany en estado inconsistente — contabilidad entre sociedades bloqueada",
-      "stage1Contexto": "Al cancelar un pedido de compra desde nuestra sociedad, el pedido de venta correspondiente en la otra sociedad quedó en estado inconsistente: aparece como confirmado pero sin movimientos de stock asociados. Los contadores no pueden conciliar las cuentas entre empresas.",
-      "stage1Impacto": "Un pedido de venta queda huérfano entre dos sociedades sin que nadie pueda tocarlo sin riesgo. Los contadores no pueden cerrar la conciliación intercompany.",
-      "stage1": "Una empresa con dos sociedades en el mismo sistema detecta que al cancelar un pedido de compra desde la sociedad compradora, el pedido de venta correspondiente en la sociedad vendedora queda en estado inconsistente: aparece como confirmado pero sin movimientos de stock asociados. Los contadores no pueden conciliar las cuentas entre empresas.",
-      "stage2": "Se analiza el flujo intercompany. Cuando se cancela el pedido de compra, el sistema anula los movimientos del lado comprador. Sin embargo, el pedido de venta en la sociedad vendedora no recibe la señal de cancelación. El motivo: la ruta de aprovisionamiento que vinculaba ambos pedidos fue modificada entre la creación del pedido y su cancelación. Al cancelar, el sistema busca el vínculo por la ruta activa actual, que ya no es la misma que cuando se creó el pedido.",
-      "stage3": "El identificador de la ruta de aprovisionamiento se recalcula en tiempo real en lugar de guardarse en el momento de la creación del pedido. Al cambiar la configuración de rutas, los pedidos existentes pierden su vínculo de cancelación intercompany.",
-      "answers": [
-        "Cancelar manualmente el pedido de venta huérfano y ajustar los apuntes contables intercompany afectados",
-        "Revertir el cambio de rutas a la configuración anterior y volver a cancelar el pedido desde el inicio",
-        "Corregir el módulo para que almacene el identificador de ruta en el momento de la creación y no lo recalcule al cancelar; cancelar manualmente los pedidos huérfanos existentes",
-        "Deshabilitar el flujo intercompany automático y gestionar los pedidos entre sociedades manualmente hasta tener el fix"
-      ],
-      "correctAnswerIndex": 2,
-      "moraleja": "Los datos de configuración que vinculan documentos entre sí deben almacenarse en el momento de la creación, no recalcularse en tiempo real. Lo que creó un vínculo debe ser lo que lo deshaga, independientemente de los cambios de configuración posteriores."
-    },
-    {
-      "title": "El Stock que Viajó en el Tiempo",
-      "points": 150,
-      "stage1Titulo": "Informe de stock histórico con datos incorretos — auditoría interna completamente bloqueada",
-      "stage1Contexto": "Consultamos el informe de stock a una fecha pasada para auditar una discrepancia y los valores que muestra no coinciden con los registros históricos del almacén. Para algunas referencias aparece más stock del que había realmente; para otras, menos. Las operaciones de ese período están todas confirmadas.",
-      "stage1Impacto": "El sistema no puede mostrar datos fiables de períodos pasados. La auditoría interna está bloqueada y no podemos justificar las cifras ante nadie.",
-      "stage1": "El equipo de logística consulta el informe de stock a una fecha anterior para auditar una discrepancia. Los valores que muestra el informe no coinciden con los registros históricos del almacén. Para algunas referencias, el sistema muestra más stock del que había realmente en esa fecha; para otras, menos. Las operaciones de ese período están todas confirmadas y no hay movimientos pendientes.",
-      "stage2": "El equipo técnico revisa la configuración de las ubicaciones del almacén. Descubren que varias ubicaciones fueron marcadas recientemente como \"archivadas\" o cambiaron de tipo (de ubicación interna a ubicación virtual). Los movimientos históricos asociados a esas ubicaciones siguen existiendo en la base de datos, pero el informe de stock a fecha los excluye o los incluye de forma diferente según el estado actual de la ubicación, no el estado que tenía en el momento del movimiento.",
-      "stage3": "El informe de stock a fecha filtra los movimientos usando el estado actual de las ubicaciones en lugar del estado que tenían en la fecha consultada. Ubicaciones archivadas hoy eran ubicaciones activas e internas en la fecha de la consulta, pero sus movimientos aparecen excluidos del cálculo.",
-      "answers": [
-        "Restaurar temporalmente las ubicaciones archivadas, extraer el informe y volver a archivarlas",
-        "Corregir el informe para que evalúe el estado de las ubicaciones en la fecha consultada y no en la fecha actual; recuperar el histórico afectado con una consulta directa a base de datos como solución inmediata",
-        "Extraer los movimientos directamente desde base de datos sin usar el informe estándar para la auditoría en curso, y abrir una tarea de mejora del informe",
-        "Reconstruir el historial de stock manualmente a partir de los albaranes físicos del período auditado"
-      ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Los informes históricos deben evaluar el estado del sistema en el momento consultado, no en el momento de la consulta. Un informe \"a fecha\" que usa configuración actual en lugar de histórica no es un informe a fecha: es un informe sesgado por el presente."
-    },
-    {
-      "title": "Los Negativos que No Deberían Existir",
+      "title": "La Impresora que Hablaba Chino",
       "points": 100,
-      "stage1Titulo": "Stock en negativo en referencias del canal externo integrado — sin alertas, sin errores visibles",
-      "stage1Contexto": "Varias referencias de pedidos del canal externo tienen stock negativo en el sistema. Físicamente el producto existe en el almacén y los pedidos se han procesado y expedido correctamente. No hay ninguna alerta ni error visible en el sistema.",
-      "stage1Impacto": "Stock en negativo en referencias que físicamente están en el almacén. La conciliación es imposible y las ventas futuras del canal externo están en riesgo.",
-      "stage1": "El equipo de almacén detecta que varias referencias tienen stock en negativo en el sistema. Las referencias afectadas corresponden a pedidos de un canal de ventas externo integrado con el ERP. Físicamente, el producto existe en el almacén. Los pedidos del canal han sido procesados y expedidos correctamente. No hay alertas en el sistema.",
-      "stage2": "Se revisa el flujo de integración del canal externo. Los pedidos llegan con cantidades en formato decimal usando el separador equivocado para el idioma configurado en el sistema: donde el canal envía una coma como separador de miles, el ERP lo interpreta como separador decimal. Un pedido de \"1,500 unidades\" llega al sistema como \"1.5 unidades\". La diferencia entre unidades expedidas físicamente y unidades registradas crea el stock negativo.",
-      "stage3": "La configuración regional del conector de integración usa el separador decimal del país origen del canal (punto), mientras que el ERP está configurado con el separador decimal del país destino (coma). Ninguno de los dos sistemas lanza un error: ambos procesan los números como válidos, pero con interpretaciones distintas.",
+      "hoursImputed": 10.25,
+      "stage1": "Urgente en el cliente: Tras cambiar de modelo de impresora, las etiquetas salen con el texto desplazado 2cm y el código de barras no es legible.",
+      "stage2": "El nuevo firmware interpreta los comandos ZPL de forma distinta. Los campos de 'observaciones' largos ahora rompen el layout.",
+      "stage3": "El transportista llega en 30 minutos. Hay 200 paquetes en el muelle que no pueden salir sin etiqueta correcta.",
       "answers": [
-        "Ajustar manualmente el stock negativo con un inventario de regularización y revisar uno a uno los pedidos del canal del último mes",
-        "Corregir la configuración regional del conector para que ambos sistemas usen el mismo formato numérico, validar retroactivamente los pedidos afectados y ajustar el stock",
-        "Añadir una validación en el conector que detecte cantidades con formato ambiguo y las rechace antes de crear el movimiento en el ERP",
-        "Solicitar al canal externo que cambie su formato de exportación al estándar del ERP"
+        "Instalar el driver antiguo en todos los terminales de almacén de forma remota.",
+        "Imprimir las etiquetas en formato PDF y enviarlas a una impresora láser convencional.",
+        "Modificar el comando ZPL a pelo en la acción de servidor para forzar el centrado.",
+        "Pedir al transportista que traiga sus propias pegatinas manuales por esta jornada."
       ],
-      "correctAnswerIndex": 1,
-      "moraleja": "Las integraciones entre sistemas de distintos países deben definir explícitamente el formato numérico en el contrato de integración. Un separador de miles interpretado como decimal puede multiplicar por mil el error en stock, facturación y contabilidad sin que ningún sistema lo detecte como incorrecto."
+      "correctAnswerIndex": 2,
+      "debate": "¿Qué define nuestro éxito: la perfección del código o el camión saliendo a tiempo? **El Desafío:** Debatamos sobre el 'arte de la guerrilla'. ¿Cómo documentamos estas soluciones rápidas para que no se conviertan en deuda técnica eterna, sino en lecciones aprendidas?",
+      "moraleja": "En el muelle, el diseño perfecto no importa; importa que el scanner de la agencia lea el bulto.",
+      "retro": {
+        "gitlabProject": "lonbali",
+        "gitlabIssueNumber": 791,
+        "glProjectPath": "odoo-16/lonbali",
+        "glTitle": "AVISO EN PEDIDOS DE ECI -PICKING PDA",
+        "glDescription": "Buenos días\n \nEstamos haciendo el picking de los pedidos de hoy, y vemos que el aviso de los pedidos de ECI no nos sale en la pda, como hasta ahora\npara poderlos diferenciar de los otros, ya que van diferentes \n¿Alguien lo puede mirar, si se ha modificado algo ?\nGracias \nUn saludo",
+        "glComments": [
+          {
+            "author": "adriana.saiz",
+            "body": "Buenas, os dejo los 9 pedidos afectados por la incidencia corregidos de forma temporal\n\n```\nOK ALN/OUT/19966 <- Pedido con entrega en el centro comercial ECI. Imprimir etiqueta\nOK ALN/OUT/19957 <- Pedido con entrega en el centro comercial ECI. Imprimir etiqueta\nOK ALN/OUT/19954…"
+          },
+          {
+            "author": "lucia.carbajo",
+            "body": "Buenas \n\n¿Podéis por favor revisar esto que comenta Mónica? Tenemos una [operación automatizada ](https://erp.lonbali.com/web#id=2&menu_id=625&action=1024&model=packing.action&view_type=form)que escribe en el pedido de venta un aviso para el SGA pero parece que no se está…"
+          }
+        ],
+        "glClosing": {
+          "author": "alvaro.gomez",
+          "body": "Los cambios han sido aplicados sobre la rama production, cierro tarea.\n\nGracias!\n\nSaludos"
+        },
+        "glLabels": [
+          "Almacen",
+          "Despliegue Pendiente",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
     },
     {
-      "title": "El Informe que Se Caía Solo",
+      "title": "Doble Clic, Doble Problema",
+      "points": 150,
+      "hoursImputed": 4.25,
+      "stage1": "Aparecen albaranes validados con cantidad 0 por error en el cliente. El operario jura que 'solo pulsó el botón una vez'.",
+      "stage2": "El doble clic rápido en el botón 'Validar' de la PDA dispara dos peticiones: la primera procesa, la segunda falla y limpia el buffer.",
+      "stage3": "El problema es una falta de 'debounce' (bloqueo de re-clic) en el código Javascript de la aplicación móvil.",
+      "answers": [
+        "Eliminar el botón de validar de la interfaz de la PDA.",
+        "Añadir un bloqueo de UI (overlay) tras el primer clic.",
+        "Formar a los operarios para que esperen 5 segundos entre clics.",
+        "Hacer que el botón de validar solo funcione con una pulsación larga de 2 segundos."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo podemos diseñar pensando en la ergonomía del operario estresado? **El Desafío:** No es un error del usuario, es una oportunidad de diseño. ¿Qué otros 'seguros' podemos poner en nuestras apps de almacén para que el ritmo frenético no genere errores de datos?",
+      "moraleja": "El hardware de almacén y el nerviosismo del operario exigen interfaces a prueba de 'fuego rápido'.",
+      "retro": {
+        "gitlabProject": "noon",
+        "gitlabIssueNumber": 921,
+        "glProjectPath": "customer-environments/noon-pro",
+        "glTitle": "ERRORES EN PDA",
+        "glDescription": "",
+        "glComments": [
+          {
+            "author": "logistica2.noon",
+            "body": "Buenos días\n\nTenemos problemas con las preparaciones.\n\nLos problemas son que al preparar pedidos , la PDA da saltos de calle cuando deberían ir por orden para no estar dando vueltas.\n\nY además , en muchas ocasiones al hacer los pedidos de nuevas distribuciones , la PDA se salta…"
+          },
+          {
+            "author": "luis.novalio",
+            "body": "Ahora mismo los BATCH que tenemos creados tiran todos de picking/mesa. Puedes indicarnos mañana uno de ventas para comprobarlo? :muscle_tone2: \n\nMe resulta raro que en WEB no suceda y Almacén si, cuando ambos operan con el mismo escenario, pero si nos das un BATCH mañana en el…"
+          }
+        ],
+        "glClosing": {
+          "author": "luis.novalio",
+          "body": "Cerramos por aquí!\n\nMil gracias!\n\nSaludos!"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Estandar",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Stock Atrapado en el 'Limo'",
+      "points": 150,
+      "hoursImputed": 6.75,
+      "stage1": "Mercancía recibida hace una semana en el muelle no aparece disponible para la venta, aunque el camión está vacío.",
+      "stage2": "El albarán de entrada se validó, pero los productos quedaron 'atrapados' en la ubicación virtual de 'Control de Calidad'.",
+      "stage3": "Nadie validó el segundo movimiento (Calidad -> Stock) porque no estaba configurado para aparecer en la lista de tareas de la PDA.",
+      "answers": [
+        "Mover la mercancía físicamente de vuelta al muelle y empezar de nuevo.",
+        "Hacer un inventario positivo directamente en la ubicación de Stock final.",
+        "Borrar la ubicación de Control de Calidad del flujo logístico.",
+        "Configurar el segundo movimiento como 'Automático' tras validar la entrada."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Podemos convertir la invisibilidad en transparencia total? **El Desafío:** ¿Cómo rediseñamos nuestras alertas para que 'stock en tránsito' sea un estado que el cliente vea y gestione proactivamente en lugar de ser un agujero negro?",
+      "moraleja": "Los flujos multi-etapa solo funcionan si cada etapa tiene un responsable o un automatismo claro.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 7787,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] - Analizar posible modificación en configuración de divisiones de traslado + Revisar visualización en albaran al dividir paquetes",
+        "glDescription": "Business Value [0..500]\n\n<!-- Incluye etiquetas para indicar la criticidad y el impacto \n- Prioridad:  1-Crítico, 2-Importante, 3-Moderadamente importante, 4-Baja prioridad \n- Clase de servicio: Expedite, Fecha fija, Estándar, Intangible \n- Fecha límite: Si aplica, incluir fecha y consecuencias de no cumplirla -->\n\nContexto\n<!-- Este apartado…",
+        "glComments": [
+          {
+            "author": "daniel.alvaro",
+            "body": "Buenas, he cambiado la descripción para asumir tambien en esta tarea la correción de visualización del campo de destino del paquete"
+          }
+        ],
+        "glClosing": {
+          "author": "kiko.peiro",
+          "body": "`stock_putaway_rules_splits` , ¿esto que es? No es Gextia, ¿no?\n\n¿Donde está paquetizado?"
+        },
+        "glLabels": [
+          "3- Moderadamente Importante",
+          "Almacen",
+          "Odoo FL",
+          "Refinamiento"
+        ]
+      }
+    },
+    {
+      "title": "Ventas Perdidas en el Webhook",
+      "points": 150,
+      "hoursImputed": 5.0,
+      "stage1": "el cliente dice que tiene 20 bolsos, pero Shopify muestra 0. El almacén está lleno pero la web no vende nada.",
+      "stage2": "El webhook de actualización falló por un microcorte. Odoo cree que ya avisó y Shopify nunca se enteró.",
+      "stage3": "El sistema solo manda 'cambios' puntuales, no realiza un barrido de seguridad para sincronizar totales reales.",
+      "answers": [
+        "Actualizar manualmente el stock en Shopify cada vez que se valide un albarán.",
+        "Programar una tarea cron de sincronización completa cada noche.",
+        "Desactivar el conector de Shopify y usar solo la venta telefónica.",
+        "Pedir a Shopify que aumente el tiempo de espera de sus webhooks."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo construimos integraciones que se 'curen' solas? **El Desafío:** Pasemos de la sincronización reactiva a la proactiva. ¿Qué mecanismos de auditoría automática podemos estandarizar para que el cliente duerma tranquilo sabiendo que su web dice la verdad?",
+      "moraleja": "Los webhooks son para la velocidad; los crons nocturnos son para la verdad.",
+      "retro": {
+        "gitlabProject": "paris-64",
+        "gitlabIssueNumber": 745,
+        "glProjectPath": "odoo-16/paris-64",
+        "glTitle": "[URGENTE] Stock DISPONIBLE PARA PROMETER aumentado antes de hora",
+        "glDescription": "Buenos días,  \n\nSe que  no está disponible y necesito por favor que nos mires con URGENCIA una incidencia que ha ocurrido esta noche:\n\n- En varios productos, y en concreto el que nos ha causado un gran impacto negativo, en Gextia se ha aumentado el stock DISPONIBLE PARA PROMETER antes de hora, en concreto esta noche. Hemos podido comprobar que el…",
+        "glComments": [
+          {
+            "author": "esther.paris64",
+            "body": "OK  \nHemos visto que ya se ha modificado el stock real, pero esto hemos visto que se ha actualizado aproximadamente esta noche sobre las 23:30, y ha sido debido a una actualización que habéis desplegado vosotros: https://git.factorlibre.com/odoo-16/paris-64/-/issues/743\n\n¿Nos…"
+          },
+          {
+            "author": "ana.arnay",
+            "body": "Hemos subido una mejora a todos los clientes que permite hacer más configurable el campo \"disponible para prometer\". En determinadas ocasiones, hay clientes que ante la inminente llegada de stock quieren que ese campo también tenga en cuenta la cantidad prevista (drops,…"
+          }
+        ],
+        "glClosing": {
+          "author": "esther.paris64",
+          "body": "Buenos días,     \n\nYa se me pasó contestar a esta tarea, como ya se solucionó, la doy por cerrada. Gracias por la rápida respuesta y solución, pero espero que no vuelva a suceder un error similar y os aseguréis bien en el funcionamiento de estos cambios, porque se arriesga mucho…"
+        },
+        "glLabels": [
+          "Almacen",
+          "Doing",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "La Reserva que se Evaporó",
+      "points": 150,
+      "hoursImputed": 5.25,
+      "stage1": "el cliente detecta albaranes 'Listos' pero sin stock asignado. Al pulsar 'Comprobar disponibilidad', el sistema dice que se completó, pero la reserva sigue a 0.",
+      "stage2": "Un ajuste de inventario masivo se estaba ejecutando exactamente al mismo tiempo que la generación automática de pickings.",
+      "stage3": "Falta de bloqueo transaccional: el sistema leyó stock disponible pero ya no estaba al ir a escribir la reserva.",
+      "answers": [
+        "Prohibir los ajustes de inventario durante el horario de picking.",
+        "Lanzar procesos de forma secuencial mediante un cron único.",
+        "Añadir verificación post-asignación en el módulo de reserva.",
+        "Asignación manual obligatoria para evitar errores de sistema."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Podemos hacer que la robustez sea nuestra seña de identidad? **El Desafío:** Debatamos sobre la importancia de las transacciones atómicas. ¿Cómo podemos formar a todo el equipo para identificar estos riesgos de concurrencia antes de que lleguen a producción?",
+      "moraleja": "Sin bloqueo de concurrencia, los datos son espejismos.",
+      "retro": {
+        "gitlabProject": "weelko",
+        "gitlabIssueNumber": 380,
+        "glProjectPath": "customer-environments/weelko",
+        "glTitle": "[ALMACÉN] - Error en asignaciones con reserva",
+        "glDescription": "Business Value [0..500]\n\nContexto\n\nHemos localizado un problema cuando conviven reservas y albaranes de salida en un pedido de venta. \nTodo parece indicar que la asignación automática se hace antes de liberar la reserva y por tanto no se está teniendo en cuenta dichas cantidades.\n\n<!--Historia de usuario, recomendable si aplica-->\n- *Como*:…",
+        "glComments": [
+          {
+            "author": "adrian.cifuentes",
+            "body": "Hola  \n\nTal como habíamos comentado, el problema venía del orden en que se liberaban las reservas y se creaban los albaranes cuando se daba la situación.\n\nHe hecho una adaptación del flujo del módulo de reservas para que se liberen las reservas antes de crear el nuevo albarán y…"
+          },
+          {
+            "author": "bencoronel",
+            "body": "Hola,\n\nSe han desplegado los cambios en Weelko [este](https://git.factorlibre.com/customer-environments/weelko/-/jobs/190155) trabajo.\n\nUn saludo."
+          }
+        ],
+        "glClosing": {
+          "author": "kiko.peiro",
+          "body": "Podemos dar la tarea por cerrada"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desarrollos y acciones técnicas",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "La Coma que costó 1.000 Unidades",
       "points": 100,
-      "stage1Titulo": "Error al imprimir albaranes de entrega — no podemos enviar documentación a clientes",
-      "stage1Contexto": "Varios usuarios reportan que al intentar imprimir el albarán de entrega de ciertos pedidos el sistema lanza un error y el informe no se genera. No todos los albaranes fallan: los afectados parecen ser los de mayor volumen, pero no hay una regla clara que lo explique.",
-      "stage1Impacto": "Los albaranes de los pedidos más grandes no se pueden imprimir. Sin documentación no se puede enviar, y sin enviar no se cobra.",
-      "stage1": "Varios usuarios reportan que al intentar imprimir el albarán de entrega de determinados pedidos, el sistema lanza un error y el informe no se genera. No todos los albaranes fallan: algunos se imprimen sin problema. Los pedidos afectados parecen ser los de mayor volumen, pero no hay una regla clara. El equipo de administración no puede enviar documentación a los clientes.",
-      "stage2": "El equipo técnico reproduce el error. El mensaje indica que el sistema esperaba encontrar un único registro pero encontró varios. Al analizar la plantilla del informe, se identifica que hay una búsqueda que debería devolver un solo resultado —el transportista principal del albarán— pero en los albaranes afectados devuelve más de uno. Los albaranes que fallan tienen varios transportistas en diferentes líneas; los que funcionan tienen un único transportista para todo el albarán.",
-      "stage3": "La plantilla del informe usa un método de búsqueda no diseñado para manejar múltiples resultados. Funciona correctamente con un solo transportista porque históricamente ese era el único caso. Los albaranes multi-transportista aparecieron cuando se activó la funcionalidad de entregas parciales con transportistas distintos.",
+      "hoursImputed": 4.5,
+      "stage1": "el cliente detecta stock negativo masivo. Los pedidos se han enviado correctamente pero el sistema dice que 'debe' miles de unidades.",
+      "stage2": "El canal externo envía pedidos con coma (,) como separador de miles. Odoo lo interpreta como separador decimal.",
+      "stage3": "Un pedido de '1,500' entró como '1.5'. Al validar la salida de 1.500 físicas, el inventario implosionó.",
       "answers": [
-        "Deshabilitar la opción de asignar múltiples transportistas por albarán hasta tener el informe corregido",
-        "Desconsolidar manualmente los albaranes multi-transportista en albaranes separados antes de imprimir",
-        "Corregir la plantilla del informe para que gestione correctamente el caso de múltiples transportistas, mostrando todos los asociados al albarán",
-        "Como solución inmediata, asignar un transportista único a cada albarán antes de imprimir; corregir la plantilla en paralelo para que soporte múltiples"
-      ],
-      "correctAnswerIndex": 2,
-      "moraleja": "Las plantillas de informe deben validarse ante todos los casos de uso posibles, especialmente cuando se activan nuevas funcionalidades. Un informe que asume \"siempre habrá un solo resultado\" falla silenciosamente hasta que la realidad del negocio cambia."
-    },
-    {
-      "title": "La Reserva que se Perdió",
-      "points": 150,
-      "stage1Titulo": "Pickings sin stock asignado — forzar asignación manual no funciona y no hay error visible",
-      "stage1Contexto": "Parte de los pickings generados automáticamente llegan sin stock asignado aunque hay existencias disponibles. Al intentar forzar la asignación manualmente, el sistema confirma que se completó, pero el picking sigue sin stock. Los operarios no pueden trabajar esos pickings.",
-      "stage1Impacto": "Pickings confirmados por el sistema pero sin stock asignado. Los operarios no pueden trabajar y el sistema no detecta ningún error.",
-      "stage1": "El equipo de almacén detecta que una parte de los pickings generados automáticamente llegan sin stock asignado, aunque hay existencias disponibles. Al intentar forzar la asignación manualmente, el sistema confirma que el proceso se completó, pero el picking sigue sin stock reservado. Los operarios no pueden trabajar esos pickings.",
-      "stage2": "Se analizan los pickings afectados. Todos tienen en común que el proceso de asignación se lanzó mientras otra operación sobre el mismo almacén estaba en curso: un ajuste de inventario que modificó las cantidades disponibles en tiempo real. El sistema ejecutó la asignación, calculó el stock disponible al inicio del proceso, pero entre el cálculo y la escritura de la reserva el ajuste de inventario modificó el stock. El sistema confirmó la asignación sin verificar que la reserva efectivamente se había registrado.",
-      "stage3": "El proceso de asignación de stock no tiene bloqueo de concurrencia: calcula el stock disponible, luego escribe la reserva. Si entre esos dos pasos otro proceso modifica el mismo stock, la reserva se escribe sobre datos que ya no son válidos, y el sistema no detecta la discrepancia.",
-      "answers": [
-        "Prohibir los ajustes de inventario durante el horario de generación de pickings",
-        "Añadir una verificación post-asignación que compruebe que la reserva efectivamente se registró, y reintentar en caso de discrepancia; revisar si el módulo de asignación necesita bloqueo transaccional",
-        "Lanzar los ajustes de inventario y las asignaciones de forma secuencial, nunca simultánea, como norma operativa mientras se implementa el fix técnico",
-        "Deshabilitar la asignación automática y asignar stock manualmente en todos los pickings"
+        "Ajustar el stock negativo con un inventario de regularización manual.",
+        "Corregir la configuración regional del conector para unificar el formato.",
+        "Pedir al cliente externo que cambie su formato de exportación a punto (.).",
+        "Añadir una validación que rechace cualquier pedido con cantidades decimales."
       ],
       "correctAnswerIndex": 1,
-      "moraleja": "Las operaciones que leen y luego escriben sobre datos compartidos requieren protección de concurrencia. Sin ella, dos procesos simultáneos pueden producir un resultado que ambos consideran correcto pero que es incoherente. \"Calculé, luego escribí\" no es equivalente a \"calculé y escribí como una única operación atómica\"."
+      "debate": "¿Cómo de 'inteligentes' deben ser nuestros conectores? **El Desafío:** Este caso nos inspira a crear validaciones de negocio. ¿Debería el sistema avisar si un dato parece fuera de escala? ¿Cómo podemos anticiparnos a las diferencias culturales de los datos internacionales?",
+      "moraleja": "Un separador mal interpretado puede multiplicar por mil tu error de inventario.",
+      "retro": {
+        "gitlabProject": "boxnox",
+        "gitlabIssueNumber": 1040,
+        "glProjectPath": "customer-environments/boxnox",
+        "glTitle": "[ALMACÉN] Unidades en negativo por pedidos ECI",
+        "glDescription": "Buenas Nerea, \n\nHemos detectado una incidencia con las unidades servidas a El Corte Inglés, ya que a raíz de su confirmación, las unidades servidas se pusieron en negativo en la ficha de cada referencia. \nNo detectamos un patrón común, ya que no pasa con todos los productos de una única marca. \nOs facilitamos el stock en negativo de una de las…",
+        "glComments": [
+          {
+            "author": "nerea.fernandez",
+            "body": "Contexto\n\n- Desde Boxnox solicitan una aclaración para entender el motivo de las unidades en negativo de los pedidos de ECI\n- Comentario del cliente: \"_Hemos detectado una incidencia con las unidades servidas a El Corte Inglés, ya que a raíz de su confirmación, las unidades…"
+          },
+          {
+            "author": "nerea.fernandez",
+            "body": "Solicitado soporte por el canal https://factorlibre.slack.com/archives/C01JN2S9CV7/p1773214802688329"
+          }
+        ],
+        "glClosing": {
+          "author": "luis.novalio",
+          "body": "Buenas  te comento, las unidades disponibles van en función de la cantidad de stock que hay en el almacén / lo que se necesita.\n\nEs decir, si tengo 5 en stock y tengo para sacar 10, sea cual sea el pedido el stock disponible para ese producto es -5.\n\nA tener en cuenta que la…"
+        },
+        "glLabels": [
+          "3- Moderadamente Importante",
+          "Almacen",
+          "Lista para empezar",
+          "Soporte"
+        ]
+      }
     },
     {
-      "title": "El Arranque que No Arrancaba",
-      "points": 150,
-      "stage1Titulo": "Día de arranque: los primeros pedidos no generan movimientos de stock o se crean en el almacén equivocado",
-      "stage1Contexto": "Es el día del arranque con el cliente. Los primeros pedidos de venta confirmados no generan los albaranes esperados. Algunos se crean pero en el almacén equivocado. El equipo está in situ. Hay pedidos comprometidos para hoy.",
-      "stage1Impacto": "Es el primer día del cliente y los pedidos no se están generando correctamente. El equipo está in situ y la imagen del proyecto comprometida desde el minuto uno.",
-      "stage1": "El día del arranque de un nuevo cliente, los primeros pedidos de venta confirmados no generan los movimientos de stock esperados. Algunos albaranes no se crean. Otros se crean pero en el almacén equivocado. El cliente lleva meses esperando este momento y tiene pedidos comprometidos para hoy. El equipo está in situ en las instalaciones del cliente.",
-      "stage2": "El equipo técnico revisa la configuración de rutas de aprovisionamiento. En el entorno de pruebas todo funcionaba correctamente. Al comparar las configuraciones de test y producción, se detectan diferencias en los almacenes asignados en las rutas: en test se usaron almacenes de prueba; en producción se replicó la configuración pero algunos almacenes tienen IDs diferentes. Las rutas apuntan a los IDs del entorno de test, que en producción corresponden a almacenes distintos o inexistentes.",
-      "stage3": "La exportación de configuración de rutas entre entornos preserva los IDs de los almacenes de origen, no sus nombres. En producción, esos mismos IDs corresponden a almacenes diferentes porque el orden de creación fue distinto entre entornos.",
+      "title": "El SKU Prohibido con 'Enter'",
+      "points": 100,
+      "hoursImputed": 2.17,
+      "stage1": "Un producto del entorno no se puede escanear. El scanner pita, pero la PDA no reacciona. Por teclado sí funciona.",
+      "stage2": "El código físico termina en un carácter oculto que el navegador de la PDA interpreta como 'F5' (recargar página).",
+      "stage3": "Falta un preventDefault() en el evento de escucha del teclado dentro del código Javascript del SGA.",
       "answers": [
-        "Recrear todos los pedidos de venta del día desde cero asignando manualmente el almacén correcto",
-        "Corregir las rutas en producción para que apunten a los almacenes correctos, forzar la reasignación de rutas en los pedidos existentes y monitorizar la generación de los próximos albaranes",
-        "Para los pedidos urgentes del día, crear los albaranes manualmente en el almacén correcto; corregir las rutas en paralelo para que los pedidos nuevos funcionen correctamente desde ese momento",
-        "Revertir a un proceso completamente manual de creación de albaranes durante el día de arranque"
+        "Cambiar todos los lectores de código de barras por un modelo superior.",
+        "Pedir a los operarios que siempre escriban ese SKU manualmente.",
+        "Añadir control de eventos en el Javascript para limpiar el input.",
+        "Modificar el código de barras en Odoo quitando el último dígito."
       ],
       "correctAnswerIndex": 2,
-      "moraleja": "La migración de configuraciones entre entornos debe validar referencias por nombre o clave de negocio, nunca por ID interno. Los IDs de base de datos son específicos de cada instalación. Una configuración que funciona en test puede apuntar a entidades completamente diferentes en producción."
+      "debate": "¿Cómo elevamos nuestra maestría en el desarrollo de movilidad? **El Desafío:** No es solo código web, es una herramienta de precisión. ¿Qué checklist de hardware deberíamos pasar siempre para asegurar que el scanner sea el mejor aliado del operario?",
+      "moraleja": "El scanner es un teclado rápido; si no controlas sus teclas, controlará tu aplicación.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 6488,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] Corregir búsqueda de albaranes con scanner en órdenes de entrega del SGA",
+        "glDescription": "Desde ayer (dia después de despliegue) el personal de la almacén online ha detectado que tras finalizar un OUT les aparece una lista \"fija\" de operaciones pedientes, y cuando escanean una nueva ubicación de carro no les hace caso. Lo solucionan saliendo al menú del SGA y volviendo a entrar, pero es bastante farragoso. La lista de operaciones que…",
+        "glComments": [
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas  ya está funcionando, muchas gracias\n\nDejo evidencia: https://www.loom.com/share/62912dd9cdb04d9baaa875ccb0b3833f?sid=aa40dca1-dca8-4e4a-9475-1e11deb85015"
+          }
+        ],
+        "glClosing": {
+          "author": "sergio.delcastillo",
+          "body": "Buenas  ya está funcionando, muchas gracias\n\nDejo evidencia: https://www.loom.com/share/62912dd9cdb04d9baaa875ccb0b3833f?sid=aa40dca1-dca8-4e4a-9475-1e11deb85015"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Desplegado",
+          "Expedite"
+        ]
+      }
     },
     {
-      "title": "El FIFO que Sumaba al Revés",
+      "title": "La Importación 'Espejo' de Test",
+      "points": 150,
+      "hoursImputed": 9.5,
+      "stage1": "Tras un inventario masivo, el stock de 50 productos no ha cambiado en el sistema. Los ajustes aparecen como 'Hechos'.",
+      "stage2": "Los operarios usaron una plantilla Excel con IDs de base de datos que correspondían al entorno de Test, no al de Producción.",
+      "stage3": "Odoo ignoró las líneas al no encontrar coincidencia de ID interno, pero marcó el ajuste como finalizado sin lanzar alertas.",
+      "answers": [
+        "Cruzar datos por Referencia Interna y relanzar el script de ajuste.",
+        "Repetir el recuento físico de los 50 productos manualmente.",
+        "Copiar la tabla de productos de Test a Producción para que coincidan los IDs.",
+        "Ajustar los 50 productos uno a uno mediante la interfaz web."
+      ],
+      "correctAnswerIndex": 0,
+      "debate": "¿Cómo podemos ser guías más seguros paral cliente? **El Desafío:** Reflexionemos sobre el diseño de nuestras herramientas de importación. ¿Podemos crear validaciones que impidan cruzar datos de distintos entornos antes de que se 'quemen' horas de trabajo?",
+      "moraleja": "Nunca confíes en los IDs internos de base de datos para importaciones entre distintos entornos.",
+      "retro": {
+        "gitlabProject": "the-new-society",
+        "gitlabIssueNumber": 430,
+        "glProjectPath": "odoo-16/the-new-society",
+        "glTitle": "Fallo en impresion de etiquetas de bultos",
+        "glDescription": "Buenas Fran; \n\nHemos encontrado algunos fallos que querría comentar con usted. En primer lugar, hemos notado que no están saliendo correctamente los números de bultos que aparecen en las etiquetas de recogida local. En el sistema aparecen dos bultos, pero al final solo se muestra uno. Le adjunto un ejemplo para que pueda verlo con más…",
+        "glComments": [
+          {
+            "author": "luis.novalio",
+            "body": "Buenas -new-society no se ha modificado nada, solamente, que si eliminas el adjunto no va a imprimir desde el SGA, puesto que ya se había creado la etiqueta anteriormente y se ha borrado.\n\nEsto lleva así desde Junio, te muestro un ejemplo, te dejo enlace del…"
+          },
+          {
+            "author": "javier.sanchez",
+            "body": "Buenas tardes -new-society \n\nHemos detectado que cuando se hace una entrega parcial, el nuevo albarán con los productos pendientes genera automáticamente una etiqueta de bulto con la información que tiene en ese momento (es decir, cero bultos) y esa es la etiqueta que os ha…"
+          }
+        ],
+        "glClosing": {
+          "author": "marta.the-new-society",
+          "body": "en principio yo no he tenido noticias de mas fallo asiq ue la damos por cerrada"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Lote del 'Mañana' (UTC)",
+      "points": 100,
+      "hoursImputed": 2.5,
+      "stage1": "el cliente no puede validar albaranes a partir de las 23:00. El sistema dice que el lote está 'caducado' aunque vence en 2027.",
+      "stage2": "Los lotes se crean con la fecha del servidor (UTC). El almacén opera en un huso donde a las 23:00 ya es técnicamente 'mañana'.",
+      "stage3": "Al comparar la fecha de caducidad con 'now()', la discrepancia de horas interpreta el lote como caducado.",
+      "answers": [
+        "Ajustar el margen de caducidad en la configuración del producto.",
+        "Cambiar la hora física de todos los servidores a la hora local del almacén.",
+        "Prohibir la validación de productos con lote a partir de las 22:00 horas.",
+        "Eliminar la validación de caducidad en el momento de la salida de mercancía."
+      ],
+      "correctAnswerIndex": 0,
+      "debate": "¿Cómo hacemos que la tecnología respete la realidad geográfica? **El Desafío:** Este caso nos invita a dominar la gestión de tiempos. ¿Cómo podemos estandarizar el manejo de zonas horarias para que Odoo 'hable' siempre el mismo idioma que el operario nocturno?",
+      "moraleja": "Los servidores viven en UTC, pero los productos caducan en hora local.",
+      "retro": {
+        "gitlabProject": "mas-musculo",
+        "gitlabIssueNumber": 404,
+        "glProjectPath": "odoo-16/mas-musculo",
+        "glTitle": "[ALMACÉN] Revisar visualización de alertas de producto y autorelleno de fechas en lotes",
+        "glDescription": "CONTEXTO\n\nPartimos de: Sistema de alertas de producto y gestión de lotes con fechas configurables\n\nContexto: En la visita del 10 de diciembre a MASmusculo se detectaron dos comportamientos inesperados relacionados con alertas de producto y creación de lotes que requieren investigación técnica.\n\n- `Como`: Usuario de almacén\n- `Quiero`: Que las…",
+        "glComments": [
+          {
+            "author": "daniel.alvaro",
+            "body": "Refinamiento Técnico: Alertas de Producto y Autorelleno de Fechas en Lotes\n\nTarea: [ALMACÉN] Revisar visualización de alertas de producto y autorelleno de fechas en lotes  \nCliente: MASmusculo  \nFecha: 05/01/2026  \nAutor: Equipo Técnico Gextia\n\n---\n\n1. RESUMEN EJECUTIVO\n\n…"
+          },
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas  creo que las cosas que comentas deberían abrirse en v16\n\nDejo algunos comentarios: Sobre la fecha de alerta\n\nPropones una fecha de pre-alerta.\n   1. Haría el cambio que propones…"
+          }
+        ],
+        "glClosing": {
+          "author": "daniel.alvaro",
+          "body": "Se han revisado e investigado los errores y se abordaran los casos para solucionarlo en nuevas tareas.\n\nCierro tarea, un saludo"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Despegue Estrellado (IDs)",
+      "points": 150,
+      "hoursImputed": 8.0,
+      "stage1": "Día 1 del cliente. Los pedidos confirmados no generan albaranes. El equipo técnico está in situ bajo presión.",
+      "stage2": "Las rutas de aprovisionamiento apuntan a IDs numéricos que corresponden al entorno de pruebas (Staging).",
+      "stage3": "En producción, el almacén tiene el ID 14, pero la ruta busca el ID 2. El sistema no encuentra dónde crear el stock.",
+      "answers": [
+        "Cambiar manualmente el ID del almacén en la base de datos por SQL.",
+        "Corregir las rutas en producción vinculándolas por nombre de almacén.",
+        "Recrear todos los pedidos de venta del día para que cojan la nueva ruta.",
+        "Revertir el arranque y volver al sistema antiguo durante una semana."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo convertimos el caos del arranque en una metodología infalible? **El Desafío:** Repensemos nuestra forma de migrar. ¿Qué herramientas de 'deploy' podemos automatizar para que las referencias a almacenes sean siempre por identidad y nunca por azar numérico?",
+      "moraleja": "Migra configuraciones por 'Nombre' o 'XML_ID', nunca por el ID numérico de la tabla.",
+      "retro": {
+        "gitlabProject": "masmusculo",
+        "gitlabIssueNumber": null,
+        "glProjectPath": null,
+        "glTitle": null,
+        "glDescription": null,
+        "glComments": [],
+        "glClosing": null,
+        "glLabels": []
+      }
+    },
+    {
+      "title": "El Kit sin Rastro de Lotes",
+      "points": 150,
+      "hoursImputed": 7.75,
+      "stage1": "el cliente reporta que en los albaranes de productos tipo 'Kit' no aparecen los lotes de los ingredientes en el documento impreso.",
+      "stage2": "Odoo estándar no propaga los números de serie de los componentes al albarán del producto final cuando se trata de una BoM tipo Kit.",
+      "stage3": "El cliente necesita la trazabilidad completa HOY para una auditoría de sanidad en un envío internacional.",
+      "answers": [
+        "Desmontar el Kit en el pedido de venta y vender los componentes como líneas sueltas.",
+        "Escribir los lotes a mano con bolígrafo sobre el papel impreso del albarán.",
+        "Cambiar el tipo de producto de 'Kit' a 'Almacenable' y crear órdenes de fabricación previas.",
+        "Modificar el informe para buscar recursivamente los lotes en los movimientos hijos."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Cómo podemos ser los arquitectos de la trazabilidad perfecta? **El Desafío:** Este caso nos reta a superar las limitaciones del estándar. ¿Qué otros procesos de 'agregación' de datos podemos mejorar para que la información fluya sin barreras desde el componente al cliente final?",
+      "moraleja": "La trazabilidad de componentes en kits es un 'gap' clásico que requiere una solución técnica recursiva.",
+      "retro": {
+        "gitlabProject": "226ers",
+        "gitlabIssueNumber": 1183,
+        "glProjectPath": "odoo-16/226ers",
+        "glTitle": "[IMPRESOS][ALBARAN] De nuevo no salen los lotes para products de tipo Kit",
+        "glDescription": "Hola  \nAl imprimir un albarán valorado (aduanas) no aparecen los lotes de los productos de tipo Kit. Esto se abordó y solucionó hace 4 meses en https://git.factorlibre.com/odoo-16/226ers/-/issues/955\nDe repente ha dejado de salir. ¿Podéis ver qué ha pasado?\ncc:",
+        "glComments": [
+          {
+            "author": "natalia.ruiz",
+            "body": "Análisis Claude sobre [226/OUT/MV/07931](https://odoo.226ers.com/web#id=201816&cids=1&menu_id=238&action=388&model=stock.picking&view_type=form)\n\n100%. Ningún view hereda de stock_picking_border_report para inyectar breakdown_kits. La variable nunca se define → condición falla →…"
+          },
+          {
+            "author": "natalia.ruiz",
+            "body": "Buenas! \n\nHe estado revisando en el entorno de producción y no he conseguido replicarlo. Os dejo un para de ejemplos que he revisado:\n\nSi pudierais dejarme algún caso concreto para poder tirar del hilo os lo agradecería\n\nMuchas gracias!"
+          }
+        ],
+        "glClosing": {
+          "author": "natalia.ruiz",
+          "body": "Esta tarea hay que gestionarla con , le dejaré explicación por slack igualmente.\n\nLa idea es abrirles una nueva tarea si quieren cambiar el albarán para que muestre los kits aunque no estén aún hechos. Se les comenta por aquí y si quieren abrimos tarea de Desarrollo.\n\nGracias!"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Desplegado en Test",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Paquete que no existía en Gramos",
+      "points": 100,
+      "hoursImputed": 3.0,
+      "stage1": "Un transportista cobra un recargo masivo al cliente porque el peso en el sistema es 1.000 veces superior al real.",
+      "stage2": "Se descubre que el peso del producto estaba guardado en Gramos, pero el sistema de etiquetas lo interpretaba como Kilogramos.",
+      "stage3": "El conector de Shopify enviaba el valor numérico sin Unidad de Medida y Odoo aplicaba la UdM por defecto de la categoría.",
+      "answers": [
+        "Negociar con el transportista para que ignore el peso del sistema.",
+        "Borrar el campo peso de todos los productos para que el transportista pese en báscula.",
+        "Ajustar la UdM en la ficha y recalcular los albaranes abiertos.",
+        "Cambiar la configuración del transportista para que divida siempre por 1.000."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Podemos ser guardianes de la consistencia de los datos? **El Desafío:** Inspirémonos para crear procesos de auditoría de datos iniciales. ¿Cómo podemos ayudar al cliente a que su 'limpieza' de datos sea un éxito desde el minuto cero del proyecto?",
+      "moraleja": "Un número sin Unidad de Medida es una bomba de relojería en una integración internacional.",
+      "retro": {
+        "gitlabProject": "226ers",
+        "gitlabIssueNumber": 398,
+        "glProjectPath": "odoo-16/226ers",
+        "glTitle": "[ALMACÉN] - Revisión del cálculo del peso en los albaranes.",
+        "glDescription": "Business Value [0..500]\n\nContexto\n\nPartimos de: la tarea [[ALMACÉN] - Mostrar lineas de pedido y kilos en albarán.](https://git.factorlibre.com/odoo-16/226ers/-/issues/371) donde hemos trasladado el peso y las líneas a la vista tree de los albaranes en función de los productos que hay en el interior del albarán.\n\nLa problemática que tenemos es que…",
+        "glComments": [
+          {
+            "author": "felipe.vaqueriza",
+            "body": "Buenas  te respondo en base a los dos puntos y a los comentarios que ha dejado   abajo\n- En base a lo comentado por Luis , este calculo se realizara al pulsar el `action_confirm` por lo que en ese momento el peso del picking sera igual a la suma de los pesos de las lineas del…"
+          },
+          {
+            "author": "luis.novalio",
+            "body": "Buenas, aquí me he equivocado yo, lo suyo es que se realice creando un pedido de venta y se confirme.\n\nUna vez confirmado, los albaranes se \"Marcan por realizar\" automáticamente al crear el pedido de venta y es aquí dónde queremos que se realice ese cálculo del peso, no es al…"
+          }
+        ],
+        "glClosing": {
+          "author": "sergio.delcastillo",
+          "body": "Esta tarea debería haber sido abierta en FLV16, la muevo\n\nMover también las imputaciones de la misma please, gracias"
+        },
+        "glLabels": [
+          "Almacen",
+          "Estandar",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Nombre que mató al Barcode",
+      "points": 100,
+      "hoursImputed": 3.5,
+      "stage1": "En el entorno, el nombre de la nueva colección pisa el código de barras en la etiqueta. El transportista no puede leer nada.",
+      "stage2": "Marketing ha puesto nombres de 80 caracteres. El diseño ZPL original solo tenía espacio para 20.",
+      "stage3": "El código ZPL no tiene control de desbordamiento (overflow) y sigue escribiendo sobre el bloque del código de barras.",
+      "answers": [
+        "Pedir a Marketing que acorte los nombres de todos los productos en el ERP.",
+        "Usar etiquetas físicamente más grandes y cambiar el rollo de todas las impresoras.",
+        "Quitar el nombre del producto de la etiqueta y dejar solo el código.",
+        "Limitar por código a 30 caracteres + '...' en el motor de etiquetas."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Cómo unimos el branding con la eficiencia logística? **El Desafío:** Este caso nos invita a mediar entre departamentos. ¿Cómo podemos educar a Marketing sobre los límites físicos del almacén para que la creatividad no choque con la operativa?",
+      "moraleja": "En una etiqueta de 10x10cm, el espacio es el recurso más caro. Contrólalo por código.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 4217,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] - Impresión de etiqueta de producto, no se imprime centrada.",
+        "glDescription": "Business Value \\[0..500\\]\n\nContexto\n\nAl imprimir la etiqueta de producto la información no está centradas y la información sale movida.\n\nA continuación Adjunto imagen\n\nPartimos de: En la visita de cliente 226ers#331 detectamos que las etiquetas de producto al imprimirlas salen movidas al realizar las pruebas.\n\n- _Como_ Consultora de almacén\n-…",
+        "glComments": [
+          {
+            "author": "alvaro.gomez",
+            "body": "Buenas, realizando pruebas en local con la impresora de producto (70 x30 mm) de la oficina, este es el resultado que tengo:\n\nEntiendo que el código de barras no será más largo, he visto que los EAN en España suelen tener 13 dígitos, y así es como lo he probado. Aún así he dejado…"
+          },
+          {
+            "author": "diana.serna",
+            "body": "Hola , \n\nMuchas gracias por tan excelente trabajo. \n\nMañana estaré en la oficina tengo que hacer un par de pruebas de impresión y aprovecho y pruebo la impresión de todas las etiquetas y aprovecho y te refino mejor esta tarea con ese resultado, te parece, así probamos con…"
+          }
+        ],
+        "glClosing": {
+          "author": "ignacio.morales",
+          "body": "Comentaremos a nivel interno desde el área ya que el problema base viene de la configuración del interprete de que utilizamos para dar de alta las impresoras.\n\nEn cuanto a la revisión de formatos tratamos en tarea #4687 \n\nCerramos."
+        },
+        "glLabels": [
+          "3- Moderadamente Importante",
+          "Almacen",
+          "Desplegado",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Albarán de las 7.000 Unidades",
+      "points": 150,
+      "hoursImputed": 15.42,
+      "stage1": "Un error en una importación genera un albarán con 7.000 líneas. Al intentar abrirlo o validarlo, el servidor del cliente se cae por falta de memoria.",
+      "stage2": "Odoo intenta cargar en RAM todas las líneas y sus correspondientes reservas en una sola transacción SQL.",
+      "stage3": "El almacén no puede procesar nada más porque el proceso del albarán gigante bloquea las tablas principales de stock.",
+      "answers": [
+        "Aumentar el timeout y la memoria del servidor a valores extremos temporalmente.",
+        "Trocear el albarán en 10 documentos más pequeños mediante un script de base de datos.",
+        "Borrar el albarán gigante por SQL (asumiendo riesgo de integridad de datos).",
+        "Esperar al fin de semana sin actividad para intentar validarlo de nuevo."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo escalamos sin perder la elegancia? **El Desafío:** Pasemos de la gestión individual a la gestión masiva. ¿Qué patrones de desarrollo podemos aprender aquí para que el sistema sea 'elástico' y soporte cualquier volumen de datos sin despeinarse?",
+      "moraleja": "Los procesos masivos necesitan gestión por lotes, no transacciones únicas.",
+      "retro": {
+        "gitlabProject": "weelko",
+        "gitlabIssueNumber": 1077,
+        "glProjectPath": "customer-environments/weelko",
+        "glTitle": "DUDA - Albarán de entrega",
+        "glDescription": "Hola  , \n\nDes de esta semana aprox, el albarán de entrega que recibe el cliente cuando se pone hecho el OUT no lo pueden leer. Y además no sale el SO correcto. \n\n¿Se ha hecho alguna modificación?",
+        "glComments": [
+          {
+            "author": "luis.novalio",
+            "body": "Validación funcional\nConclusión\nComprobar que la plantilla se envía correctamente en ambos idiomas.\n\nGestión de flujos completos\n1. Comprobar la plantilla para confirmación de albaranes.\n2. Comprobar la plantilla para confirmación de pedidos de venta.\n3. Comprobar la plantilla…"
+          }
+        ],
+        "glClosing": {
+          "author": "africa.canudas.weelko",
+          "body": "Hola  , \n\nGenial, cerramos tarea."
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Albarán de las 20:00 (Cron Fail)",
+      "points": 150,
+      "hoursImputed": 14.25,
+      "stage1": "Un cliente importante no recibe los correos de confirmación de sus envíos diarios.",
+      "stage2": "Los correos se envían por acción planificada a las 20:00, pero el servidor entra en mantenimiento a esa hora.",
+      "stage3": "El mantenimiento corta la cola de emails y no hay reintento programado para los fallidos.",
+      "answers": [
+        "Mandar los correos a mano al día siguiente.",
+        "Mover la acción planificada a las 19:30 y añadir reintentos.",
+        "Desactivar el mantenimiento del servidor por las noches.",
+        "Pedir al cliente que mire el portal de Odoo para ver sus envíos."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo logramos que el sistema sea incansable? **El Desafío:** Este caso nos motiva a pensar en la resiliencia. ¿Cómo podemos diseñar nuestras tareas críticas para que 'sepan' recuperarse solas de cualquier interrupción externa?",
+      "moraleja": "El mantenimiento de un sistema no puede ser invisible para los procesos críticos que dependen de él.",
+      "retro": {
+        "gitlabProject": "refruiting",
+        "gitlabIssueNumber": 1115,
+        "glProjectPath": "odoo-16/refruiting",
+        "glTitle": "[CORREOS] No se envían los correos de los albaranes a Swatch",
+        "glDescription": "Business Value [0..500]\n\n- Prioridad:  1-Crítico\n- Clase de servicio: Expedite\n\nContexto\n<!-- Este apartado contiene la necesidad del cliente, no debería sufrir modificaciones posteriores -->\n\nPartimos de:   \n\n- Comentario exacto del cliente entre comillas \"No reciben los albaranes\"\n- Situación que ha promovido el desarrollo/tarea\nEl cliente…",
+        "glComments": [
+          {
+            "author": "aingles.refruiting",
+            "body": "En la tarea #1125 hay muchos ejemplos de clientes que no reciben ningún albarán. Pero te puedo dar otros como:\n(ACCENTURE OUTSOURCING SERVICES) ACCENTURE OUTSOURCING SERVICES SA, DE - ACCENTURE - EDIFICIO BLUENET PLANTA 1 (SEVILLA)\n{width=672 height=162}\n{width=713…"
+          },
+          {
+            "author": "grodriguez.refruiting",
+            "body": "Hola , creo que todos aquellos albaranes que tienen la fecha programada entre que se ejecuta la tarea a las 14h i termina, no se mandan a las 20h. Podemos revisar esto? Es la única idea que se me ocurre al porque ayer no se mando un correo a un cliente. Disculpa que seamos…"
+          }
+        ],
+        "glClosing": {
+          "author": "grodriguez.refruiting",
+          "body": "Hola , ayer fallo la acción planificada de las 20h del envío de albaranes. Ha salido este error:\n\nTraceback (most recent call last):\n  File \"/var/www/vhost/erp.refruiting.com/odoo-base/odoo-server/odoo/api.py\", line 1034, in get\n    cache_value =…"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Dropshipping sin Rumbo",
+      "points": 100,
+      "hoursImputed": 8.0,
+      "stage1": "Los pedidos de dropshipping salen con la dirección de nuestro almacén en la etiqueta del proveedor en lugar de la del cliente.",
+      "stage2": "El sistema coge la dirección de la compañía principal por defecto en el flujo de compra generado.",
+      "stage3": "Falta la herencia del campo 'partner_id' (entrega) en el automatismo que genera la PO desde la SO.",
+      "answers": [
+        "Cambiar las etiquetas a mano cada vez que llegue un pedido.",
+        "Configurar el almacén del proveedor como ubicación por defecto siempre.",
+        "Corregir la propagación de la dirección en el flujo MTO/Dropshipping.",
+        "Cancelar el dropshipping y pasar a stock propio para controlar el envío."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Podemos ver más allá del código y entender el viaje del producto? **El Desafío:** Inspirémonos para dominar los flujos inter-socios. ¿Cómo podemos asegurar que la información viaje siempre tan lejos como la mercancía?",
+      "moraleja": "En flujos automáticos, la herencia de datos es el hilo de Ariadna de la logística.",
+      "retro": {
+        "gitlabProject": "refruiting",
+        "gitlabIssueNumber": 900,
+        "glProjectPath": "odoo-16/refruiting",
+        "glTitle": "[ALMACÉN] Albaranes de Dropshipping no asignan correctamente la dirección de envío",
+        "glDescription": "odoo-16/refruiting#895\n\nBuenas  , necesitamos tu apoyo urgente, los pedidos de hoy se vieron afectados en cuanto a la dirección de entrega, lo único diferente que se ha hecho entre ayer y hoy, es el despliegue que realizaron anoche, por favor. necesitamos con URGENCIA tu apoyo ya que todos los pedidos de mañana se deben gestionar durante el día de…",
+        "glComments": [
+          {
+            "author": "gitlab_odoo",
+            "body": "Nota: Esta es una respuesta automatizada generada por IA.\n\nBasándonos en su consulta, pueden ser de interés los siguientes cursos:\n\n1. Flujo automático de compras\n   Este curso aborda cómo Odoo gestiona el proceso de facturación de pedidos de compra de manera automatizada,…"
+          },
+          {
+            "author": "lfermin.refruiting",
+            "body": "hola  , por favor y gracias... me confirmas cuando los 23 estén corregidos, y por favor pedimos que se determine porque están ocurriendo estos errores cada vez que se hace un despliegue , hay alguna manera de prevenirlos?"
+          }
+        ],
+        "glClosing": {
+          "author": "javier.sanchez",
+          "body": "Buenos días, \n\nCerramos por ahora. Si más adelante creéis necesario retomarlo podemos abrir una tarea nueva. \n\nUn saludo!"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado en Test",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "La Reserva que se Evaporó (Race)",
+      "points": 150,
+      "hoursImputed": 5.25,
+      "stage1": "Pickings listos pero sin stock asignado. Forzar asignación manual dice 'OK' pero no hace nada.",
+      "stage2": "Un ajuste de inventario simultáneo modificó cantidades mientras se lanzaba la asignación automática.",
+      "stage3": "Falta de bloqueo transaccional: el sistema leyó stock disponible pero ya no estaba al ir a escribir la reserva.",
+      "answers": [
+        "Prohibir los ajustes de inventario durante el horario de picking.",
+        "Lanzar procesos de forma secuencial mediante un cron único.",
+        "Añadir verificación post-asignación en el módulo de reserva.",
+        "Asignación manual obligatoria para evitar errores de sistema."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Cómo convertimos la fragilidad en robustez total? **El Desafío:** Debatamos sobre la importancia de la integridad en tiempo real. ¿Cómo podemos ser los campeones de la concurrencia segura en nuestros desarrollos?",
+      "moraleja": "Sin bloqueo de concurrencia, los datos son espejismos.",
+      "retro": {
+        "gitlabProject": "weelko",
+        "gitlabIssueNumber": 380,
+        "glProjectPath": "customer-environments/weelko",
+        "glTitle": "[ALMACÉN] - Error en asignaciones con reserva",
+        "glDescription": "Business Value [0..500]\n\nContexto\n\nHemos localizado un problema cuando conviven reservas y albaranes de salida en un pedido de venta. \nTodo parece indicar que la asignación automática se hace antes de liberar la reserva y por tanto no se está teniendo en cuenta dichas cantidades.\n\n<!--Historia de usuario, recomendable si aplica-->\n- *Como*:…",
+        "glComments": [
+          {
+            "author": "adrian.cifuentes",
+            "body": "Hola  \n\nTal como habíamos comentado, el problema venía del orden en que se liberaban las reservas y se creaban los albaranes cuando se daba la situación.\n\nHe hecho una adaptación del flujo del módulo de reservas para que se liberen las reservas antes de crear el nuevo albarán y…"
+          },
+          {
+            "author": "bencoronel",
+            "body": "Hola,\n\nSe han desplegado los cambios en Weelko [este](https://git.factorlibre.com/customer-environments/weelko/-/jobs/190155) trabajo.\n\nUn saludo."
+          }
+        ],
+        "glClosing": {
+          "author": "kiko.peiro",
+          "body": "Podemos dar la tarea por cerrada"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desarrollos y acciones técnicas",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Botón Gris de la Discordia",
+      "points": 150,
+      "hoursImputed": 4.58,
+      "stage1": "el cliente reporta que un operario puede preparar pedidos pero, al llegar al final, el botón de 'Validar' aparece deshabilitado.",
+      "stage2": "El usuario tiene el rol de 'Operario', pero el albarán contiene un producto de alto valor que requiere firma de 'Supervisor'.",
+      "stage3": "Nadie configuró el umbral de valor monetario para la validación automática en el nuevo almacén del proyecto.",
+      "answers": [
+        "Subir el rol de 'Supervisor' a todos los operarios del almacén.",
+        "Ajustar el umbral de validación por tipo de operación en la configuración.",
+        "Pedir al operario que valide el albarán desde el ordenador de oficina (Web).",
+        "Quitar el campo 'Precio' de todos los productos para saltarse la validación."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo equilibramos el control con la autonomía del talento? **El Desafío:** Rediseñemos la seguridad para que sea un facilitador, no un muro. ¿Cómo podemos avisar de forma constructiva cuando alguien necesita ayuda para terminar una tarea?",
+      "moraleja": "La seguridad no debe bloquear la operativa; si el proceso cambia, los umbrales también.",
+      "retro": {
+        "gitlabProject": "fisura",
+        "gitlabIssueNumber": 942,
+        "glProjectPath": "odoo-16/fisura",
+        "glTitle": "[ALMACÉN] Escaneo obligatorio del producto en el SGA antes de mostrar los botones de validar línea y editar unidades",
+        "glDescription": "Business Value \\[0..500\\]\n\nContexto\n\nPartimos de: la tarea https://git.factorlibre.com/odoo-16/fisura/-/issues/759 donde se desarrolló la separación de la configuración de mostrar / ocultar los botones de editar unidades y de validar la línea del producto para que se configurasen de forma independiente:\n\n{width=\"522\" height=\"81\"}\n\n- _Como_\n\n …",
+        "glComments": [
+          {
+            "author": "alvaro.gomez",
+            "body": "1. RESUMEN EJECUTIVO\n\nEstimacion: 2ph\n\n- Complejidad: MEDIA\n  - Afecta a varios escenarios de almacén (recepciones, salidas, lista de picking), combina cambios en backend (servicio de picking) y frontend (mixin de escenarios y plantillas), y depende de la configuración de menú.…"
+          },
+          {
+            "author": "alvaro.gomez",
+            "body": "Refinamiento Técnico Actualizado\n\nEsfuerzo 3 PH\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---"
+          }
+        ],
+        "glClosing": {
+          "author": "sergio.bustamante",
+          "body": "Gracias  \n\nHe añadido para que funcione también con la referencia interna (default_code)\n\nYa está disponible https://fisura-test.gextia-02.factorlibre.dev/web con ese añadido\n\nToda tuya"
+        },
+        "glLabels": [
+          "1- Critico",
+          "Almacen",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Scanner que Pedía Lote (Inheritance)",
+      "points": 100,
+      "hoursImputed": 4.15,
+      "stage1": "Un operario intenta recibir mercancía del cliente. La PDA exige escaneo de lote, pero el producto no requiere lotes.",
+      "stage2": "Se cambió la categoría del producto ayer y la nueva categoría tiene forzado el uso de lotes 'por herencia'.",
+      "stage3": "Hay 500 unidades bloqueadas en el muelle porque el sistema no deja avanzar sin un código de lote inexistente.",
+      "answers": [
+        "Inventarse un lote '123' para poder validar la entrada rápido.",
+        "Cambiar la configuración del producto y forzar el recálculo.",
+        "Mover el producto a una ubicación virtual para saltarse el paso.",
+        "Borrar el producto y volverlo a crear sin categoría asociada."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo gestionamos el poder de los cambios globales? **El Desafío:** Este caso nos inspira a ser más conscientes de la herencia. ¿Cómo podemos crear procesos de revisión mutua que eviten que un pequeño clic en una categoría detenga todo un muelle?",
+      "moraleja": "Un cambio en una categoría puede alterar el comportamiento de miles de productos de golpe.",
+      "retro": {
+        "gitlabProject": "safeguru",
+        "gitlabIssueNumber": 798,
+        "glProjectPath": "customer-environments/safeguru",
+        "glTitle": "INFORME VALORACION DE INVENTARIO",
+        "glDescription": "Hola  \n\nDesde contabilidad en UK me indican que a hay una discrepancia en el informe de valoración del inventario a fecha 30/11 \n\nsi genero el informe hoy el valor del inventario seria de 361.745,57 € (informe 2)\n\nPero según contabilidad cuando el informe se genero el 1 de diciembre el stock 365.724,92 € (informe 1)\n\na revisar productos que no…",
+        "glComments": [
+          {
+            "author": "amanda.moreno",
+            "body": "Buenos días  \n\nantes de nada, disculpa la falta de respuesta. Quería trasladarte que seguimos trabajando internamente en esta tarea y realizando las comprobaciones necesarias.\n\nA continuación, te comparto los avances realizados hasta el momento. En cuanto dispongamos de nuevas…"
+          },
+          {
+            "author": "amanda.moreno",
+            "body": "Comentario interno\n\nPartimos de que el cliente el 01/12/2025 se sacó la valoración de inventario desde la siguiente ruta: _Inventario - informe - valoración de inventario_\n\n* Valoración de inventario exportando la información a 30/11/2025 el día 01/12/2025\\> 365.724,92 €…"
+          }
+        ],
+        "glClosing": {
+          "author": "amanda.moreno",
+          "body": "Buenos días  \n\ndamos por cerrada la tarea, ya que no se han planteado más dudas.\n\nAbrazo."
+        },
+        "glLabels": [
+          "1- Critico",
+          "Contabilidad",
+          "Desplegado",
+          "Funcional"
+        ]
+      }
+    },
+    {
+      "title": "Stock en la Estantería Vacía",
+      "points": 150,
+      "hoursImputed": 5.42,
+      "stage1": "El sistema sugiere al cliente recoger producto de la estantería A1. El operario va y está vacía. El sistema jura que hay 10.",
+      "stage2": "Hubo una cancelación de albarán que dejó stock 'reservado' virtualmente en una línea de movimiento zombi.",
+      "stage3": "Odoo cree que hay stock porque hay registros en stock.quant con cantidad real 0 pero reserva virtual 10.",
+      "answers": [
+        "Hacer un inventario manual de todo el almacén para resetear quants.",
+        "Ignorar el error y esperar a que el stock se limpie solo con el tiempo.",
+        "Borrar y volver a crear la ubicación A1 en el sistema.",
+        "Lanzar un script de limpieza de reservas huérfanas en stock.move."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Podemos ser los detectives que limpian el camino del operario? **El Desafío:** Pasemos de la limpieza reactiva a la prevención. ¿Qué chequeos diarios podemos automatizar para que el operario nunca encuentre una estantería vacía cuando el sistema dice lo contrario?",
+      "moraleja": "La 'basura' en las tablas de reserva es el virus más común de un almacén en Odoo.",
+      "retro": {
+        "gitlabProject": "weelko",
+        "gitlabIssueNumber": 1318,
+        "glProjectPath": "customer-environments/weelko",
+        "glTitle": "DUDA - RESERVA PEDIDOS",
+        "glDescription": "Hola  , \n\nHay una cosa de Odoo que no me acaba de gustar como actúa. Mañana tienes un huecho para mi y te cuento lo que me pasa?\nPongo aquí el ejemplo SO185585\n\nGracias,",
+        "glComments": [
+          {
+            "author": "luis.novalio",
+            "body": "Buenas  te explico que ha pasado porque me huelo a que es una mala practis.\n\nInvestigando un poco, me he dado cuenta que el abastecimiento se ha creado por un problema en los quants.\n\nAl tener ese quants en negativo y tener vinculados los movimientos del albarán anterior que…"
+          },
+          {
+            "author": "luis.novalio",
+            "body": "Creo que el tema de que te esté creando abastecimiento de los naggura viene porque realizamos un enrutado dinámico que en el caso de no tener stock en el picking bajásemos de abastecimiento.\n\nSi esto no es correcto, confírmame y lo archivo para que no te pidan productos naggura…"
+          }
+        ],
+        "glClosing": {
+          "author": "luis.novalio",
+          "body": "Estupendo!\n\nMil gracias  \n\nSaludos!"
+        },
+        "glLabels": [
+          "3- Moderadamente Importante",
+          "Almacen",
+          "Desplegado",
+          "Expedite"
+        ]
+      }
+    },
+    {
+      "title": "El Bucle de la Devolución Infinita",
       "points": 200,
-      "stage1Titulo": "Valoración de inventario FIFO inconsistente — varía según desde qué pantalla del sistema se consulte",
-      "stage1Contexto": "Finanzas detecta que el valor del inventario para productos FIFO varía significativamente dependiendo de desde qué pantalla del sistema se consulte. Los auditores externos ya han señalado la discrepancia y están esperando una explicación.",
-      "stage1Impacto": "El valor del inventario cambia según desde qué pantalla se consulta. Los auditores externos tienen observaciones abiertas y el balance no se puede cerrar.",
-      "stage1": "El departamento financiero detecta que la valoración del inventario de algunos productos no cuadra con los costes de compra registrados. Los productos afectados se gestionan con el método de coste FIFO. El valor del inventario varía significativamente según desde qué pantalla del sistema se consulte. Los auditores externos han señalado la discrepancia.",
-      "stage2": "Se analiza en detalle la configuración del almacén. El cliente tiene activada la valoración por ubicación específica: algunos productos tienen un coste diferente dependiendo de en qué zona del almacén se almacenen. El módulo FIFO estándar calcula las capas de coste a nivel de producto, sin considerar la ubicación. El módulo de valoración por ubicación añade un ajuste posterior. Cuando ambos módulos actúan sobre el mismo producto, sus cálculos interfieren mutuamente.",
-      "stage3": "El módulo de valoración por ubicación aplica su ajuste sobre el valor que ya ha calculado el FIFO, pero el FIFO no tiene en cuenta que parte del stock de ese producto está en una ubicación con coste diferente. Cada módulo asume que el otro no está activo, y el resultado es una doble contabilización de ajustes en algunos movimientos.",
+      "hoursImputed": 11.5,
+      "stage1": "Al validar una devolución, el sistema crea automáticamente otro albarán de salida idéntico para el mismo cliente. Bucle logístico.",
+      "stage2": "Una regla 'Push' mal configurada en la ubicación de 'Devoluciones' dispara una salida inmediata al detectar que entra stock.",
+      "stage3": "El error está en la ruta que asume que todo lo devuelto debe enviarse de vuelta a 'Reparaciones', pero lo envía a 'Clientes'.",
       "answers": [
-        "Desactivar la valoración por ubicación específica y usar solo FIFO estándar para todos los productos",
-        "Identificar y corregir los movimientos con doble ajuste, documentar el impacto contable y evaluar si la combinación FIFO + valoración por ubicación está soportada en la versión actual del sistema",
-        "Separar los productos por método: los que requieren valoración por ubicación usan precio medio ponderado; los que requieren FIFO no tienen valoración por ubicación",
-        "Corregir manualmente la valoración de cada producto afectado mediante asientos contables sin tocar la configuración del sistema"
+        "Desactivar todas las reglas Push del almacén por seguridad.",
+        "Añadir una condición de 'Operación Manual' en la regla de empuje.",
+        "Borrar la ubicación física de Devoluciones y crear una nueva.",
+        "Validar las devoluciones solo desde la cuenta de Administrador del sistema."
       ],
       "correctAnswerIndex": 1,
-      "moraleja": "La combinación de múltiples módulos de valoración de stock puede generar interferencias que ninguno de los módulos por separado detecta como error. Antes de activar dos módulos que actúan sobre el mismo dominio, es imprescindible verificar que están diseñados para coexistir."
+      "debate": "¿Cómo dominamos la elegancia de los procesos automáticos? **El Desafío:** Este caso nos motiva a ser maestros de las rutas. ¿Cómo podemos simplificar nuestros diagramas logísticos para que la automatización sea siempre un camino recto y nunca un laberinto?",
+      "moraleja": "Las reglas Push son potentes, pero sin filtros de origen pueden crear bucles logísticos infinitos.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 6887,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] Error al acceder a los pedidos de compra provocado por el módulo purchase_all_shipments",
+        "glDescription": "Contexto\n\nPartimos de:   \n- Proyecto afectado: Holiday Golf\n- Situación: Error crítico al intentar acceder a pedidos de compra específicos que genera recursión infinita\n- Error detectado: `RecursionError: maximum recursion depth exceeded` en el método `_get_move_dest_ids()` del módulo `purchase_all_shipments`\n\nImpacto técnico:\n- Bloquea el acceso…",
+        "glComments": [
+          {
+            "author": "adriana.saiz",
+            "body": "Análisis weelko:\n\nReferencias circulares 46\n\nAlbaranes afectados: 9\n\nPrimera fecha: 2024-01-16 11:33\n\nÚltima fecha: 2025-01-09 14:19\n\n----------------------------------------------------------------------\n\nAnálisis Holiday Golf:\n\n Pickings 1  Tipo  Fecha…"
+          },
+          {
+            "author": "adriana.saiz",
+            "body": "Script para corregir pedidos individuales cuando el problema está en movimientos destino encadenados\n\n```\npo = self.env['purchase.order'].browse(1716)\nprint(f\"Iniciando análisis para el pedido: {po.name}\")\nmoves = po.order_line.mapped('move_ids')\ntotal_moves =…"
+          }
+        ],
+        "glClosing": {
+          "author": "adriana.saiz",
+          "body": "Holiday golf:\n\nAlbaranes únicos afectados: 95\n\nPedidos de compra afectados: 14\n\n--- Listado de Albaranes Afectados…"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "Error: 'Expected Singleton' en Navidad",
+      "points": 100,
+      "hoursImputed": 3.75,
+      "stage1": "el sistema no puede imprimir albaranes de entrega en Navidad. El sistema lanza un error técnico 'Expected Singleton'.",
+      "stage2": "El informe busca 'el' transportista, pero en pedidos grandes hay varios transportistas asignados por bulto.",
+      "stage3": "La plantilla de QWeb no está preparada para iterar sobre una lista, solo espera un único registro de carrier.",
+      "answers": [
+        "Deshabilitar la opción de múltiples transportistas por albarán.",
+        "Corregir la plantilla para que pinte solo el primer transportista encontrado.",
+        "Modificar el informe para que itere sobre la colección de transportistas.",
+        "Asignar un transportista genérico a todos los pedidos antes de imprimir."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Podemos construir informes que nunca se rindan? **El Desafío:** Inspirémonos para crear plantillas 'a prueba de balas'. ¿Cómo podemos prever que los datos de un cliente crecerán y cambiarán para que nuestros informes sigan brillando años después?",
+      "moraleja": "Nunca asumas que 'solo habrá uno' en una base de datos de producción.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 6748,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] revisar y prevenir error expected singleton en informe albarán de entrega",
+        "glDescription": "Contexto\n\nPartimos del error de sentry https://git.factorlibre.com/development/fl-sentry-triage/-/issues/404 donde vemos el error:\n\n```python\nError while render the template\nValueError: Expected singleton: res.currency()\nTemplate: stock.stock_report_delivery_has_serial_move_line\nPath: /t/t[4]/td[3]/span\nNode: <span…",
+        "glComments": [
+          {
+            "author": "adriana.saiz",
+            "body": "He probado a duplicar varios de los pedidos con albaranes que dan error de impresión, porque sus movimientos no están relacionados con las líneas, y cuando los confirmo y se generan los albaranes estos lo hacen de forma correcta, y permite…"
+          },
+          {
+            "author": "adriana.saiz",
+            "body": "En punto actual estamos teniendo pérdidas de información, los albaranes de salida en odoo que pertenezcan a pedidos de venta, no deben perder su vinculación entre movimientos y líneas del pedido.\n\nResumen: hay 14379 albaranes out cuyos movimientos pierden su relación con las…"
+          }
+        ],
+        "glClosing": {
+          "author": "adriana.saiz",
+          "body": "```\nPickings problemáticos (no cancelados):\n  Total activos: 13431\n  A ubicaciones internas/tránsito: 13421\n  A clientes: 10\n  % internos: 99.9%\n  % clientes: 0.1%\n\nPor tipo de ubicación (no cancelados):\n  internal: 12611\n  transit: 810\n  customer: 10\n\nUbicaciones específicas…"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Estandar",
+          "Expedite"
+        ]
+      }
+    },
+    {
+      "title": "El Intercompany que se perdió",
+      "points": 200,
+      "hoursImputed": 11.0,
+      "stage1": "Una transferencia entre sociedades se queda bloqueada. La mercancía 'salió' de la Sociedad A pero nunca 'llegó' a la Sociedad B.",
+      "stage2": "La Sociedad B archivó la ubicación de destino que la Sociedad A tenía configurada en su ruta de aprovisionamiento.",
+      "stage3": "Error de permisos: el usuario de sistema que procesa el intercompany no puede escribir en ubicaciones archivadas de otra compañía.",
+      "answers": [
+        "Desarchivar la ubicación de forma permanente en la Sociedad B.",
+        "Validar todas las operaciones intercompany siempre como Administrador.",
+        "Forzar la creación de albaranes manuales entre empresas sin automatismo.",
+        "Usar una ubicación puente (Transit) común y accesible para ambas compañías."
+      ],
+      "correctAnswerIndex": 3,
+      "debate": "¿Cómo podemos ser los puentes que unen equipos y sociedades? **El Desafío:** Este caso nos invita a pensar en ecosistemas, no solo en almacenes. ¿Cómo podemos mejorar la visibilidad entre compañías para que una acción local nunca cree un bloqueo global?",
+      "moraleja": "En flujos multi-compañía, los puntos de entrega deben ser 'terrenos neutrales' y siempre visibles.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 7823,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] Lentitud en la cancelación de pedidos intercompany",
+        "glDescription": "Business Value \\[0..500\\]\n\n<!--Incluye etiquetas para indicar la criticidad y el impacto \n- Prioridad:  1-Crítico, 2-Importante, 3-Moderadamente importante, 4-Baja prioridad \n- Clase de servicio: Expedite, Fecha fija, Estándar, Intangible \n- Fecha límite: Si aplica, incluir fecha y consecuencias de no cumplirla-->\n\nContexto\n\n<!--Este apartado…",
+        "glComments": [
+          {
+            "author": "adrian.cifuentes",
+            "body": "Refinamiento Técnico - 2PH\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---\n\n---"
+          },
+          {
+            "author": "oscar.indias",
+            "body": "Informe de rendimiento\n\nModulo: `stock_dynamic_routing_by_route`\n\nArchivo: `models/stock_picking.py`\n\nPedido de prueba: S03016 (700 lineas, intercompany Noon)\n\n---\n\nCambios realizados\n\n1. Early returns en `_get_move_dynamic_routing`\n\nSe anadieron validaciones para retornar un…"
+          }
+        ],
+        "glClosing": {
+          "author": "oscar.indias",
+          "body": "Buenas\n\nSe ha mergeado el desarrollo.\n\nPodemos cerrar la tarea."
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Desplegado",
+          "Estandar"
+        ]
+      }
+    },
+    {
+      "title": "El Scanner Invisible tras el Update",
+      "points": 100,
+      "hoursImputed": 6.5,
+      "stage1": "Tras una actualización del entorno, el botón de 'Escanear' desaparece de la PDA para los operarios veteranos, pero los nuevos sí lo ven.",
+      "stage2": "Se descubre que los veteranos tienen asignado también el rol de 'Comercial'. El problema no es de permisos de almacén.",
+      "stage3": "Un cambio en las reglas de vista (ir.ui.view) oculta elementos del SGA si detecta que el usuario pertenece al grupo 'Sales'.",
+      "answers": [
+        "Borrar la caché del navegador en todas las PDAs del almacén físicamente.",
+        "Reinstalar el módulo del SGA completo en el entorno de producción.",
+        "Separar estrictamente los grupos de seguridad de Almacén y Ventas.",
+        "Dar permisos de Administrador de Odoo a todos los operarios veteranos."
+      ],
+      "correctAnswerIndex": 2,
+      "debate": "¿Cómo garantizamos que la evolución sea siempre positiva para el usuario? **El Desafío:** Reflexionemos sobre nuestras fases de prueba. ¿Cómo podemos incluir perfiles de usuario reales en nuestros tests para que ninguna funcionalidad vital desaparezca 'en la sombra'?",
+      "moraleja": "Los conflictos de herencia en grupos de seguridad pueden 'borrar' funcionalidades sin lanzar errores.",
+      "retro": {
+        "gitlabProject": "fl-v16",
+        "gitlabIssueNumber": 5151,
+        "glProjectPath": "odoo-16/fl-v16",
+        "glTitle": "[ALMACÉN] Revisión problema icono SGA",
+        "glDescription": "Business Value [0..500]\n\nContexto\n\nTenemos un problema con los usuarios de almacén, todos tienen los mismos permisos y solo uno tiene acceso al icono de SGA.\n\n- Usuario con acceso ana.montano\n- Usuario sin acceso eusebio.navarro\n\nEntornos/Casos de prueba\n\n- Se ha solicitado una copia de PRO a test, que se llamara `holiday_golf_08012025`\n\n<!--Se…",
+        "glComments": [
+          {
+            "author": "adrian.cifuentes",
+            "body": "Hemos estado revisando  y yo, se ha realizado la siguiente prueba: \n\n* he duplicado los dos usuarios:\n  * Eusebio - testsga\n  * Ana - testsga2 \n* He probado a entrar con los dos:\n  * testsga -\\> no muestra el icono\n  * testsga2 -\\> no muestra el icono\n* he puesto el check a…"
+          }
+        ],
+        "glClosing": {
+          "author": "luis.novalio",
+          "body": "Visto  podemos cerrar tarea!\n\nMil gracias por todo!\n\nSaludos!"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Funcional"
+        ]
+      }
+    },
+    {
+      "title": "La Parálisis de los Reabastecimientos",
+      "points": 200,
+      "hoursImputed": 46.75,
+      "stage1": "En plena campaña, el almacén reporta paradas intermitentes. Al intentar validar cualquier movimiento, los terminales se quedan 'pensando'.",
+      "stage2": "El equipo técnico detecta picos de concurrencia en base de datos. Las acciones planificadas de reabastecimiento están chocando con las ventas en caliente.",
+      "stage3": "El análisis de NewRelic muestra que una query SQL masiva retiene un ShareLock sobre registros que la PDA intenta actualizar simultáneamente.",
+      "answers": [
+        "Aumentar la potencia del servidor de base de datos para procesar más rápido.",
+        "Modificar las acciones planificadas para que se ejecuten en ventanas de bajo flujo.",
+        "Desactivar el reabastecimiento automático y pasar a un modelo manual.",
+        "Limitar el número de operarios simultáneos durante las horas punta."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo podemos ser los arquitectos de la fluidez absoluta? **El Desafío:** Este caso nos inspira a optimizar cada milisegundo. ¿Qué otros procesos 'invisibles' podríamos mover fuera del horario comercial para que el operario sienta que vuela?",
+      "moraleja": "En entornos de alta rotación, el reabastecimiento 'en caliente' puede ser el peor enemigo de la expedición.",
+      "retro": {
+        "gitlabProject": "noon",
+        "gitlabIssueNumber": 841,
+        "glProjectPath": "customer-environments/noon-pro",
+        "glTitle": "PARADAS DEL SISTEMA",
+        "glDescription": "",
+        "glComments": [
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas  te dejo las\n\nAcción de servidor mejorada\n\nMejorada la acción de [Cancelar albarán](https://noon.gextia.io/web#id=1229&cids=2%2C1&menu_id=25&action=8&model=ir.actions.server&view_type=form) para que lo haga por lotes y no deje bloqueado el sistema\n\nAcciones realizadas…"
+          },
+          {
+            "author": "sergio.delcastillo",
+            "body": "Buenas   \n\nQuiero comentar todas las cuestiones que hemos ido analizando a lo largo del día y que es importante interioricéis bien para evitar problemas a futuro.\n\nEn primer lugar, el trabajo con grandes volúmenes de pedidos. Vamos a analizar vuestro caso concreto para intentar…"
+          }
+        ],
+        "glClosing": {
+          "author": "sergio.delcastillo",
+          "body": "Buenas  \n\nLa interpretación que saco de tu mensaje es que quieres anular la reserva del albarán `AN/PICKTIE/09731` supongo para utilizar las prendas que tiene asignadas para otro/s albaranes. ¿esto es correcto?"
+        },
+        "glLabels": [
+          "2- Importante",
+          "Almacen",
+          "Doing",
+          "Mantenimiento evolutivo"
+        ]
+      }
+    },
+    {
+      "title": "El Laberinto de los 47 Caminos",
+      "points": 150,
+      "hoursImputed": 24.58,
+      "stage1": "El cliente reporta 'lentitud' al validar. Al analizar, vemos que validar un albarán de 5 líneas tarda 3 minutos.",
+      "stage2": "Se descubre que el producto usa una ruta mixta MTO+MTS. Por cada línea, el sistema analiza TODAS las reglas de abastecimiento del almacén.",
+      "stage3": "El problema está en una función del core que recalcula necesidades globales en lugar de locales. El tiempo de cómputo es exponencial.",
+      "answers": [
+        "Cambiar el flujo del cliente a MTS puro y gestionar falta de stock manualmente.",
+        "Aplicar un parche en el core para acotar el cálculo por ID de movimiento.",
+        "Dividir los albaranes en documentos de 1 sola línea para mitigar la carga.",
+        "Ejecutar el cálculo de abastecimientos solo por la noche de forma masiva."
+      ],
+      "correctAnswerIndex": 1,
+      "debate": "¿Cómo convertimos un obstáculo técnico en una mejora para toda la comunidad? **El Desafío:** Este caso nos invita a pensar en grande. ¿Cómo podemos asegurarnos de que cada solución que creamos sea un regalo para el 'yo del futuro' y para el resto de compañeros?",
+      "moraleja": "Cuando un problema de rendimiento afecta al core, la solución debe ser técnica y estructural.",
+      "retro": {
+        "gitlabProject": "holiday-golf",
+        "gitlabIssueNumber": 709,
+        "glProjectPath": "customer-environments/holiday-golf-pre",
+        "glTitle": "[ALMACÉN] Revisar motivo de lentitud en confirmación de albaranes",
+        "glDescription": "Business Value [0..500]\n\nContexto\n<!-- Este apartado contiene la necesidad del cliente, no debería sufrir modificaciones posteriores -->\nTenemos los siguientes albaranes HG1/PICK2P/01723 y HG1/OUT2P/01657, ambos del mismo pedido. Con un total de 5.188 unidades y somos incapaces de validar en segundo plano o primer plano.\n\nEntorno específico\n-…",
+        "glComments": [
+          {
+            "author": "ignacio.morales",
+            "body": "Cerramos ~Expedite, abrimos una nueva tarea para analizar las acciones de servidor que han sido creadas desde el lado del cliente."
+          }
+        ],
+        "glClosing": {
+          "author": "ike.detoro",
+          "body": "¡Ojo! ¿Era cagada de cliente? La etiqueta es ~\"Mantenimiento evolutivo\" y tenemos un palizón de 20 horas que no vamos a facturar. ¿Es correcto ?"
+        },
+        "glLabels": [
+          "Almacen",
+          "Desplegado",
+          "Expedite",
+          "Mantenimiento evolutivo"
+        ]
+      }
     }
   ]
 }

@@ -37,6 +37,7 @@ const DEFAULT_PEOPLE = [
 // users.teams:  [{ id, teamName, memberIds:[], createdAt }]
 const users    = { people: [], teams: [] };
 const sessions = {};
+const caseLibrary = []; // biblioteca global de casos — persiste independientemente de las sesiones
 const clients  = {}; // roomCode → Set<{ ws, role, personId, teamId }>
 const waitingClients = new Set(); // clientes esperando sesión activa
 
@@ -45,6 +46,7 @@ function saveData() {
   try {
     const data = {
       users,
+      caseLibrary,
       sessions: Object.fromEntries(
         Object.entries(sessions).map(([code, s]) => {
           // eslint-disable-next-line no-unused-vars
@@ -95,6 +97,11 @@ function loadData() {
     users.people = data.users?.people?.length ? data.users.people : [...DEFAULT_PEOPLE];
     users.teams  = data.users?.teams  || [];
 
+    // Cargar biblioteca global de casos
+    if (Array.isArray(data.caseLibrary)) {
+      caseLibrary.splice(0, caseLibrary.length, ...data.caseLibrary);
+    }
+
     for (const [code, s] of Object.entries(data.sessions || {})) {
       sessions[code] = {
         ...s,
@@ -104,7 +111,21 @@ function loadData() {
         pausedByDisconnect: false // al reiniciar server se resetea — admin puede reanudar manualmente
       };
     }
-    console.log(`Cargados: ${users.people.length} personas, ${users.teams.length} equipos, ${Object.keys(sessions).length} sesiones`);
+
+    // Migración: colectar casos de sesiones anteriores a la biblioteca (solo si está vacía)
+    if (caseLibrary.length === 0) {
+      const seen = new Set();
+      for (const s of Object.values(data.sessions || {})) {
+        if (Array.isArray(s.cases)) {
+          for (const c of s.cases) {
+            if (c.id && !seen.has(c.id)) { seen.add(c.id); caseLibrary.push(c); }
+          }
+        }
+      }
+      if (caseLibrary.length > 0) console.log(`[MIGRACIÓN] ${caseLibrary.length} casos migrados a biblioteca global`);
+    }
+
+    console.log(`Cargados: ${users.people.length} personas, ${users.teams.length} equipos, ${Object.keys(sessions).length} sesiones, ${caseLibrary.length} casos en biblioteca`);
 
     // Reiniciar timers de sesiones activas
     for (const code of Object.keys(sessions)) restartTimerAfterLoad(code);
@@ -156,7 +177,18 @@ function getPublicSession(session) {
     cases: session.cases.map((c, i) => {
       const isPast = i < session.currentCaseIndex;
       const isResults = i === session.currentCaseIndex && session.currentStage === 'RESULTS';
-      return { ...c, correctAnswerIndex: (isResults || isPast) ? c.correctAnswerIndex : undefined };
+      const isRetro = i === session.currentCaseIndex && session.currentStage === 'STAGE_RETRO';
+      const showCorrect = isResults || isRetro || isPast;
+      const showRetro = isRetro || isPast;
+      return {
+        ...c,
+        correctAnswerIndex: showCorrect ? c.correctAnswerIndex : undefined,
+        // Datos de retro enmascarados hasta STAGE_RETRO
+        debate: showRetro ? c.debate : undefined,
+        hoursImputed: showRetro ? c.hoursImputed : undefined,
+        moraleja: showRetro ? c.moraleja : undefined,
+        retro: showRetro ? c.retro : undefined,
+      };
     })
   };
 }
@@ -256,7 +288,8 @@ function getNextStageExpiry(sid, stage) {
     STAGE_3:       () => advanceToStage(sid, 'STAGE_3_DEBATE'),
     STAGE_3_DEBATE:() => advanceToStage(sid, 'STAGE_4'),
     STAGE_4:       () => resolveCase(sid),
-    RESULTS:       () => {}
+    RESULTS:       () => {},
+    STAGE_RETRO:   () => {}
   };
   return map[stage];
 }
@@ -271,16 +304,16 @@ function advanceToStage(sid, stage) {
     STAGE_1: cfg.stage1Time, STAGE_1_DEBATE: cfg.stage1DebateTime,
     STAGE_2: cfg.stage2Time, STAGE_2_DEBATE: cfg.stage2DebateTime,
     STAGE_3: cfg.stage3Time, STAGE_3_DEBATE: cfg.stage3DebateTime,
-    STAGE_4: 120, RESULTS: cfg.resultsTime || 20
+    STAGE_4: 120, RESULTS: cfg.resultsTime || 20, STAGE_RETRO: cfg.retroTime || 0
   };
-  if (stage === 'STAGE_1') { s.skipTeamId = null; s.skipAvailable = false; s.answers = {}; }
+  if (stage === 'STAGE_1') { s.skipTeamId = null; s.skipAvailable = false; s.answers = {}; s.wildcardUsed = {}; }
   if (stage === 'STAGE_2_DEBATE') s.skipAvailable = true;
 
   broadcastAll(sid, { type: 'STAGE_CHANGE', stage, caseIndex: s.currentCaseIndex, session: getPublicSession(s) });
   const expiry = getNextStageExpiry(sid, stage);
   // Para STAGE_1, añadir los 5s de la cuenta atrás del cliente al timer para que al terminar quede el tiempo completo
   const timerSecs = timeMap[stage] + (stage === 'STAGE_1' ? 5 : 0);
-  if (expiry && timeMap[stage]) startTimer(sid, timerSecs, expiry);
+  if (expiry && timerSecs > 0) startTimer(sid, timerSecs, expiry);
 }
 
 function resolveCase(sid) {
@@ -307,9 +340,11 @@ function resolveCase(sid) {
     const isCorrect = didAnswer && ans.answerIndex === correct;
     const speedBonus = isCorrect ? (_speedBonusMap[team.id] ?? 0) : 0;
     const speedPosition = isCorrect ? _correctByTime.findIndex(([tid]) => tid === team.id) + 1 : null;
+    const usedWildcard = !!(s.wildcardUsed && s.wildcardUsed[team.id]);
+    const effectiveBase = usedWildcard ? Math.round(base * 0.5) : base;
     let pts = 0;
-    if (isCorrect) pts = (isSkipper ? Math.round(base * 1.3) : base) + speedBonus;
-    else if (isSkipper) pts = -Math.round(base * 0.5);
+    if (isCorrect) pts = (isSkipper ? Math.round(effectiveBase * 1.3) : effectiveBase) + speedBonus;
+    else if (isSkipper) pts = -Math.round(effectiveBase * 0.5);
     team.score += pts;
     team.history.push({ caseIndex: s.currentCaseIndex, caseTitle: cc.title, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts, speedBonus });
     results.push({ teamId: team.id, teamName: team.teamName, answerIndex: ans?.answerIndex, isCorrect, isSkipper, pointsEarned: pts, totalScore: team.score, didAnswer, speedBonus, speedPosition });
@@ -322,6 +357,7 @@ function resolveCase(sid) {
     results: results.map(r => ({ teamName: r.teamName, answerIndex: r.answerIndex, answerLabel: r.answerIndex !== undefined ? String.fromCharCode(65 + r.answerIndex) : null, answerText: r.answerIndex !== undefined ? cc.answers[r.answerIndex] : null, isCorrect: r.isCorrect, isSkipper: r.isSkipper, pts: r.pointsEarned }))
   });
   s.currentStage = 'RESULTS';
+  s.retroSubstep = 0;
   s.lastResults = results;
   saveData();
   broadcastAll(sid, { type: 'CASE_RESULTS', results, correctAnswerIndex: correct, correctAnswerText: cc.answers[correct], caseIndex: s.currentCaseIndex, leaderboard: getLeaderboard(s), eventLog: s.eventLog });
@@ -343,7 +379,7 @@ function disconnectKey(role, teamId, personId) {
   return 'projector';
 }
 function isTimerStage(stage) {
-  return ['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS'].includes(stage);
+  return ['STAGE_1','STAGE_1_DEBATE','STAGE_2','STAGE_2_DEBATE','STAGE_3','STAGE_3_DEBATE','STAGE_4','RESULTS','STAGE_RETRO'].includes(stage);
 }
 function clientName(role, teamId, personId, session) {
   if (role === 'team')     return session?.teams?.find(t => t.id === teamId)?.teamName || 'Equipo';
@@ -401,8 +437,9 @@ wss.on('connection', ws => {
         ws.send(JSON.stringify({
           type: 'ADMIN_LOGIN_OK',
           admin: { id: person.id, name: person.name, email: person.email, role: 'admin' },
-          sessions: Object.values(sessions).map(s => ({ roomCode: s.roomCode, status: s.status, casesCount: s.cases.length, teamsCount: s.teams.length, createdAt: s.createdAt })),
+          sessions: Object.values(sessions).map(s => ({ roomCode: s.roomCode, status: s.status, casesCount: (s.eligibleCaseIds||[]).length, teamsCount: s.teams.length, createdAt: s.createdAt })),
           users: getPublicUsers(),
+          library: caseLibrary,
           activeSessionCode: getActiveSession()?.roomCode || null
         }));
         return;
@@ -501,6 +538,7 @@ wss.on('connection', ws => {
       if (!session) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Sala no encontrada' })); return; }
       joinSession(session, 'admin', null, clientPersonId);
       ws.send(JSON.stringify({ type: 'SESSION_STATE', session: getPublicSession(session), leaderboard: getLeaderboard(session), timerEnd: session.timerEnd, paused: session.paused, pausedRemaining: session.pausedRemaining, awaitingReconnect: [...(session.awaitingReconnect||[])] }));
+      ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary }));
       return;
     }
 
@@ -510,8 +548,8 @@ wss.on('connection', ws => {
       if (active) { ws.send(JSON.stringify({ type: 'ERROR', message: `Ya hay una sesión activa (${active.roomCode}). Finalízala primero.` })); return; }
       const code = generateCode();
       sessions[code] = {
-        roomCode: code, status: 'LOBBY', cases: [], teams: [], answers: {},
-        config: { stage1Time:60, stage1DebateTime:120, stage2Time:90, stage2DebateTime:300, stage3Time:60, stage3DebateTime:180, resultsTime:20 },
+        roomCode: code, status: 'LOBBY', cases: [], teams: [], answers: {}, wildcardUsed: {},
+        config: { stage1Time:45, stage1DebateTime:120, stage2Time:90, stage2DebateTime:300, stage3Time:60, stage3DebateTime:180, resultsTime:20, retroTime:0 },
         currentCaseIndex:0, currentStage:'LOBBY', skipTeamId:null, skipAvailable:false,
         timer:null, timerEnd:null, paused:false, pausedRemaining:null, pausedByDisconnect:false,
         lastResults:null, awaitingReconnect: new Set(), requiredParticipants: new Set(),
@@ -626,14 +664,18 @@ wss.on('connection', ws => {
     if (type === 'ADMIN_SAVE_CASE' && clientRole === 'admin') {
       const { caseData } = payload;
       if (caseData.id) {
-        const idx = session.cases.findIndex(c => c.id === caseData.id);
-        if (idx === session.currentCaseIndex && session.status === 'RUNNING') { ws.send(JSON.stringify({ type: 'ERROR', message: 'No se puede editar el caso activo' })); return; }
-        if (idx >= 0) session.cases[idx] = caseData; else session.cases.push({ ...caseData, id: crypto.randomUUID() });
+        // Proteger caso activo en sesión en curso
+        const runningSess = Object.values(sessions).find(s => s.status === 'RUNNING');
+        if (runningSess && runningSess.cases[runningSess.currentCaseIndex]?.id === caseData.id) {
+          ws.send(JSON.stringify({ type: 'ERROR', message: 'No se puede editar el caso activo en una sesión en curso' })); return;
+        }
+        const idx = caseLibrary.findIndex(c => c.id === caseData.id);
+        if (idx >= 0) caseLibrary[idx] = caseData; else caseLibrary.push({ ...caseData, id: crypto.randomUUID() });
       } else {
-        session.cases.push({ ...caseData, id: crypto.randomUUID() });
+        caseLibrary.push({ ...caseData, id: crypto.randomUUID() });
       }
       saveData();
-      ws.send(JSON.stringify({ type: 'CASES_UPDATED', cases: session.cases }));
+      ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary }));
       return;
     }
 
@@ -646,7 +688,7 @@ wss.on('connection', ws => {
           && Array.isArray(c.answers) && c.answers.length === 4
           && c.correctAnswerIndex !== undefined && c.correctAnswerIndex >= 0 && c.correctAnswerIndex <= 3;
         if (!valid) { skipped++; continue; }
-        session.cases.push({
+        caseLibrary.push({
           id: crypto.randomUUID(),
           title: String(c.title),
           points: Number(c.points) || 100,
@@ -655,22 +697,75 @@ wss.on('connection', ws => {
           stage3: String(c.stage3),
           answers: c.answers.map(String),
           correctAnswerIndex: Number(c.correctAnswerIndex),
-          ...(c.moraleja ? { moraleja: String(c.moraleja) } : {})
+          ...(c.moraleja ? { moraleja: String(c.moraleja) } : {}),
+          ...(c.debate ? { debate: String(c.debate) } : {}),
+          ...(c.hoursImputed !== undefined ? { hoursImputed: Number(c.hoursImputed) } : {}),
+          ...(Array.isArray(c.titanAnswerIndices) ? { titanAnswerIndices: c.titanAnswerIndices.map(Number) } : {}),
+          ...(c.retro ? { retro: {
+            gitlabProject: c.retro.gitlabProject || null,
+            gitlabIssueNumber: c.retro.gitlabIssueNumber || null,
+            glProjectPath: c.retro.glProjectPath || null,
+            glTitle: c.retro.glTitle || null,
+            glDescription: c.retro.glDescription || null,
+            glComments: Array.isArray(c.retro.glComments) ? c.retro.glComments : [],
+            glClosing: c.retro.glClosing || null,
+            glLabels: Array.isArray(c.retro.glLabels) ? c.retro.glLabels : [],
+          }} : {})
         });
         imported++;
       }
       saveData();
-      ws.send(JSON.stringify({ type: 'CASES_UPDATED', cases: session.cases, importResult: { imported, skipped } }));
+      saveData();
+      ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary, importResult: { imported, skipped } }));
       return;
     }
 
     if (type === 'ADMIN_DELETE_CASE' && clientRole === 'admin') {
-      const idx = session.cases.findIndex(c => c.id === payload.caseId);
+      const idx = caseLibrary.findIndex(c => c.id === payload.caseId);
       if (idx < 0) return;
-      if (idx === session.currentCaseIndex && session.status === 'RUNNING') { ws.send(JSON.stringify({ type: 'ERROR', message: 'Caso activo' })); return; }
-      session.cases.splice(idx, 1);
+      const runningSess = Object.values(sessions).find(s => s.status === 'RUNNING');
+      if (runningSess && runningSess.cases[runningSess.currentCaseIndex]?.id === payload.caseId) {
+        ws.send(JSON.stringify({ type: 'ERROR', message: 'Caso activo en sesión en curso' })); return;
+      }
+      caseLibrary.splice(idx, 1);
+      // Limpiar de elegibles en todas las sesiones
+      Object.values(sessions).forEach(s => {
+        if (s.eligibleCaseIds) s.eligibleCaseIds = s.eligibleCaseIds.filter(id => id !== payload.caseId);
+      });
       saveData();
-      ws.send(JSON.stringify({ type: 'CASES_UPDATED', cases: session.cases }));
+      ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary }));
+      return;
+    }
+
+    if (type === 'LIBRARY_GET' && clientRole === 'admin') {
+      ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary }));
+      return;
+    }
+
+    if (type === 'SESSION_ADD_ELIGIBLE' && clientRole === 'admin') {
+      if (!session.eligibleCaseIds) session.eligibleCaseIds = [];
+      if (!session.eligibleCaseIds.includes(payload.caseId)) {
+        session.eligibleCaseIds.push(payload.caseId);
+        saveData();
+      }
+      ws.send(JSON.stringify({ type: 'ELIGIBLE_UPDATED', eligibleCaseIds: session.eligibleCaseIds }));
+      return;
+    }
+
+    if (type === 'SESSION_REMOVE_ELIGIBLE' && clientRole === 'admin') {
+      if (!session.eligibleCaseIds) session.eligibleCaseIds = [];
+      session.eligibleCaseIds = session.eligibleCaseIds.filter(id => id !== payload.caseId);
+      saveData();
+      ws.send(JSON.stringify({ type: 'ELIGIBLE_UPDATED', eligibleCaseIds: session.eligibleCaseIds }));
+      return;
+    }
+
+    if (type === 'SESSION_REORDER_ELIGIBLE' && clientRole === 'admin') {
+      if (Array.isArray(payload.caseIds)) {
+        session.eligibleCaseIds = payload.caseIds;
+        saveData();
+      }
+      ws.send(JSON.stringify({ type: 'ELIGIBLE_UPDATED', eligibleCaseIds: session.eligibleCaseIds }));
       return;
     }
 
@@ -682,7 +777,10 @@ wss.on('connection', ws => {
     }
 
     if (type === 'ADMIN_START_SESSION' && clientRole === 'admin') {
-      if (!session.cases.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Añade al menos un caso' })); return; }
+      const eligibleCaseIds = session.eligibleCaseIds || [];
+      const eligibleCases = eligibleCaseIds.map(id => caseLibrary.find(c => c.id === id)).filter(Boolean);
+      if (!eligibleCases.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Selecciona al menos un caso en la pestaña Casos' })); return; }
+      session.cases = eligibleCases; // poblar casos de juego desde elegibles
       if (!session.teams.length) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Ningún equipo conectado todavía' })); return; }
       if (!session.projectorConnected) { ws.send(JSON.stringify({ type: 'ERROR', message: 'El proyector debe estar conectado antes de iniciar la sesión' })); return; }
       const running = Object.values(sessions).find(s => s.status === 'RUNNING' && s.roomCode !== session.roomCode);
@@ -725,6 +823,25 @@ wss.on('connection', ws => {
       return;
     }
 
+    if (type === 'RETRO_ADVANCE_SUBSTEP' && clientRole === 'admin') {
+      if (session.currentStage !== 'STAGE_RETRO') return;
+      session.retroSubstep = Math.min((session.retroSubstep || 0) + 1, 2);
+      logEvent(sid, 'RETRO_SUBSTEP', { substep: session.retroSubstep });
+      saveData();
+      broadcastAll(sid, { type: 'RETRO_SUBSTEP', substep: session.retroSubstep, session: getPublicSession(session) });
+      return;
+    }
+
+    if (type === 'RETRO_GO_SUBSTEP' && clientRole === 'admin') {
+      if (session.currentStage !== 'STAGE_RETRO') return;
+      const target = Math.max(0, Math.min(2, Number(payload?.substep ?? 0)));
+      session.retroSubstep = target;
+      logEvent(sid, 'RETRO_SUBSTEP', { substep: target });
+      saveData();
+      broadcastAll(sid, { type: 'RETRO_SUBSTEP', substep: target, session: getPublicSession(session) });
+      return;
+    }
+
     if (type === 'ADMIN_NEXT_CASE' && clientRole === 'admin') {
       clearTimer(sid);
       session.paused = false; session.pausedByDisconnect = false;
@@ -740,6 +857,20 @@ wss.on('connection', ws => {
         saveData();
         broadcastAll(sid, { type: 'SESSION_FINISHED', leaderboard: getLeaderboard(session) });
       }
+      return;
+    }
+
+    if (type === 'ADMIN_SHOW_PODIUM' && clientRole === 'admin') {
+      if (session.status !== 'FINISHED') return;
+      session.podiumReady = true;
+      saveData();
+      broadcastAll(sid, { type: 'SHOW_PODIUM', leaderboard: getLeaderboard(session) });
+      return;
+    }
+
+    if (type === 'ADMIN_TRIGGER_RESULTS' && clientRole === 'admin') {
+      if (session.status !== 'FINISHED') return;
+      broadcastAll(sid, { type: 'PODIUM_REVEAL' });
       return;
     }
 
@@ -784,6 +915,19 @@ wss.on('connection', ws => {
       });
       broadcastAll(sid, { type: 'TEAM_ANSWERED', teamId: clientTeamId, totalAnswered: Object.keys(session.answers).length, totalTeams: session.teams.length });
       if (Object.keys(session.answers).length >= session.teams.length) { clearTimer(sid); resolveCase(sid); }
+      return;
+    }
+
+    if (type === 'TEAM_WILDCARD' && clientRole === 'team') {
+      if (session.currentStage !== 'STAGE_4') return;
+      if (session.answers[clientTeamId] !== undefined) return;
+      if (!session.wildcardUsed) session.wildcardUsed = {};
+      if (session.wildcardUsed[clientTeamId]) return;
+      session.wildcardUsed[clientTeamId] = true;
+      const wcTeamName = session.teams.find(t => t.id === clientTeamId)?.teamName || 'Un equipo';
+      logEvent(sid, 'TEAM_WILDCARD', { teamId: clientTeamId, teamName: wcTeamName });
+      broadcastAll(sid, { type: 'WILDCARD_USED', teamId: clientTeamId, teamName: wcTeamName });
+      saveData();
       return;
     }
 

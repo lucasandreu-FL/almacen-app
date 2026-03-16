@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "title": "El Almacén sin Memoria",
+      "points": 100,
+
+      "stage1": "El sistema lleva semanas cayendo entre dos y tres veces al día. Los operarios del almacén aprenden a cerrar la sesión y reintentar. Nadie del equipo técnico tiene claro por qué ocurre ni quién configuró el sistema de esta manera. A principios de enero, la situación empeora: incluso cuando los operarios dejan de hacer lo que se les ha pedido que eviten, los errores siguen. La responsable logística lleva días escribiendo con mayúsculas. El turno de mañana lleva dos horas bloqueado, cinco días de retraso acumulado, camiones esperando en muelle.",
+      "stage1Titulo": "Semanas de Caídas. Sin Diagnóstico.",
+      "stage1Contexto": "Llevamos semanas con el sistema cayendo entre dos y tres veces al día. Esta mañana el turno completo está parado: los mozos no pueden completar ninguna operación de recogida. Han parado los abastecimientos tal como se les pidió. Siguen los errores. No hay forma de preparar expediciones. Tenemos cinco días de retraso y camiones esperando. Necesitamos la solución ya.",
+      "stage1Impacto": "5 días de retraso · semanas de caídas recurrentes sin diagnóstico · turno completo paralizado",
+
+      "stage2": "Desde el almacén reportan síntomas que no cuadran: las reservas de picking muestran cantidades imposibles — 0,97 prendas, 1,03 prendas, 2,82 prendas. La PDA de un operario le pide coger **38,3 sudaderas**. El escáner no acepta cantidades superiores a la reservada: si el sistema pide 0,97, poner 1 da error y bloquea la operación.\n\nEl equipo técnico, al entrar a investigar, encuentra otra capa del problema: el sistema gestiona más de 100.000 reglas de reabastecimiento activas para 30+ tiendas, y todos los albaranes de abastecimiento apuntan a un único documento de reposición gigante. En los logs del servidor aparecen errores de bloqueo concurrente cada vez que varios operarios escanean en paralelo.\n\n_En el canal interno de Slack, el responsable del proyecto escribe: «Veo varias cosas aquí. ¿Nos sentamos y lo organizamos?» — y adjunta un enlace de Google Meet. El equipo técnico al completo entra en los siguientes dos minutos._",
+
+      "stage3": "Revisando los logs de importación de pedidos de reposición de tienda (PETs), aparece una entrada anómala: un pedido fue importado con cantidad **1,03 unidades** en lugar de 1. La precisión de la unidad de medida está configurada a 0,01 — lo que permitió que ese decimal se propagara a todos los stock.move y stock.quant derivados del mismo producto. Al mismo tiempo, los logs de PostgreSQL muestran el patrón exacto del bloqueo: `Process A waits for ShareLock on transaction X; blocked by Process B. Process B waits for ShareLock on transaction X; blocked by Process A` — dos procesos compitiendo por actualizar el mismo picking y sus 144 stock_move_line simultáneamente.",
+
+      "answers": [
+        "Cambiar la precisión de unidades de 0,01 a 1,00 para bloquear futuros decimales + ejecutar script de corrección sobre todos los stock.move y stock.quant con cantidades fraccionarias",
+        "Cancelar el albarán de abastecimiento gigante y recrearlo como uno independiente por tienda + activar la comprobación de disponibilidad en diferido (trabajos en cola), eliminando la contención de locks",
+        "Realizar ajustes manuales de inventario para redondear todas las cantidades decimales a entero y reabrir los pickings afectados",
+        "Escalar el servidor de base de datos para soportar más sesiones concurrentes y reducir la frecuencia de ShareLocks"
+      ],
+      "correctAnswerIndex": 0,
+      "titanAnswerIndices": [0, 1],
+
+      "debate": "Cuando el equipo lleva semanas respondiendo a incendios sin entender el sistema, ¿cómo distinguimos entre el síntoma urgente que hay que apagar hoy y la causa estructural que generará el siguiente? **El Desafío:** La solución arquitectural que habría evitado los bloqueos ya estaba implementada y funcionando en otro cliente — ¿qué proceso necesitamos para que ese conocimiento viaje antes de que llegue la crisis?",
+
+      "moraleja": "Dos semanas de paradas: una por un bucle de código exponencial, otra por 1,03 unidades importadas en lugar de 1. Los grandes incendios casi siempre tienen raíces mínimas — y las soluciones que necesitábamos ya las habíamos construido para otro cliente.",
+
+      "retro": {
+        "gitlabProject": "noon",
+        "gitlabIssueNumber": 841,
+        "glProjectPath": "odoo-16/noon",
+        "glTitle": "PARADAS DEL SISTEMA",
+        "glDescription": "Múltiples incidencias encadenadas bloqueando las operaciones de almacén durante más de dos semanas.\n\n**Problemas identificados:**\n\n1. Errores de concurrencia (ShareLock) en PostgreSQL: los pedidos intercompany (>300 líneas) al confirmarse disparaban enrutados + reabastecimientos + notificaciones al SGA externo en paralelo. Un bucle FOR en el código del conector multiplicaba exponencialmente las operaciones con cada una de las 100.000+ reglas de reabastecimiento activas.\n2. Albarán de abastecimiento único gigante: todos los PICKTIE apuntaban al mismo documento masivo, generando contención cuando varios operarios escaneaban en paralelo.\n3. Reservas con decimales (0,97 / 1,03 / 2,82 prendas): un PET importado con 1,03 unidades propagó decimales a todos los stock.move y stock.quant derivados. La precisión de unidad configurada a 0,01 lo permitió.\n4. Notificaciones del SGA externo (CIXXONIA) no llegando en algunas lecturas parciales de tienda.\n\n**Contexto:** El equipo técnico asignado al cliente no disponía de documentación del sistema. La solución de comprobación de disponibilidad en diferido ya estaba implementada en otro cliente con el mismo problema (Scalpers), pero no se había activado aquí.",
+        "glComments": [
+          {
+            "author": "zahra.velasco",
+            "body": "El bloqueo y caída de esta mañana ha sido por un albarán con 144 líneas. En el log de postgres (facilitado por sysadmin):\n\n`Process 990821 waits for ShareLock on transaction 35595946; blocked by process 1595778.`\n`Process 1595778 waits for ShareLock on transaction 35595953; blocked by process 990821.`\n\nLas queries son un UPDATE stock_picking sobre ese albarán y un UPDATE masivo de stock_move_line sobre sus 144+ líneas. Ambos procesos se bloquean mutuamente. A pesar de que en pg_activity no había ninguna query bloqueada visible... ha tumbado el sistema entero."
+          },
+          {
+            "author": "luis.novalio",
+            "body": "Buenas, acabo de revisar a fondo y el problema de los decimales viene del PET donde comento. Al crear ese PET con 1,03 ya está cojo el sistema y va reservando en ,97 o ,03 y divide los movimientos. Además tenemos otro de 0,18 — hay una reserva de 2,82. Si os dais cuenta, para todos es el mismo producto. Vamos a pasar un script sin necesidad de parar para arreglarlo. Os aviso en cuanto esté resuelto."
+          }
+        ],
+        "glClosing": {
+          "author": "luis.novalio",
+          "body": "Buenas, ya llevamos estabilizados desde la visita y los problemas de rendimiento parecen solucionados.\n\nResumen de lo aplicado: (1) Fix del bucle exponencial en el conector + confirmación de disponibilidad en diferido. (2) Cancelación del albarán de abastecimiento gigante y recreación como uno por tienda. (3) Cambio de precisión de unidades de 0,01 a 1,00 + script de corrección de todos los stock.move y stock.quant con cantidades fraccionarias. (4) Instrucción a operarios de no compartir BATCH simultáneamente.\n\nPendiente a medio plazo: activar el módulo de reabastecimiento en caliente (disponible en plataforma, requiere acuerdo del cliente y ventana de configuración)."
+        },
+        "glLabels": ["2- Importante", "Almacen", "Mantenimiento evolutivo"]
+      }
+    }
+  ]
+}
