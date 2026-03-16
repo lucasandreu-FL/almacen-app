@@ -228,6 +228,10 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 @keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
 @keyframes champBounce{0%,100%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(.95)}}
 @keyframes fullLbIn{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+@keyframes goldFlash{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+@keyframes champBlast{0%{opacity:0;transform:scale(0) rotate(-8deg)}55%{transform:scale(1.22) rotate(3deg);opacity:1}75%{transform:scale(.93)}90%{transform:scale(1.06)}100%{opacity:1;transform:scale(1)}}
+@keyframes winnerBoom{0%{opacity:0;transform:scale(.4)}25%{opacity:1;transform:scale(1.08)}45%{transform:scale(.97)}65%{opacity:1;transform:scale(1)}82%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
+@keyframes crownSpin{0%{transform:rotate(-20deg) scale(0)}40%{transform:rotate(10deg) scale(1.3)}70%{transform:rotate(-5deg) scale(.95)}100%{transform:rotate(0deg) scale(1)}}
 </style>
 </head>
 <body>
@@ -3171,69 +3175,78 @@ function projPodiumSuspense(){
 function projPodiumReveal(){
   const lb=S.leaderboard||[];
   const top=lb.slice(0,3);
-  const rest=lb.slice(3);
-  // Generar confeti para cada posición
   function confetti(n,colors){
     return [...Array(n)].map((_,i)=>{
       const c=colors[i%colors.length];
-      const l=5+Math.random()*90, sz=6+Math.random()*8;
-      const dur=2.5+Math.random()*2, del=Math.random()*3;
+      const l=3+Math.random()*94, sz=6+Math.random()*9;
+      const dur=2.2+Math.random()*2.5, del=Math.random()*3.5;
       return `<div style="position:absolute;top:-20px;left:${l}%;width:${sz}px;height:${sz}px;background:${c};animation:confettiFall ${dur}s ${del}s ease-in infinite;transform-origin:center;border-radius:${Math.random()>.5?'50%':'2px'}"></div>`;
     }).join('');
   }
   const medals=['🥇','🥈','🥉'];
-  const delays=[5000,2500,0]; // 1st, 2nd, 3rd
-  const heights=['220px','175px','135px'];
   const baseColors=[['#ffd700','#fff176','#ffa000'],['#c0c0c0','#e0e0e0','#9e9e9e'],['#cd7f32','#ffb74d','#e65100']];
-  // Ordenar: mostrar 3º primero (delay 0), luego 2º (2.5s), luego 1º (5s)
-  // Pero los renderizamos en orden visual: 2º | 1º | 3º (izq-centro-der clásico del podio)
-  const podiumOrder=[top[1],top[0],top[2]]; // 2º, 1º, 3º para layout visual
+  // Layout visual del podio: 2º izquierda | 1º centro | 3º derecha
+  // Orden de aparición: 3º (0ms) → 2º (2500ms) → 1º (5000ms) ← chorus cae aquí
+  const podiumOrder=[top[1],top[0],top[2]];
   const podiumDelays=['2500ms','5000ms','0ms'];
-  const podiumHeights=['175px','220px','135px'];
-  const podiumColors=[1,0,2]; // índice de baseColors
+  const podiumHeights=['175px','225px','135px'];
 
-  return `<div style="min-height:100vh;background:radial-gradient(ellipse at 50% 80%,rgba(245,166,35,.15) 0%,#0a0e1a 55%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:2rem;position:relative;overflow:hidden">
-    <!-- Confeti por posición -->
+  return `<div style="min-height:100vh;background:radial-gradient(ellipse at 50% 80%,rgba(245,166,35,.15) 0%,#0a0e1a 55%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:2rem 2rem 1.5rem;position:relative;overflow:hidden">
+    <!-- Confeti por posición (capas) -->
     ${top[2]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 0ms both">${confetti(25,baseColors[2])}</div>`:''}
     ${top[1]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 2500ms both">${confetti(30,baseColors[1])}</div>`:''}
-    ${top[0]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 5000ms both">${confetti(40,['#ffd700','#fff59d','#ff9800','#fff','#f44336','#2196f3','#4caf50'])}</div>`:''}
-    <!-- YouTube audio -->
-    <iframe id="champion-audio" src="https://www.youtube.com/embed/04854XqcfCY?start=53&autoplay=1&controls=0&mute=0" allow="autoplay" style="display:none" title="champions"></iframe>
-    <button id="music-btn" onclick="document.getElementById('champion-audio').src=document.getElementById('champion-audio').src" style="position:fixed;top:1rem;right:1rem;z-index:100;background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:#f5a623;padding:.4rem .9rem;border-radius:20px;font-size:.78rem;cursor:pointer">▶ Música</button>
-    <!-- Título -->
-    <div style="position:absolute;top:2.5rem;left:50%;transform:translateX(-50%);text-align:center;animation:podiumFadeIn .8s 5s both">
-      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.3em;color:rgba(245,166,35,.6)">🏆 CLASIFICACIÓN FINAL</div>
-    </div>
+    ${top[0]?`<div style="position:absolute;inset:0;pointer-events:none;animation:podiumFadeIn .1s 5000ms both">${confetti(50,['#ffd700','#fff59d','#ff9800','#fff','#f44336','#2196f3','#4caf50','#e040fb'])}</div>`:''}
+
+    <!-- ★ DESTELLO DORADO al revelar el #1 (5s) -->
+    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 40%,rgba(255,215,0,.65) 0%,rgba(255,165,0,.2) 40%,transparent 70%);animation:goldFlash 1.8s 5s both;z-index:5"></div>
+
+    <!-- ★ EXPLOSIÓN GANADOR — overlay que aparece a los 5s y desaparece en 2.5s -->
+    ${top[0]?`<div style="position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:6;animation:winnerBoom 2.8s 5s both">
+      <div style="font-size:6rem;line-height:1;animation:crownSpin .7s 5.1s both">🏆</div>
+      <div style="font-family:'Syne',sans-serif;font-size:3.6rem;font-weight:800;color:#fff;text-shadow:0 0 40px rgba(255,215,0,.9),0 0 80px rgba(255,215,0,.5);text-align:center;line-height:1.1;margin:.4rem 0">${top[0].teamName}</div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:#ffd700;letter-spacing:.4em;text-transform:uppercase;margin-top:.5rem;text-shadow:0 0 20px rgba(255,215,0,.7)">¡ C A M P E O N E S !</div>
+    </div>`:''}
+
+    <!-- Música: start=65 → chorus "We Are The Champions" golpea en ~5s cuando sale el #1 -->
+    <iframe id="champion-audio" src="https://www.youtube.com/embed/04854XqcfCY?start=65&autoplay=1&controls=0&mute=0" allow="autoplay" style="display:none" title="champions"></iframe>
+    <button id="music-btn" onclick="const a=document.getElementById('champion-audio');a.src=a.src" style="position:fixed;top:1rem;right:1rem;z-index:100;background:rgba(245,166,35,.2);border:1px solid rgba(245,166,35,.5);color:#f5a623;padding:.4rem .9rem;border-radius:20px;font-size:.78rem;cursor:pointer">▶ Música</button>
+
     <!-- Podio -->
-    <div style="display:flex;align-items:flex-end;justify-content:center;gap:1.5rem;margin-bottom:2.5rem;z-index:2">
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:2rem;margin-bottom:2.5rem;z-index:2;position:relative">
       ${podiumOrder.map((t,vi)=>{
-        if(!t) return '<div style="width:200px"></div>';
+        if(!t) return '<div style="width:210px"></div>';
         const delay=podiumDelays[vi];
         const h=podiumHeights[vi];
         const isFirst=vi===1;
-        const medal=medals[vi===1?0:vi===0?1:2];
         const pos=vi===1?1:vi===0?2:3;
-        return `<div style="display:flex;flex-direction:column;align-items:center;animation:podiumFadeIn .8s ${delay} both;width:200px">
-          <div style="font-size:${isFirst?'3.5rem':'2.5rem'};animation:${isFirst?`champBounce 1s 6s infinite`:'none'}">${medal}</div>
-          <div style="font-size:${isFirst?'1.6rem':'1.2rem'};font-weight:800;font-family:'Syne',sans-serif;color:#e2e8f0;text-align:center;margin:.4rem 0;${isFirst?'text-shadow:0 0 30px rgba(255,215,0,.6)':''}">${t.teamName}</div>
-          <div style="font-family:var(--font-mono);font-size:${isFirst?'1.4rem':'1.1rem'};font-weight:700;color:${isFirst?'#ffd700':pos===2?'#c0c0c0':'#cd7f32'};margin-bottom:.75rem">${t.score} pts</div>
-          <div style="width:100%;height:${h};background:linear-gradient(to top,${isFirst?'rgba(255,215,0,.25),rgba(255,215,0,.08)':pos===2?'rgba(192,192,192,.2),rgba(192,192,192,.06)':'rgba(205,127,50,.2),rgba(205,127,50,.06)'});border:1px solid ${isFirst?'rgba(255,215,0,.4)':pos===2?'rgba(192,192,192,.3)':'rgba(205,127,50,.3)'};border-bottom:none;border-radius:8px 8px 0 0;animation:podiumRise .7s ${delay} both;display:flex;align-items:center;justify-content:center">
-            <span style="font-family:var(--font-mono);font-size:2.5rem;font-weight:800;color:${isFirst?'rgba(255,215,0,.3)':pos===2?'rgba(192,192,192,.25)':'rgba(205,127,50,.25)'}">${pos}</span>
+        const medal=medals[pos-1];
+        const goldCol='#ffd700', silCol='#c0c0c0', bronCol='#cd7f32';
+        const col=isFirst?goldCol:pos===2?silCol:bronCol;
+        const glowCol=isFirst?'rgba(255,215,0,.6)':pos===2?'rgba(192,192,192,.4)':'rgba(205,127,50,.4)';
+        return `<div style="display:flex;flex-direction:column;align-items:center;animation:${isFirst?'champBlast':' podiumFadeIn'} .8s ${delay} both;width:210px">
+          <div style="font-size:${isFirst?'4rem':'2.8rem'};animation:${isFirst?'champBounce 1.2s 8s infinite':'none'};line-height:1">${medal}</div>
+          <div style="font-size:${isFirst?'1.7rem':'1.25rem'};font-weight:800;font-family:'Syne',sans-serif;color:#e2e8f0;text-align:center;margin:.35rem 0;${isFirst?`text-shadow:0 0 30px ${glowCol}`:''};">${t.teamName}</div>
+          <div style="font-family:var(--font-mono);font-size:${isFirst?'1.5rem':'1.15rem'};font-weight:700;color:${col};margin-bottom:.85rem;${isFirst?`text-shadow:0 0 15px ${glowCol}`:''}">${t.score} pts</div>
+          <div style="width:100%;height:${h};background:linear-gradient(to top,${isFirst?`rgba(255,215,0,.28),rgba(255,215,0,.07)`:pos===2?'rgba(192,192,192,.2),rgba(192,192,192,.05)':'rgba(205,127,50,.2),rgba(205,127,50,.05)'});border:1px solid ${isFirst?'rgba(255,215,0,.45)':pos===2?'rgba(192,192,192,.3)':'rgba(205,127,50,.3)'};border-bottom:none;border-radius:10px 10px 0 0;animation:podiumRise .7s ${delay} both;display:flex;align-items:center;justify-content:center">
+            <span style="font-family:var(--font-mono);font-size:2.8rem;font-weight:800;color:${isFirst?'rgba(255,215,0,.28)':pos===2?'rgba(192,192,192,.22)':'rgba(205,127,50,.22)'}">${pos}</span>
           </div>
         </div>`;
       }).join('')}
     </div>
-    <!-- Clasificación completa (aparece a los 8s) -->
-    ${lb.length?`<div style="z-index:2;width:100%;max-width:780px;margin:0 auto;animation:fullLbIn .8s 8s both;margin-bottom:1.5rem;text-align:center">
-      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.28em;color:rgba(245,166,35,.6);margin-bottom:1rem">🏆 Clasificación Final</div>
+
+    <!-- Clasificación final completa — aparece a los 8s -->
+    ${lb.length?`<div style="z-index:2;width:100%;max-width:720px;margin:0 auto 1rem;animation:fullLbIn .9s 8s both">
+      <div style="text-align:center;margin-bottom:1.25rem">
+        <div style="display:inline-block;font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#f5a623;letter-spacing:.05em;text-shadow:0 0 24px rgba(245,166,35,.45)">🏆 CLASIFICACIÓN FINAL</div>
+      </div>
       ${lb.map(t=>{
-        const medals=['🥇','🥈','🥉'];
-        const medal=medals[t.position-1]||'';
+        const m=['🥇','🥈','🥉'];
+        const medal=m[t.position-1]||'';
         const isTop=t.position<=3;
-        return `<div style="display:flex;align-items:center;gap:1.25rem;padding:${isTop?'.75rem 1.25rem':'.55rem 1.25rem'};border-radius:12px;background:${isTop?'rgba(255,255,255,.06)':'rgba(255,255,255,.02)'};border:1px solid ${isTop?'rgba(245,166,35,.25)':'var(--border)'};margin-bottom:.45rem;justify-content:center">
-          <span style="font-size:${isTop?'1.5rem':'1.1rem'};width:2rem;text-align:center">${medal||`<span style="font-family:var(--font-mono);color:var(--text-dim);font-size:.95rem">#${t.position}</span>`}</span>
-          <span style="flex:1;font-weight:${isTop?'700':'600'};font-size:${isTop?'1.2rem':'1rem'};text-align:left">${t.teamName}</span>
-          <span style="font-family:var(--font-mono);font-size:${isTop?'1.2rem':'1rem'};color:${isTop?'var(--accent)':'var(--text-dim)'};font-weight:700">${t.score} pts</span>
+        return `<div style="display:grid;grid-template-columns:3.5rem 1fr 7rem;align-items:center;padding:${isTop?'.8rem 1.4rem':'.55rem 1.2rem'};border-radius:12px;background:${isTop?'rgba(255,255,255,.07)':'rgba(255,255,255,.025)'};border:1px solid ${isTop?'rgba(245,166,35,.3)':'rgba(255,255,255,.07)'};margin-bottom:.5rem">
+          <span style="font-size:${isTop?'1.7rem':'1.1rem'};text-align:center;line-height:1">${medal||`<span style="font-family:var(--font-mono);color:var(--text-dim);font-size:1rem;font-weight:700">#${t.position}</span>`}</span>
+          <span style="font-weight:${isTop?'800':'600'};font-size:${isTop?'1.35rem':'1.05rem'};font-family:${isTop?`'Syne',sans-serif`:'inherit'};padding:0 .5rem">${t.teamName}</span>
+          <span style="font-family:var(--font-mono);font-size:${isTop?'1.25rem':'1rem'};color:${isTop?'#f5a623':'var(--text-dim)'};font-weight:700;text-align:right">${t.score}&nbsp;pts</span>
         </div>`;
       }).join('')}
     </div>`:''}
