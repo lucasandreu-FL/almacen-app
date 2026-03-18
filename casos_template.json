@@ -5,7 +5,6 @@
       "points": 200,
       "hoursImputed": 46.75,
       "stage1": "En plena campaña del cliente, el almacén se detiene. Al intentar validar movimientos en la PDA, el sistema lanza errores de 'ShareLock' y timeout. No ha habido despliegues en 48 horas.",
-      "stage2": "Se detectan deadlocks masivos en PostgreSQL. El sistema de reabastecimiento automático está intentando reservar stock al mismo tiempo que los operarios validan salidas en caliente.",
       "stage3": "El análisis de NewRelic muestra que una query de abastecimientos retiene bloqueos sobre registros que la PDA necesita actualizar. El camión espera fuera.",
       "answers": [
         "Aumentar la memoria RAM del servidor para procesar las colas de bloqueo más rápido.",
@@ -14,7 +13,6 @@
         "Limitar el acceso a un solo operario por pasillo para reducir la concurrencia."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo podemos transformar este 'incendio' en una oportunidad para diseñar flujos que no compitan por el mismo recurso? **El Desafío:** ¿Qué procesos automáticos hoy en día podríamos desacoplar para que el operario nunca sienta que el sistema es su freno, sino su motor?",
       "moraleja": "En entornos de alta carga, la solución operativa suele ser la única vía de supervivencia inmediata.",
       "retro": {
         "gitlabProject": "noon",
@@ -42,14 +40,25 @@
           "Doing",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos transformar este 'incendio' en una oportunidad para diseñar flujos que no compitan por el mismo recurso?",
+      "debateDesafio": "¿Qué procesos automáticos hoy en día podríamos desacoplar para que el operario nunca sienta que el sistema es su freno, sino su motor?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se detectan deadlocks masivos en PostgreSQL."
+        },
+        {
+          "type": "Funcional",
+          "text": "El sistema de reabastecimiento automático está intentando reservar stock al mismo tiempo que los operarios validan salidas en caliente."
+        }
+      ]
     },
     {
       "title": "La Pesadilla del Stock Fantasma",
       "points": 150,
       "hoursImputed": 16.67,
       "stage1": "Cierre trimestral en el cliente. El informe de valoración muestra 50.000€ en stock de un producto, pero físicamente la ubicación está vacía (Stock 0).",
-      "stage2": "Se encuentran devoluciones de clientes procesadas sin referencia al albarán original. El sistema asignó el coste estándar actual como una nueva capa FIFO.",
       "stage3": "El contable exige cerrar hoy. No hay tiempo para auditar 200 devoluciones una a una para buscar su origen real.",
       "answers": [
         "Cambiar el método de valoración de FIFO a Precio Medio Ponderado retroactivamente.",
@@ -58,7 +67,6 @@
         "Realizar un inventario de ajuste a valor cero y forzar el asiento de diferencia."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Y si nuestra meta fuera un almacén con 'Cero Ajustes'? **El Desafío:** ¿Qué herramientas de apoyo funcional podemos crear para que el error humano en una devolución sea detectado por el sistema antes de que llegue a contaminar la contabilidad?",
       "moraleja": "A veces la 'limpieza' de datos es inviable por tiempo; el ajuste manual es el mal necesario para el cierre fiscal.",
       "retro": {
         "gitlabProject": "visionario",
@@ -86,14 +94,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Y si nuestra meta fuera un almacén con 'Cero Ajustes'?",
+      "debateDesafio": "¿Qué herramientas de apoyo funcional podemos crear para que el error humano en una devolución sea detectado por el sistema antes de que llegue a contaminar la contabilidad?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se encuentran devoluciones de clientes procesadas sin referencia al albarán original."
+        },
+        {
+          "type": "Funcional",
+          "text": "El sistema asignó el coste estándar actual como una nueva capa FIFO."
+        }
+      ]
     },
     {
       "title": "El Laberinto de las Rutas Infinitas",
       "points": 150,
       "hoursImputed": 24.58,
       "stage1": "el cliente reporta que validar un albarán de solo 5 líneas tarda más de 3 minutos. El sistema no da error, pero el navegador del operario se queda colgado.",
-      "stage2": "El producto usa una ruta mixta MTO+MTS. Por cada línea, el sistema analiza todas las reglas de abastecimiento del almacén para verificar la disponibilidad.",
       "stage3": "Se detecta que el sistema evalúa todas las necesidades del almacén en lugar de limitarse al ID del movimiento actual, disparando el tiempo de cómputo.",
       "answers": [
         "Eliminar todas las rutas MTO y pasar a un modelo de aprovisionamiento manual.",
@@ -102,7 +121,6 @@
         "Aumentar el stock de seguridad para evitar que el sistema dispare la ruta MTO."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Cómo equilibramos la potencia técnica con la agilidad del mundo real? **El Desafío:** Este caso nos invita a pensar como ingenieros de producto: ¿Qué mejoras en nuestro core podrían beneficiar a todos los clientes a partir de este dolor específico?",
       "moraleja": "La flexibilidad de las rutas es un peligro si el código no acota el alcance del cálculo.",
       "retro": {
         "gitlabProject": "holiday-golf",
@@ -126,14 +144,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo equilibramos la potencia técnica con la agilidad del mundo real?",
+      "debateDesafio": "Este caso nos invita a pensar como ingenieros de producto: ¿Qué mejoras en nuestro core podrían beneficiar a todos los clientes a partir de este dolor específico?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El producto usa una ruta mixta MTO+MTS."
+        },
+        {
+          "type": "Funcional",
+          "text": "Por cada línea, el sistema analiza todas las reglas de abastecimiento del almacén para verificar la disponibilidad."
+        }
+      ]
     },
     {
       "title": "Líneas Gemelas en el Scanner",
       "points": 100,
       "hoursImputed": 9.25,
       "stage1": "Los operarios del cliente informan que el scanner a veces descuenta unidades de la línea equivocada o salta error de 'unidades insuficientes' en carros llenos.",
-      "stage2": "El pedido tiene líneas clónicas (mismo producto, misma ubicación, mismo lote) por promociones comerciales duplicadas en el ERP.",
       "stage3": "El código del scanner coge la primera línea que encuentra en la base de datos, no la que el operario tiene físicamente delante.",
       "answers": [
         "Agrupar virtualmente las líneas idénticas en el SGA y separarlas solo al validar.",
@@ -142,7 +171,6 @@
         "Asignar un identificador de paquete único a cada línea del albarán de forma forzosa."
       ],
       "correctAnswerIndex": 0,
-      "debate": "¿Podemos ser el escudo que protege al operario de la complejidad comercial? **El Desafío:** Imagina una interfaz que 'entienda' la intención del operario sin que él tenga que saber cómo están los datos en el ERP. ¿Cómo de lejos estamos de esa interfaz ideal?",
       "moraleja": "El SGA debe actuar como un filtro de simplicidad ante el desorden de los datos comerciales.",
       "retro": {
         "gitlabProject": "fisura",
@@ -170,14 +198,25 @@
           "Desplegado",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos ser el escudo que protege al operario de la complejidad comercial?",
+      "debateDesafio": "Imagina una interfaz que 'entienda' la intención del operario sin que él tenga que saber cómo están los datos en el ERP. ¿Cómo de lejos estamos de esa interfaz ideal?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El pedido tiene líneas clónicas (mismo producto, misma ubicació"
+        },
+        {
+          "type": "Funcional",
+          "text": "n, mismo lote) por promociones comerciales duplicadas en el ERP."
+        }
+      ]
     },
     {
       "title": "La Impresora que Hablaba Chino",
       "points": 100,
       "hoursImputed": 10.25,
       "stage1": "Urgente en el cliente: Tras cambiar de modelo de impresora, las etiquetas salen con el texto desplazado 2cm y el código de barras no es legible.",
-      "stage2": "El nuevo firmware interpreta los comandos ZPL de forma distinta. Los campos de 'observaciones' largos ahora rompen el layout.",
       "stage3": "El transportista llega en 30 minutos. Hay 200 paquetes en el muelle que no pueden salir sin etiqueta correcta.",
       "answers": [
         "Instalar el driver antiguo en todos los terminales de almacén de forma remota.",
@@ -186,7 +225,6 @@
         "Pedir al transportista que traiga sus propias pegatinas manuales por esta jornada."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Qué define nuestro éxito: la perfección del código o el camión saliendo a tiempo? **El Desafío:** Debatamos sobre el 'arte de la guerrilla'. ¿Cómo documentamos estas soluciones rápidas para que no se conviertan en deuda técnica eterna, sino en lecciones aprendidas?",
       "moraleja": "En el muelle, el diseño perfecto no importa; importa que el scanner de la agencia lea el bulto.",
       "retro": {
         "gitlabProject": "lonbali",
@@ -214,14 +252,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Qué define nuestro éxito: la perfección del código o el camión saliendo a tiempo?",
+      "debateDesafio": "Debatamos sobre el 'arte de la guerrilla'. ¿Cómo documentamos estas soluciones rápidas para que no se conviertan en deuda técnica eterna, sino en lecciones aprendidas?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El nuevo firmware interpreta los comandos ZPL de forma distinta."
+        },
+        {
+          "type": "Funcional",
+          "text": "Los campos de 'observaciones' largos ahora rompen el layout."
+        }
+      ]
     },
     {
       "title": "Doble Clic, Doble Problema",
       "points": 150,
       "hoursImputed": 4.25,
       "stage1": "Aparecen albaranes validados con cantidad 0 por error en el cliente. El operario jura que 'solo pulsó el botón una vez'.",
-      "stage2": "El doble clic rápido en el botón 'Validar' de la PDA dispara dos peticiones: la primera procesa, la segunda falla y limpia el buffer.",
       "stage3": "El problema es una falta de 'debounce' (bloqueo de re-clic) en el código Javascript de la aplicación móvil.",
       "answers": [
         "Eliminar el botón de validar de la interfaz de la PDA.",
@@ -230,7 +279,6 @@
         "Hacer que el botón de validar solo funcione con una pulsación larga de 2 segundos."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo podemos diseñar pensando en la ergonomía del operario estresado? **El Desafío:** No es un error del usuario, es una oportunidad de diseño. ¿Qué otros 'seguros' podemos poner en nuestras apps de almacén para que el ritmo frenético no genere errores de datos?",
       "moraleja": "El hardware de almacén y el nerviosismo del operario exigen interfaces a prueba de 'fuego rápido'.",
       "retro": {
         "gitlabProject": "noon",
@@ -258,14 +306,25 @@
           "Estandar",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos diseñar pensando en la ergonomía del operario estresado?",
+      "debateDesafio": "No es un error del usuario, es una oportunidad de diseño. ¿Qué otros 'seguros' podemos poner en nuestras apps de almacén para que el ritmo frenético no genere errores de datos?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El doble clic rápido en el botón 'Validar' de la PDA dispara dos p"
+        },
+        {
+          "type": "Funcional",
+          "text": "eticiones: la primera procesa, la segunda falla y limpia el buffer."
+        }
+      ]
     },
     {
       "title": "El Stock Atrapado en el 'Limo'",
       "points": 150,
       "hoursImputed": 6.75,
       "stage1": "Mercancía recibida hace una semana en el muelle no aparece disponible para la venta, aunque el camión está vacío.",
-      "stage2": "El albarán de entrada se validó, pero los productos quedaron 'atrapados' en la ubicación virtual de 'Control de Calidad'.",
       "stage3": "Nadie validó el segundo movimiento (Calidad -> Stock) porque no estaba configurado para aparecer en la lista de tareas de la PDA.",
       "answers": [
         "Mover la mercancía físicamente de vuelta al muelle y empezar de nuevo.",
@@ -274,7 +333,6 @@
         "Configurar el segundo movimiento como 'Automático' tras validar la entrada."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Podemos convertir la invisibilidad en transparencia total? **El Desafío:** ¿Cómo rediseñamos nuestras alertas para que 'stock en tránsito' sea un estado que el cliente vea y gestione proactivamente en lugar de ser un agujero negro?",
       "moraleja": "Los flujos multi-etapa solo funcionan si cada etapa tiene un responsable o un automatismo claro.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -298,14 +356,25 @@
           "Odoo FL",
           "Refinamiento"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos convertir la invisibilidad en transparencia total?",
+      "debateDesafio": "¿Cómo rediseñamos nuestras alertas para que 'stock en tránsito' sea un estado que el cliente vea y gestione proactivamente en lugar de ser un agujero negro?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El albarán de entrada se validó, pero los productos quedaron"
+        },
+        {
+          "type": "Funcional",
+          "text": "'atrapados' en la ubicación virtual de 'Control de Calidad'."
+        }
+      ]
     },
     {
       "title": "Ventas Perdidas en el Webhook",
       "points": 150,
-      "hoursImputed": 5.0,
+      "hoursImputed": 5,
       "stage1": "el cliente dice que tiene 20 bolsos, pero Shopify muestra 0. El almacén está lleno pero la web no vende nada.",
-      "stage2": "El webhook de actualización falló por un microcorte. Odoo cree que ya avisó y Shopify nunca se enteró.",
       "stage3": "El sistema solo manda 'cambios' puntuales, no realiza un barrido de seguridad para sincronizar totales reales.",
       "answers": [
         "Actualizar manualmente el stock en Shopify cada vez que se valide un albarán.",
@@ -314,7 +383,6 @@
         "Pedir a Shopify que aumente el tiempo de espera de sus webhooks."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo construimos integraciones que se 'curen' solas? **El Desafío:** Pasemos de la sincronización reactiva a la proactiva. ¿Qué mecanismos de auditoría automática podemos estandarizar para que el cliente duerma tranquilo sabiendo que su web dice la verdad?",
       "moraleja": "Los webhooks son para la velocidad; los crons nocturnos son para la verdad.",
       "retro": {
         "gitlabProject": "paris-64",
@@ -342,14 +410,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo construimos integraciones que se 'curen' solas?",
+      "debateDesafio": "Pasemos de la sincronización reactiva a la proactiva. ¿Qué mecanismos de auditoría automática podemos estandarizar para que el cliente duerma tranquilo sabiendo que su web dice la verdad?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El webhook de actualización falló por un microcorte."
+        },
+        {
+          "type": "Funcional",
+          "text": "Odoo cree que ya avisó y Shopify nunca se enteró."
+        }
+      ]
     },
     {
       "title": "La Reserva que se Evaporó",
       "points": 150,
       "hoursImputed": 5.25,
       "stage1": "el cliente detecta albaranes 'Listos' pero sin stock asignado. Al pulsar 'Comprobar disponibilidad', el sistema dice que se completó, pero la reserva sigue a 0.",
-      "stage2": "Un ajuste de inventario masivo se estaba ejecutando exactamente al mismo tiempo que la generación automática de pickings.",
       "stage3": "Falta de bloqueo transaccional: el sistema leyó stock disponible pero ya no estaba al ir a escribir la reserva.",
       "answers": [
         "Prohibir los ajustes de inventario durante el horario de picking.",
@@ -358,7 +437,6 @@
         "Asignación manual obligatoria para evitar errores de sistema."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Podemos hacer que la robustez sea nuestra seña de identidad? **El Desafío:** Debatamos sobre la importancia de las transacciones atómicas. ¿Cómo podemos formar a todo el equipo para identificar estos riesgos de concurrencia antes de que lleguen a producción?",
       "moraleja": "Sin bloqueo de concurrencia, los datos son espejismos.",
       "retro": {
         "gitlabProject": "weelko",
@@ -386,14 +464,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos hacer que la robustez sea nuestra seña de identidad?",
+      "debateDesafio": "Debatamos sobre la importancia de las transacciones atómicas. ¿Cómo podemos formar a todo el equipo para identificar estos riesgos de concurrencia antes de que lleguen a producción?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Un ajuste de inventario masivo se estaba ejecutando exactame"
+        },
+        {
+          "type": "Funcional",
+          "text": "nte al mismo tiempo que la generación automática de pickings."
+        }
+      ]
     },
     {
       "title": "La Coma que costó 1.000 Unidades",
       "points": 100,
       "hoursImputed": 4.5,
       "stage1": "el cliente detecta stock negativo masivo. Los pedidos se han enviado correctamente pero el sistema dice que 'debe' miles de unidades.",
-      "stage2": "El canal externo envía pedidos con coma (,) como separador de miles. Odoo lo interpreta como separador decimal.",
       "stage3": "Un pedido de '1,500' entró como '1.5'. Al validar la salida de 1.500 físicas, el inventario implosionó.",
       "answers": [
         "Ajustar el stock negativo con un inventario de regularización manual.",
@@ -402,7 +491,6 @@
         "Añadir una validación que rechace cualquier pedido con cantidades decimales."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo de 'inteligentes' deben ser nuestros conectores? **El Desafío:** Este caso nos inspira a crear validaciones de negocio. ¿Debería el sistema avisar si un dato parece fuera de escala? ¿Cómo podemos anticiparnos a las diferencias culturales de los datos internacionales?",
       "moraleja": "Un separador mal interpretado puede multiplicar por mil tu error de inventario.",
       "retro": {
         "gitlabProject": "boxnox",
@@ -430,14 +518,25 @@
           "Lista para empezar",
           "Soporte"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo de 'inteligentes' deben ser nuestros conectores?",
+      "debateDesafio": "Este caso nos inspira a crear validaciones de negocio. ¿Debería el sistema avisar si un dato parece fuera de escala? ¿Cómo podemos anticiparnos a las diferencias culturales de los datos internacionales?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El canal externo envía pedidos con coma (,) como separador de miles."
+        },
+        {
+          "type": "Funcional",
+          "text": "Odoo lo interpreta como separador decimal."
+        }
+      ]
     },
     {
       "title": "El SKU Prohibido con 'Enter'",
       "points": 100,
       "hoursImputed": 2.17,
       "stage1": "Un producto del entorno no se puede escanear. El scanner pita, pero la PDA no reacciona. Por teclado sí funciona.",
-      "stage2": "El código físico termina en un carácter oculto que el navegador de la PDA interpreta como 'F5' (recargar página).",
       "stage3": "Falta un preventDefault() en el evento de escucha del teclado dentro del código Javascript del SGA.",
       "answers": [
         "Cambiar todos los lectores de código de barras por un modelo superior.",
@@ -446,7 +545,6 @@
         "Modificar el código de barras en Odoo quitando el último dígito."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Cómo elevamos nuestra maestría en el desarrollo de movilidad? **El Desafío:** No es solo código web, es una herramienta de precisión. ¿Qué checklist de hardware deberíamos pasar siempre para asegurar que el scanner sea el mejor aliado del operario?",
       "moraleja": "El scanner es un teclado rápido; si no controlas sus teclas, controlará tu aplicación.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -470,14 +568,25 @@
           "Desplegado",
           "Expedite"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo elevamos nuestra maestría en el desarrollo de movilidad?",
+      "debateDesafio": "No es solo código web, es una herramienta de precisión. ¿Qué checklist de hardware deberíamos pasar siempre para asegurar que el scanner sea el mejor aliado del operario?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El código físico termina en un carácter oculto que el na"
+        },
+        {
+          "type": "Funcional",
+          "text": "vegador de la PDA interpreta como 'F5' (recargar página)."
+        }
+      ]
     },
     {
       "title": "La Importación 'Espejo' de Test",
       "points": 150,
       "hoursImputed": 9.5,
       "stage1": "Tras un inventario masivo, el stock de 50 productos no ha cambiado en el sistema. Los ajustes aparecen como 'Hechos'.",
-      "stage2": "Los operarios usaron una plantilla Excel con IDs de base de datos que correspondían al entorno de Test, no al de Producción.",
       "stage3": "Odoo ignoró las líneas al no encontrar coincidencia de ID interno, pero marcó el ajuste como finalizado sin lanzar alertas.",
       "answers": [
         "Cruzar datos por Referencia Interna y relanzar el script de ajuste.",
@@ -486,7 +595,6 @@
         "Ajustar los 50 productos uno a uno mediante la interfaz web."
       ],
       "correctAnswerIndex": 0,
-      "debate": "¿Cómo podemos ser guías más seguros paral cliente? **El Desafío:** Reflexionemos sobre el diseño de nuestras herramientas de importación. ¿Podemos crear validaciones que impidan cruzar datos de distintos entornos antes de que se 'quemen' horas de trabajo?",
       "moraleja": "Nunca confíes en los IDs internos de base de datos para importaciones entre distintos entornos.",
       "retro": {
         "gitlabProject": "the-new-society",
@@ -514,14 +622,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos ser guías más seguros paral cliente?",
+      "debateDesafio": "Reflexionemos sobre el diseño de nuestras herramientas de importación. ¿Podemos crear validaciones que impidan cruzar datos de distintos entornos antes de que se 'quemen' horas de trabajo?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Los operarios usaron una plantilla Excel con IDs de base de da"
+        },
+        {
+          "type": "Funcional",
+          "text": "tos que correspondían al entorno de Test, no al de Producción."
+        }
+      ]
     },
     {
       "title": "El Lote del 'Mañana' (UTC)",
       "points": 100,
       "hoursImputed": 2.5,
       "stage1": "el cliente no puede validar albaranes a partir de las 23:00. El sistema dice que el lote está 'caducado' aunque vence en 2027.",
-      "stage2": "Los lotes se crean con la fecha del servidor (UTC). El almacén opera en un huso donde a las 23:00 ya es técnicamente 'mañana'.",
       "stage3": "Al comparar la fecha de caducidad con 'now()', la discrepancia de horas interpreta el lote como caducado.",
       "answers": [
         "Ajustar el margen de caducidad en la configuración del producto.",
@@ -530,7 +649,6 @@
         "Eliminar la validación de caducidad en el momento de la salida de mercancía."
       ],
       "correctAnswerIndex": 0,
-      "debate": "¿Cómo hacemos que la tecnología respete la realidad geográfica? **El Desafío:** Este caso nos invita a dominar la gestión de tiempos. ¿Cómo podemos estandarizar el manejo de zonas horarias para que Odoo 'hable' siempre el mismo idioma que el operario nocturno?",
       "moraleja": "Los servidores viven en UTC, pero los productos caducan en hora local.",
       "retro": {
         "gitlabProject": "mas-musculo",
@@ -558,14 +676,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo hacemos que la tecnología respete la realidad geográfica?",
+      "debateDesafio": "Este caso nos invita a dominar la gestión de tiempos. ¿Cómo podemos estandarizar el manejo de zonas horarias para que Odoo 'hable' siempre el mismo idioma que el operario nocturno?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Los lotes se crean con la fecha del servidor (UTC)."
+        },
+        {
+          "type": "Tecnico",
+          "text": "El almacén opera en un huso donde a las 23:00 ya es técnicamente 'mañana'."
+        }
+      ]
     },
     {
       "title": "El Despegue Estrellado (IDs)",
       "points": 150,
-      "hoursImputed": 8.0,
+      "hoursImputed": 8,
       "stage1": "Día 1 del cliente. Los pedidos confirmados no generan albaranes. El equipo técnico está in situ bajo presión.",
-      "stage2": "Las rutas de aprovisionamiento apuntan a IDs numéricos que corresponden al entorno de pruebas (Staging).",
       "stage3": "En producción, el almacén tiene el ID 14, pero la ruta busca el ID 2. El sistema no encuentra dónde crear el stock.",
       "answers": [
         "Cambiar manualmente el ID del almacén en la base de datos por SQL.",
@@ -574,7 +703,6 @@
         "Revertir el arranque y volver al sistema antiguo durante una semana."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo convertimos el caos del arranque en una metodología infalible? **El Desafío:** Repensemos nuestra forma de migrar. ¿Qué herramientas de 'deploy' podemos automatizar para que las referencias a almacenes sean siempre por identidad y nunca por azar numérico?",
       "moraleja": "Migra configuraciones por 'Nombre' o 'XML_ID', nunca por el ID numérico de la tabla.",
       "retro": {
         "gitlabProject": "masmusculo",
@@ -585,14 +713,25 @@
         "glComments": [],
         "glClosing": null,
         "glLabels": []
-      }
+      },
+      "debatePregunta": "¿Cómo convertimos el caos del arranque en una metodología infalible?",
+      "debateDesafio": "Repensemos nuestra forma de migrar. ¿Qué herramientas de 'deploy' podemos automatizar para que las referencias a almacenes sean siempre por identidad y nunca por azar numérico?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Las rutas de aprovisionamiento apuntan a IDs numéric"
+        },
+        {
+          "type": "Funcional",
+          "text": "os que corresponden al entorno de pruebas (Staging)."
+        }
+      ]
     },
     {
       "title": "El Kit sin Rastro de Lotes",
       "points": 150,
       "hoursImputed": 7.75,
       "stage1": "el cliente reporta que en los albaranes de productos tipo 'Kit' no aparecen los lotes de los ingredientes en el documento impreso.",
-      "stage2": "Odoo estándar no propaga los números de serie de los componentes al albarán del producto final cuando se trata de una BoM tipo Kit.",
       "stage3": "El cliente necesita la trazabilidad completa HOY para una auditoría de sanidad en un envío internacional.",
       "answers": [
         "Desmontar el Kit en el pedido de venta y vender los componentes como líneas sueltas.",
@@ -601,7 +740,6 @@
         "Modificar el informe para buscar recursivamente los lotes en los movimientos hijos."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Cómo podemos ser los arquitectos de la trazabilidad perfecta? **El Desafío:** Este caso nos reta a superar las limitaciones del estándar. ¿Qué otros procesos de 'agregación' de datos podemos mejorar para que la información fluya sin barreras desde el componente al cliente final?",
       "moraleja": "La trazabilidad de componentes en kits es un 'gap' clásico que requiere una solución técnica recursiva.",
       "retro": {
         "gitlabProject": "226ers",
@@ -629,14 +767,25 @@
           "Desplegado en Test",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos ser los arquitectos de la trazabilidad perfecta?",
+      "debateDesafio": "Este caso nos reta a superar las limitaciones del estándar. ¿Qué otros procesos de 'agregación' de datos podemos mejorar para que la información fluya sin barreras desde el componente al cliente final?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Odoo estándar no propaga los números de serie de los componentes"
+        },
+        {
+          "type": "Funcional",
+          "text": "al albarán del producto final cuando se trata de una BoM tipo Kit."
+        }
+      ]
     },
     {
       "title": "El Paquete que no existía en Gramos",
       "points": 100,
-      "hoursImputed": 3.0,
+      "hoursImputed": 3,
       "stage1": "Un transportista cobra un recargo masivo al cliente porque el peso en el sistema es 1.000 veces superior al real.",
-      "stage2": "Se descubre que el peso del producto estaba guardado en Gramos, pero el sistema de etiquetas lo interpretaba como Kilogramos.",
       "stage3": "El conector de Shopify enviaba el valor numérico sin Unidad de Medida y Odoo aplicaba la UdM por defecto de la categoría.",
       "answers": [
         "Negociar con el transportista para que ignore el peso del sistema.",
@@ -645,7 +794,6 @@
         "Cambiar la configuración del transportista para que divida siempre por 1.000."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Podemos ser guardianes de la consistencia de los datos? **El Desafío:** Inspirémonos para crear procesos de auditoría de datos iniciales. ¿Cómo podemos ayudar al cliente a que su 'limpieza' de datos sea un éxito desde el minuto cero del proyecto?",
       "moraleja": "Un número sin Unidad de Medida es una bomba de relojería en una integración internacional.",
       "retro": {
         "gitlabProject": "226ers",
@@ -673,14 +821,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos ser guardianes de la consistencia de los datos?",
+      "debateDesafio": "Inspirémonos para crear procesos de auditoría de datos iniciales. ¿Cómo podemos ayudar al cliente a que su 'limpieza' de datos sea un éxito desde el minuto cero del proyecto?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se descubre que el peso del producto estaba guardado en Gramos"
+        },
+        {
+          "type": "Tecnico",
+          "text": ", pero el sistema de etiquetas lo interpretaba como Kilogramos."
+        }
+      ]
     },
     {
       "title": "El Nombre que mató al Barcode",
       "points": 100,
       "hoursImputed": 3.5,
       "stage1": "En el entorno, el nombre de la nueva colección pisa el código de barras en la etiqueta. El transportista no puede leer nada.",
-      "stage2": "Marketing ha puesto nombres de 80 caracteres. El diseño ZPL original solo tenía espacio para 20.",
       "stage3": "El código ZPL no tiene control de desbordamiento (overflow) y sigue escribiendo sobre el bloque del código de barras.",
       "answers": [
         "Pedir a Marketing que acorte los nombres de todos los productos en el ERP.",
@@ -689,7 +848,6 @@
         "Limitar por código a 30 caracteres + '...' en el motor de etiquetas."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Cómo unimos el branding con la eficiencia logística? **El Desafío:** Este caso nos invita a mediar entre departamentos. ¿Cómo podemos educar a Marketing sobre los límites físicos del almacén para que la creatividad no choque con la operativa?",
       "moraleja": "En una etiqueta de 10x10cm, el espacio es el recurso más caro. Contrólalo por código.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -717,14 +875,25 @@
           "Desplegado",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo unimos el branding con la eficiencia logística?",
+      "debateDesafio": "Este caso nos invita a mediar entre departamentos. ¿Cómo podemos educar a Marketing sobre los límites físicos del almacén para que la creatividad no choque con la operativa?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Marketing ha puesto nombres de 80 caracteres."
+        },
+        {
+          "type": "Funcional",
+          "text": "El diseño ZPL original solo tenía espacio para 20."
+        }
+      ]
     },
     {
       "title": "El Albarán de las 7.000 Unidades",
       "points": 150,
       "hoursImputed": 15.42,
       "stage1": "Un error en una importación genera un albarán con 7.000 líneas. Al intentar abrirlo o validarlo, el servidor del cliente se cae por falta de memoria.",
-      "stage2": "Odoo intenta cargar en RAM todas las líneas y sus correspondientes reservas en una sola transacción SQL.",
       "stage3": "El almacén no puede procesar nada más porque el proceso del albarán gigante bloquea las tablas principales de stock.",
       "answers": [
         "Aumentar el timeout y la memoria del servidor a valores extremos temporalmente.",
@@ -733,7 +902,6 @@
         "Esperar al fin de semana sin actividad para intentar validarlo de nuevo."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo escalamos sin perder la elegancia? **El Desafío:** Pasemos de la gestión individual a la gestión masiva. ¿Qué patrones de desarrollo podemos aprender aquí para que el sistema sea 'elástico' y soporte cualquier volumen de datos sin despeinarse?",
       "moraleja": "Los procesos masivos necesitan gestión por lotes, no transacciones únicas.",
       "retro": {
         "gitlabProject": "weelko",
@@ -757,14 +925,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo escalamos sin perder la elegancia?",
+      "debateDesafio": "Pasemos de la gestión individual a la gestión masiva. ¿Qué patrones de desarrollo podemos aprender aquí para que el sistema sea 'elástico' y soporte cualquier volumen de datos sin despeinarse?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Odoo intenta cargar en RAM todas las líneas y sus co"
+        },
+        {
+          "type": "Tecnico",
+          "text": "rrespondientes reservas en una sola transacción SQL."
+        }
+      ]
     },
     {
       "title": "El Albarán de las 20:00 (Cron Fail)",
       "points": 150,
       "hoursImputed": 14.25,
       "stage1": "Un cliente importante no recibe los correos de confirmación de sus envíos diarios.",
-      "stage2": "Los correos se envían por acción planificada a las 20:00, pero el servidor entra en mantenimiento a esa hora.",
       "stage3": "El mantenimiento corta la cola de emails y no hay reintento programado para los fallidos.",
       "answers": [
         "Mandar los correos a mano al día siguiente.",
@@ -773,7 +952,6 @@
         "Pedir al cliente que mire el portal de Odoo para ver sus envíos."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo logramos que el sistema sea incansable? **El Desafío:** Este caso nos motiva a pensar en la resiliencia. ¿Cómo podemos diseñar nuestras tareas críticas para que 'sepan' recuperarse solas de cualquier interrupción externa?",
       "moraleja": "El mantenimiento de un sistema no puede ser invisible para los procesos críticos que dependen de él.",
       "retro": {
         "gitlabProject": "refruiting",
@@ -801,14 +979,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo logramos que el sistema sea incansable?",
+      "debateDesafio": "Este caso nos motiva a pensar en la resiliencia. ¿Cómo podemos diseñar nuestras tareas críticas para que 'sepan' recuperarse solas de cualquier interrupción externa?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Los correos se envían por acción planificada a las 20:"
+        },
+        {
+          "type": "Funcional",
+          "text": "00, pero el servidor entra en mantenimiento a esa hora."
+        }
+      ]
     },
     {
       "title": "El Dropshipping sin Rumbo",
       "points": 100,
-      "hoursImputed": 8.0,
+      "hoursImputed": 8,
       "stage1": "Los pedidos de dropshipping salen con la dirección de nuestro almacén en la etiqueta del proveedor en lugar de la del cliente.",
-      "stage2": "El sistema coge la dirección de la compañía principal por defecto en el flujo de compra generado.",
       "stage3": "Falta la herencia del campo 'partner_id' (entrega) en el automatismo que genera la PO desde la SO.",
       "answers": [
         "Cambiar las etiquetas a mano cada vez que llegue un pedido.",
@@ -817,7 +1006,6 @@
         "Cancelar el dropshipping y pasar a stock propio para controlar el envío."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Podemos ver más allá del código y entender el viaje del producto? **El Desafío:** Inspirémonos para dominar los flujos inter-socios. ¿Cómo podemos asegurar que la información viaje siempre tan lejos como la mercancía?",
       "moraleja": "En flujos automáticos, la herencia de datos es el hilo de Ariadna de la logística.",
       "retro": {
         "gitlabProject": "refruiting",
@@ -845,14 +1033,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos ver más allá del código y entender el viaje del producto?",
+      "debateDesafio": "Inspirémonos para dominar los flujos inter-socios. ¿Cómo podemos asegurar que la información viaje siempre tan lejos como la mercancía?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El sistema coge la dirección de la compañía prin"
+        },
+        {
+          "type": "Funcional",
+          "text": "cipal por defecto en el flujo de compra generado."
+        }
+      ]
     },
     {
       "title": "La Reserva que se Evaporó (Race)",
       "points": 150,
       "hoursImputed": 5.25,
       "stage1": "Pickings listos pero sin stock asignado. Forzar asignación manual dice 'OK' pero no hace nada.",
-      "stage2": "Un ajuste de inventario simultáneo modificó cantidades mientras se lanzaba la asignación automática.",
       "stage3": "Falta de bloqueo transaccional: el sistema leyó stock disponible pero ya no estaba al ir a escribir la reserva.",
       "answers": [
         "Prohibir los ajustes de inventario durante el horario de picking.",
@@ -861,7 +1060,6 @@
         "Asignación manual obligatoria para evitar errores de sistema."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Cómo convertimos la fragilidad en robustez total? **El Desafío:** Debatamos sobre la importancia de la integridad en tiempo real. ¿Cómo podemos ser los campeones de la concurrencia segura en nuestros desarrollos?",
       "moraleja": "Sin bloqueo de concurrencia, los datos son espejismos.",
       "retro": {
         "gitlabProject": "weelko",
@@ -889,14 +1087,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo convertimos la fragilidad en robustez total?",
+      "debateDesafio": "Debatamos sobre la importancia de la integridad en tiempo real. ¿Cómo podemos ser los campeones de la concurrencia segura en nuestros desarrollos?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Un ajuste de inventario simultáneo modificó cantid"
+        },
+        {
+          "type": "Funcional",
+          "text": "ades mientras se lanzaba la asignación automática."
+        }
+      ]
     },
     {
       "title": "El Botón Gris de la Discordia",
       "points": 150,
       "hoursImputed": 4.58,
       "stage1": "el cliente reporta que un operario puede preparar pedidos pero, al llegar al final, el botón de 'Validar' aparece deshabilitado.",
-      "stage2": "El usuario tiene el rol de 'Operario', pero el albarán contiene un producto de alto valor que requiere firma de 'Supervisor'.",
       "stage3": "Nadie configuró el umbral de valor monetario para la validación automática en el nuevo almacén del proyecto.",
       "answers": [
         "Subir el rol de 'Supervisor' a todos los operarios del almacén.",
@@ -905,7 +1114,6 @@
         "Quitar el campo 'Precio' de todos los productos para saltarse la validación."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo equilibramos el control con la autonomía del talento? **El Desafío:** Rediseñemos la seguridad para que sea un facilitador, no un muro. ¿Cómo podemos avisar de forma constructiva cuando alguien necesita ayuda para terminar una tarea?",
       "moraleja": "La seguridad no debe bloquear la operativa; si el proceso cambia, los umbrales también.",
       "retro": {
         "gitlabProject": "fisura",
@@ -933,14 +1141,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo equilibramos el control con la autonomía del talento?",
+      "debateDesafio": "Rediseñemos la seguridad para que sea un facilitador, no un muro. ¿Cómo podemos avisar de forma constructiva cuando alguien necesita ayuda para terminar una tarea?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El usuario tiene el rol de 'Operario', pero el albarán contien"
+        },
+        {
+          "type": "Funcional",
+          "text": "e un producto de alto valor que requiere firma de 'Supervisor'."
+        }
+      ]
     },
     {
       "title": "El Scanner que Pedía Lote (Inheritance)",
       "points": 100,
       "hoursImputed": 4.15,
       "stage1": "Un operario intenta recibir mercancía del cliente. La PDA exige escaneo de lote, pero el producto no requiere lotes.",
-      "stage2": "Se cambió la categoría del producto ayer y la nueva categoría tiene forzado el uso de lotes 'por herencia'.",
       "stage3": "Hay 500 unidades bloqueadas en el muelle porque el sistema no deja avanzar sin un código de lote inexistente.",
       "answers": [
         "Inventarse un lote '123' para poder validar la entrada rápido.",
@@ -949,7 +1168,6 @@
         "Borrar el producto y volverlo a crear sin categoría asociada."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo gestionamos el poder de los cambios globales? **El Desafío:** Este caso nos inspira a ser más conscientes de la herencia. ¿Cómo podemos crear procesos de revisión mutua que eviten que un pequeño clic en una categoría detenga todo un muelle?",
       "moraleja": "Un cambio en una categoría puede alterar el comportamiento de miles de productos de golpe.",
       "retro": {
         "gitlabProject": "safeguru",
@@ -977,14 +1195,25 @@
           "Desplegado",
           "Funcional"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo gestionamos el poder de los cambios globales?",
+      "debateDesafio": "Este caso nos inspira a ser más conscientes de la herencia. ¿Cómo podemos crear procesos de revisión mutua que eviten que un pequeño clic en una categoría detenga todo un muelle?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se cambió la categoría del producto ayer y la nueva c"
+        },
+        {
+          "type": "Funcional",
+          "text": "ategoría tiene forzado el uso de lotes 'por herencia'."
+        }
+      ]
     },
     {
       "title": "Stock en la Estantería Vacía",
       "points": 150,
       "hoursImputed": 5.42,
       "stage1": "El sistema sugiere al cliente recoger producto de la estantería A1. El operario va y está vacía. El sistema jura que hay 10.",
-      "stage2": "Hubo una cancelación de albarán que dejó stock 'reservado' virtualmente en una línea de movimiento zombi.",
       "stage3": "Odoo cree que hay stock porque hay registros en stock.quant con cantidad real 0 pero reserva virtual 10.",
       "answers": [
         "Hacer un inventario manual de todo el almacén para resetear quants.",
@@ -993,7 +1222,6 @@
         "Lanzar un script de limpieza de reservas huérfanas en stock.move."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Podemos ser los detectives que limpian el camino del operario? **El Desafío:** Pasemos de la limpieza reactiva a la prevención. ¿Qué chequeos diarios podemos automatizar para que el operario nunca encuentre una estantería vacía cuando el sistema dice lo contrario?",
       "moraleja": "La 'basura' en las tablas de reserva es el virus más común de un almacén en Odoo.",
       "retro": {
         "gitlabProject": "weelko",
@@ -1021,14 +1249,25 @@
           "Desplegado",
           "Expedite"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos ser los detectives que limpian el camino del operario?",
+      "debateDesafio": "Pasemos de la limpieza reactiva a la prevención. ¿Qué chequeos diarios podemos automatizar para que el operario nunca encuentre una estantería vacía cuando el sistema dice lo contrario?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Hubo una cancelación de albarán que dejó stock 'rese"
+        },
+        {
+          "type": "Funcional",
+          "text": "rvado' virtualmente en una línea de movimiento zombi."
+        }
+      ]
     },
     {
       "title": "El Bucle de la Devolución Infinita",
       "points": 200,
       "hoursImputed": 11.5,
       "stage1": "Al validar una devolución, el sistema crea automáticamente otro albarán de salida idéntico para el mismo cliente. Bucle logístico.",
-      "stage2": "Una regla 'Push' mal configurada en la ubicación de 'Devoluciones' dispara una salida inmediata al detectar que entra stock.",
       "stage3": "El error está en la ruta que asume que todo lo devuelto debe enviarse de vuelta a 'Reparaciones', pero lo envía a 'Clientes'.",
       "answers": [
         "Desactivar todas las reglas Push del almacén por seguridad.",
@@ -1037,7 +1276,6 @@
         "Validar las devoluciones solo desde la cuenta de Administrador del sistema."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo dominamos la elegancia de los procesos automáticos? **El Desafío:** Este caso nos motiva a ser maestros de las rutas. ¿Cómo podemos simplificar nuestros diagramas logísticos para que la automatización sea siempre un camino recto y nunca un laberinto?",
       "moraleja": "Las reglas Push son potentes, pero sin filtros de origen pueden crear bucles logísticos infinitos.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -1065,14 +1303,25 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo dominamos la elegancia de los procesos automáticos?",
+      "debateDesafio": "Este caso nos motiva a ser maestros de las rutas. ¿Cómo podemos simplificar nuestros diagramas logísticos para que la automatización sea siempre un camino recto y nunca un laberinto?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Una regla 'Push' mal configurada en la ubicación de 'Devolucio"
+        },
+        {
+          "type": "Funcional",
+          "text": "nes' dispara una salida inmediata al detectar que entra stock."
+        }
+      ]
     },
     {
       "title": "Error: 'Expected Singleton' en Navidad",
       "points": 100,
       "hoursImputed": 3.75,
       "stage1": "el sistema no puede imprimir albaranes de entrega en Navidad. El sistema lanza un error técnico 'Expected Singleton'.",
-      "stage2": "El informe busca 'el' transportista, pero en pedidos grandes hay varios transportistas asignados por bulto.",
       "stage3": "La plantilla de QWeb no está preparada para iterar sobre una lista, solo espera un único registro de carrier.",
       "answers": [
         "Deshabilitar la opción de múltiples transportistas por albarán.",
@@ -1081,7 +1330,6 @@
         "Asignar un transportista genérico a todos los pedidos antes de imprimir."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Podemos construir informes que nunca se rindan? **El Desafío:** Inspirémonos para crear plantillas 'a prueba de balas'. ¿Cómo podemos prever que los datos de un cliente crecerán y cambiarán para que nuestros informes sigan brillando años después?",
       "moraleja": "Nunca asumas que 'solo habrá uno' en una base de datos de producción.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -1109,14 +1357,25 @@
           "Estandar",
           "Expedite"
         ]
-      }
+      },
+      "debatePregunta": "¿Podemos construir informes que nunca se rindan?",
+      "debateDesafio": "Inspirémonos para crear plantillas 'a prueba de balas'. ¿Cómo podemos prever que los datos de un cliente crecerán y cambiarán para que nuestros informes sigan brillando años después?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El informe busca 'el' transportista, pero en pedidos"
+        },
+        {
+          "type": "Funcional",
+          "text": "grandes hay varios transportistas asignados por bulto."
+        }
+      ]
     },
     {
       "title": "El Intercompany que se perdió",
       "points": 200,
-      "hoursImputed": 11.0,
+      "hoursImputed": 11,
       "stage1": "Una transferencia entre sociedades se queda bloqueada. La mercancía 'salió' de la Sociedad A pero nunca 'llegó' a la Sociedad B.",
-      "stage2": "La Sociedad B archivó la ubicación de destino que la Sociedad A tenía configurada en su ruta de aprovisionamiento.",
       "stage3": "Error de permisos: el usuario de sistema que procesa el intercompany no puede escribir en ubicaciones archivadas de otra compañía.",
       "answers": [
         "Desarchivar la ubicación de forma permanente en la Sociedad B.",
@@ -1125,7 +1384,6 @@
         "Usar una ubicación puente (Transit) común y accesible para ambas compañías."
       ],
       "correctAnswerIndex": 3,
-      "debate": "¿Cómo podemos ser los puentes que unen equipos y sociedades? **El Desafío:** Este caso nos invita a pensar en ecosistemas, no solo en almacenes. ¿Cómo podemos mejorar la visibilidad entre compañías para que una acción local nunca cree un bloqueo global?",
       "moraleja": "En flujos multi-compañía, los puntos de entrega deben ser 'terrenos neutrales' y siempre visibles.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -1153,14 +1411,25 @@
           "Desplegado",
           "Estandar"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos ser los puentes que unen equipos y sociedades?",
+      "debateDesafio": "Este caso nos invita a pensar en ecosistemas, no solo en almacenes. ¿Cómo podemos mejorar la visibilidad entre compañías para que una acción local nunca cree un bloqueo global?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "La Sociedad B archivó la ubicación de destino que la Soci"
+        },
+        {
+          "type": "Funcional",
+          "text": "edad A tenía configurada en su ruta de aprovisionamiento."
+        }
+      ]
     },
     {
       "title": "El Scanner Invisible tras el Update",
       "points": 100,
       "hoursImputed": 6.5,
       "stage1": "Tras una actualización del entorno, el botón de 'Escanear' desaparece de la PDA para los operarios veteranos, pero los nuevos sí lo ven.",
-      "stage2": "Se descubre que los veteranos tienen asignado también el rol de 'Comercial'. El problema no es de permisos de almacén.",
       "stage3": "Un cambio en las reglas de vista (ir.ui.view) oculta elementos del SGA si detecta que el usuario pertenece al grupo 'Sales'.",
       "answers": [
         "Borrar la caché del navegador en todas las PDAs del almacén físicamente.",
@@ -1169,7 +1438,6 @@
         "Dar permisos de Administrador de Odoo a todos los operarios veteranos."
       ],
       "correctAnswerIndex": 2,
-      "debate": "¿Cómo garantizamos que la evolución sea siempre positiva para el usuario? **El Desafío:** Reflexionemos sobre nuestras fases de prueba. ¿Cómo podemos incluir perfiles de usuario reales en nuestros tests para que ninguna funcionalidad vital desaparezca 'en la sombra'?",
       "moraleja": "Los conflictos de herencia en grupos de seguridad pueden 'borrar' funcionalidades sin lanzar errores.",
       "retro": {
         "gitlabProject": "fl-v16",
@@ -1193,14 +1461,25 @@
           "Expedite",
           "Funcional"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo garantizamos que la evolución sea siempre positiva para el usuario?",
+      "debateDesafio": "Reflexionemos sobre nuestras fases de prueba. ¿Cómo podemos incluir perfiles de usuario reales en nuestros tests para que ninguna funcionalidad vital desaparezca 'en la sombra'?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se descubre que los veteranos tienen asignado también el rol de 'Comercial'."
+        },
+        {
+          "type": "Funcional",
+          "text": "El problema no es de permisos de almacén."
+        }
+      ]
     },
     {
       "title": "La Parálisis de los Reabastecimientos",
       "points": 200,
       "hoursImputed": 46.75,
       "stage1": "En plena campaña, el almacén reporta paradas intermitentes. Al intentar validar cualquier movimiento, los terminales se quedan 'pensando'.",
-      "stage2": "El equipo técnico detecta picos de concurrencia en base de datos. Las acciones planificadas de reabastecimiento están chocando con las ventas en caliente.",
       "stage3": "El análisis de NewRelic muestra que una query SQL masiva retiene un ShareLock sobre registros que la PDA intenta actualizar simultáneamente.",
       "answers": [
         "Aumentar la potencia del servidor de base de datos para procesar más rápido.",
@@ -1209,7 +1488,6 @@
         "Limitar el número de operarios simultáneos durante las horas punta."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo podemos ser los arquitectos de la fluidez absoluta? **El Desafío:** Este caso nos inspira a optimizar cada milisegundo. ¿Qué otros procesos 'invisibles' podríamos mover fuera del horario comercial para que el operario sienta que vuela?",
       "moraleja": "En entornos de alta rotación, el reabastecimiento 'en caliente' puede ser el peor enemigo de la expedición.",
       "retro": {
         "gitlabProject": "noon",
@@ -1237,14 +1515,25 @@
           "Doing",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo podemos ser los arquitectos de la fluidez absoluta?",
+      "debateDesafio": "Este caso nos inspira a optimizar cada milisegundo. ¿Qué otros procesos 'invisibles' podríamos mover fuera del horario comercial para que el operario sienta que vuela?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "El equipo técnico detecta picos de concurrencia en base de datos."
+        },
+        {
+          "type": "Funcional",
+          "text": "Las acciones planificadas de reabastecimiento están chocando con las ventas en caliente."
+        }
+      ]
     },
     {
       "title": "El Laberinto de los 47 Caminos",
       "points": 150,
       "hoursImputed": 24.58,
       "stage1": "El cliente reporta 'lentitud' al validar. Al analizar, vemos que validar un albarán de 5 líneas tarda 3 minutos.",
-      "stage2": "Se descubre que el producto usa una ruta mixta MTO+MTS. Por cada línea, el sistema analiza TODAS las reglas de abastecimiento del almacén.",
       "stage3": "El problema está en una función del core que recalcula necesidades globales en lugar de locales. El tiempo de cómputo es exponencial.",
       "answers": [
         "Cambiar el flujo del cliente a MTS puro y gestionar falta de stock manualmente.",
@@ -1253,7 +1542,6 @@
         "Ejecutar el cálculo de abastecimientos solo por la noche de forma masiva."
       ],
       "correctAnswerIndex": 1,
-      "debate": "¿Cómo convertimos un obstáculo técnico en una mejora para toda la comunidad? **El Desafío:** Este caso nos invita a pensar en grande. ¿Cómo podemos asegurarnos de que cada solución que creamos sea un regalo para el 'yo del futuro' y para el resto de compañeros?",
       "moraleja": "Cuando un problema de rendimiento afecta al core, la solución debe ser técnica y estructural.",
       "retro": {
         "gitlabProject": "holiday-golf",
@@ -1277,7 +1565,19 @@
           "Expedite",
           "Mantenimiento evolutivo"
         ]
-      }
+      },
+      "debatePregunta": "¿Cómo convertimos un obstáculo técnico en una mejora para toda la comunidad?",
+      "debateDesafio": "Este caso nos invita a pensar en grande. ¿Cómo podemos asegurarnos de que cada solución que creamos sea un regalo para el 'yo del futuro' y para el resto de compañeros?",
+      "stage2Messages": [
+        {
+          "type": "Tecnico",
+          "text": "Se descubre que el producto usa una ruta mixta MTO+MTS."
+        },
+        {
+          "type": "Funcional",
+          "text": "Por cada línea, el sistema analiza TODAS las reglas de abastecimiento del almacén."
+        }
+      ]
     }
   ]
 }

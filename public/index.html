@@ -63,7 +63,6 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 .timer-urgent .progress{animation:timerUrgent 1s ease-in-out infinite}
 .timer-urgent .time-text{animation:timerUrgent 1s ease-in-out infinite;color:#ef4444}
 .timer-ring .status-text{font-size:.55rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em}
-
 .badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .9rem;border-radius:999px;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .badge-1{background:rgba(59,130,246,.2);color:var(--blue);border:1px solid rgba(59,130,246,.4)}
 .badge-2{background:rgba(245,166,35,.2);color:var(--accent);border:1px solid rgba(245,166,35,.4)}
@@ -232,6 +231,10 @@ label{font-size:.75rem;color:var(--text-dim);text-transform:uppercase;letter-spa
 @keyframes champBlast{0%{opacity:0;transform:scale(0) rotate(-8deg)}55%{transform:scale(1.22) rotate(3deg);opacity:1}75%{transform:scale(.93)}90%{transform:scale(1.06)}100%{opacity:1;transform:scale(1)}}
 @keyframes winnerBoom{0%{opacity:0;transform:scale(.4)}25%{opacity:1;transform:scale(1.08)}45%{transform:scale(.97)}65%{opacity:1;transform:scale(1)}82%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
 @keyframes crownSpin{0%{transform:rotate(-20deg) scale(0)}40%{transform:rotate(10deg) scale(1.3)}70%{transform:rotate(-5deg) scale(.95)}100%{transform:rotate(0deg) scale(1)}}
+@keyframes reactionPop{0%{transform:scale(0);opacity:0}55%{transform:scale(1.18)}80%{transform:scale(.96)}100%{transform:scale(1);opacity:1}}
+@keyframes reactionBounce{0%,100%{transform:scale(1)}40%{transform:scale(1.2)}}
+.react-pop{animation:reactionPop .28s ease-out forwards}
+.react-bounce{animation:reactionBounce .2s ease-out forwards}
 </style>
 </head>
 <body>
@@ -1003,20 +1006,6 @@ const _javierSlackMsgs=[
   'Eso, eso... más apretao que los palés de la zona de expedición en navidades 📦',
   'Esto está más caliente que el capó de la furgoneta de reparto en agosto 🚐',
 ];
-// ── Razones de expedite del SM ──
-const _smExpediteReasons=[
-  'Sí, porque bloquea el cierre del albarán y el cliente está esperando la entrega 🚨',
-  'Sí, porque no pueden completar el picking de las órdenes pendientes desde esta mañana 🚨',
-  'Sí, porque está impidiendo que salgan los envíos del turno de tarde 🚨',
-  'Sí, porque el sistema no deja validar las recepciones y llevamos horas parados 🚨',
-  'Sí, porque bloquea la trazabilidad de los lotes y necesitamos el informe para hoy 🚨',
-  'Sí, porque no se pueden generar las etiquetas de expedición y hay 3 camiones esperando 🚨',
-  'Sí, porque el cliente ha escalado y necesita confirmación de envío antes de las 14:00 🚨',
-  'Sí, porque bloquea la conciliación de inventario que teníamos que cerrar hoy 🚨',
-  'Sí, porque sin esto no podemos procesar las devoluciones del turno anterior 🚨',
-  'Sí, porque el módulo de cargas no responde y llevamos dos horas sin mover palés 🚨',
-];
-
 // ── Mensajes de Luis Novalio (humor andaluz motivacional) ──
 const _luisSlackMsgs=[
   '¡Arza, que vosotros sí podéis! Yo lo he visto con mis propios ojitos. 💪',
@@ -1050,9 +1039,7 @@ function _javierSlackMsg(idx){
   const xd=_xds[Math.floor(Math.random()*_xds.length)];
   return `${msg} ${xd}`;
 }
-function _smExpediteReason(idx){return _smExpediteReasons[idx%_smExpediteReasons.length];}
-
-function _splitStage2(text){
+function _splitStage2Legacy(text){
   if(!text) return ['',''];
   const mid=Math.floor(text.length/2);
   let best=-1, bestDist=Infinity;
@@ -1062,6 +1049,18 @@ function _splitStage2(text){
   }
   if(best>10&&best<text.length-10) return [text.slice(0,best).trim(),text.slice(best).trim()];
   return [text.slice(0,mid).trim(),text.slice(mid).trim()];
+}
+function _getS2Messages(cc){
+  if(Array.isArray(cc?.stage2Messages)&&cc.stage2Messages.length>0) return cc.stage2Messages;
+  if(cc?.stage2){
+    const [p1,p2]=_splitStage2Legacy(applySlackPersonality(cc.stage2));
+    return [{type:'Tecnico',text:p1},{type:'Funcional',text:p2}];
+  }
+  return [];
+}
+function _getS2Member(type,caseIdx,msgIdx){
+  if(type==='Tecnico') return _devMembers[(caseIdx*3+msgIdx)%_devMembers.length];
+  return _funMembers[(caseIdx*2+msgIdx)%_funMembers.length];
 }
 
 // ── Slack animation state ──
@@ -1074,6 +1073,28 @@ let _stage3Animated={}; // caseIdx → true when stage3 slack anim started
 function _resetSlackAnim(caseIdx){delete _slackAnimated[caseIdx];delete _luisAnimated[caseIdx];}
 function _resetGitlabAnim(caseIdx){delete _gitlabAnimated[caseIdx];delete _luisGlAnimated[caseIdx];}
 function _resetStage3Anim(caseIdx){delete _stage3Animated[caseIdx];}
+
+function _animateReactionCounter(id,maxCount){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.style.display='inline-flex';
+  const span=el.querySelector('span');
+  if(span) span.textContent='1';
+  el.classList.remove('react-pop');
+  void el.offsetWidth;
+  el.classList.add('react-pop');
+  let count=1;
+  const tick=()=>{
+    if(count>=maxCount) return;
+    count++;
+    if(span) span.textContent=count;
+    el.classList.remove('react-bounce');
+    void el.offsetWidth;
+    el.classList.add('react-bounce');
+    if(count<maxCount) setTimeout(tick,1500+Math.random()*1500);
+  };
+  if(maxCount>1) setTimeout(tick,1500+Math.random()*1500);
+}
 
 function _runSlackAnim(caseIdx){
   if(_slackAnimated[caseIdx]) return;
@@ -1092,7 +1113,11 @@ function _runSlackAnim(caseIdx){
       if(cb) setTimeout(cb,900);
     },1600);
   };
-  setTimeout(()=>showMsg(1,'ding',()=>showMsg(2,'ding',()=>showMsg(3,'urgent',null))),600);
+  setTimeout(()=>showMsg(1,'ding',()=>{
+    const r=document.getElementById('slack-react-1');
+    if(r){r.style.display='inline-flex';r.classList.remove('react-pop');void r.offsetWidth;r.classList.add('react-pop');}
+    setTimeout(()=>showMsg(2,'ding',()=>showMsg(3,'urgent',null)),500);
+  }),600);
 }
 
 function _runLuisMsg(caseIdx){
@@ -1111,25 +1136,42 @@ function _runLuisMsg(caseIdx){
       if(cb) setTimeout(cb,5000);
     },1600);
   };
-  _showTyping('luis',()=>
-    _showTyping('javier',()=>
-      _showTyping('adrian',()=>
-        _showTyping('sm-reply',null)
-      )
-    )
-  );
+  _showTyping('luis',()=>{
+    setTimeout(()=>_animateReactionCounter('slack-react-luis',4+Math.floor(Math.random()*3)),1000);
+    _showTyping('javier',()=>{
+      setTimeout(()=>_animateReactionCounter('slack-react-javier',5+Math.floor(Math.random()*3)),1000);
+      _showTyping('adrian',()=>_showTyping('sm-reply',null));
+    });
+  });
 }
 
 function _runGitlabAnim(caseIdx){
   if(_gitlabAnimated[caseIdx]) return;
-  const t1=document.getElementById('gl-typing-1');
-  const c1=document.getElementById('gl-c1');
-  const t2=document.getElementById('gl-typing-2');
-  const c2=document.getElementById('gl-c2');
-  if(!t1||!c1) return;
-  _gitlabAnimated[caseIdx]=true;
   const thread=document.getElementById('gl-thread');
-  const showLuis=()=>{
+  // Collect all typing/comment pairs dynamically
+  const pairs=[];
+  let i=1;
+  while(document.getElementById('gl-typing-'+i)){
+    pairs.push({t:document.getElementById('gl-typing-'+i),c:document.getElementById('gl-c'+i)});
+    i++;
+  }
+  if(pairs.length===0) return;
+  _gitlabAnimated[caseIdx]=true;
+  let delay=400;
+  const typingDur=1600, gap=700;
+  for(const {t,c} of pairs){
+    setTimeout(()=>{if(t){t.classList.add('show');if(thread)thread.scrollTop=thread.scrollHeight;}},delay);
+    delay+=typingDur;
+    setTimeout(()=>{
+      if(t) t.classList.remove('show');
+      if(c){c.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
+      _playGitlabNotif();
+    },delay);
+    delay+=gap;
+  }
+  // Luis ~8s after last message
+  const luisDelay=delay+8000;
+  setTimeout(()=>{
     if(_luisGlAnimated[caseIdx]) return;
     _luisGlAnimated[caseIdx]=true;
     const tl=document.getElementById('gl-typing-luis');
@@ -1140,26 +1182,7 @@ function _runGitlabAnim(caseIdx){
       if(cl){cl.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
       _playGitlabNotif();
     },1800);
-  };
-  setTimeout(()=>{
-    if(t1) t1.classList.add('show');
-    if(thread) thread.scrollTop=thread.scrollHeight;
-  },400);
-  setTimeout(()=>{
-    if(t1) t1.classList.remove('show');
-    if(c1){c1.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
-    _playGitlabNotif();
-    setTimeout(()=>{
-      if(t2) t2.classList.add('show');
-      if(thread) thread.scrollTop=thread.scrollHeight;
-    },900);
-    setTimeout(()=>{
-      if(t2) t2.classList.remove('show');
-      if(c2){c2.classList.add('visible');setTimeout(()=>{if(thread)thread.scrollTop=thread.scrollHeight;},50);}
-      _playGitlabNotif();
-      setTimeout(showLuis, 10000); // Luis ~10s después del último comentario
-    },2700);
-  },2000);
+  },luisDelay);
 }
 
 function _runStage3Anim(caseIdx){
@@ -1289,6 +1312,19 @@ function refreshAnswerBars(answered,total){
 function timerHTML(total=120){
   const r=50,circ=2*Math.PI*r;
   return `<div class="timer-ring timer-display" data-total="${total}">
+    <svg width="120" height="120" viewBox="0 0 120 120">
+      <circle class="track" cx="60" cy="60" r="${r}"/>
+      <circle class="progress" cx="60" cy="60" r="${r}" style="stroke-dasharray:${circ};stroke-dashoffset:${circ};stroke:#22c55e"/>
+    </svg>
+    <div class="label">
+      <span class="time-text">${fmt(S.timerRemaining)}</span>
+      <span class="status-text">${S.paused?'PAUSADO':'restante'}</span>
+    </div>
+  </div>`;
+}
+function timerFixedHTML(total=120){
+  const r=50,circ=2*Math.PI*r;
+  return `<div class="timer-ring timer-display timer-fixed" data-total="${total}">
     <svg width="120" height="120" viewBox="0 0 120 120">
       <circle class="track" cx="60" cy="60" r="${r}"/>
       <circle class="progress" cx="60" cy="60" r="${r}" style="stroke-dasharray:${circ};stroke-dashoffset:${circ};stroke:#22c55e"/>
@@ -1500,9 +1536,25 @@ function renderCases(){
           <div><label>Título del caso</label><input id="c-title" value="${c.title||''}"/></div>
           <div><label>Puntos base</label><input id="c-pts" type="number" value="${c.points||100}" min="10"/></div>
         </div>
-        <div><label>Etapa 1 — Contexto inicial (breve, insuficiente)</label><textarea id="c-s1">${c.stage1||''}</textarea></div>
-        <div><label>Etapa 2 — Contexto ampliado (~70% información)</label><textarea id="c-s2">${c.stage2||''}</textarea></div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.75rem;border-top:1px solid var(--border)">Stage 1 — Slack (#af-almacen)</div>
+        <div><label>Título Stage 1 (stage1Titulo) — encabezado del expedite</label><input id="c-s1titulo" value="${c.stage1Titulo||''}"/></div>
+        <div><label>Mensaje 2 — stage1 (contexto breve inicial)</label><textarea id="c-s1">${c.stage1||''}</textarea></div>
+        <div><label>Mensaje 3 — stage1Contexto (cuerpo del mensaje Slack)</label><textarea id="c-s1contexto">${c.stage1Contexto||''}</textarea></div>
+        <div><label>Impacto — stage1Impacto (respuesta SM a "¿Es un expedite?")</label><textarea id="c-s1impacto" style="min-height:60px">${c.stage1Impacto||''}</textarea></div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.75rem;border-top:1px solid var(--border)">Stage 2 y 3</div>
+        <div>
+          <label style="margin-bottom:.4rem;display:block">Etapa 2 — Mensajes GitLab (hasta 5) <span style="color:var(--text-dim);font-weight:400;font-size:.78rem">cada mensaje lo escribe un miembro del tipo seleccionado</span></label>
+          <div id="s2-msgs-list" style="display:flex;flex-direction:column;gap:.5rem">
+            ${(Array.isArray(c.stage2Messages)&&c.stage2Messages.length>0?c.stage2Messages:[{type:'Tecnico',text:c.stage2||''},{type:'Funcional',text:''}]).map((m,i)=>`<div class="s2-msg-row" style="display:grid;grid-template-columns:110px 1fr 28px;gap:.4rem;align-items:start">
+              <select class="s2-msg-type" style="padding:.3rem .4rem;font-size:.8rem;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text)"><option value="Tecnico"${m.type==='Tecnico'?' selected':''}>🔧 Técnico</option><option value="Funcional"${m.type==='Funcional'?' selected':''}>📋 Funcional</option></select>
+              <textarea class="s2-msg-text" style="min-height:60px;font-size:.82rem" placeholder="Texto del mensaje...">${m.text||''}</textarea>
+              <button type="button" onclick="delS2Msg(this)" style="padding:.2rem .35rem;font-size:.85rem;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;cursor:pointer;line-height:1;height:28px">✕</button>
+            </div>`).join('')}
+          </div>
+          <button type="button" onclick="addS2Msg()" style="margin-top:.4rem;padding:.25rem .65rem;font-size:.78rem;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;border-radius:6px;cursor:pointer">+ Añadir mensaje</button>
+        </div>
         <div><label>Etapa 3 — Pista clave (sutil, no explícita)</label><textarea id="c-s3" style="min-height:60px">${c.stage3||''}</textarea></div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.75rem;border-top:1px solid var(--border)">Respuestas</div>
         <div>
           <div class="section-title" style="margin-top:.5rem">Opciones de respuesta — selecciona la correcta y marca las 2 opciones Titán (comodín 50%)</div>
           ${[0,1,2,3].map(i=>`<div class="flex items-center gap-2" style="margin-bottom:.5rem">
@@ -1514,6 +1566,40 @@ function renderCases(){
               🃏 Titán
             </label>
           </div>`).join('')}
+        </div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.75rem;border-top:1px solid var(--border)">Retrospectiva</div>
+        <div><label>Pregunta de debate (debatePregunta)</label><textarea id="c-debate-pregunta">${c.debatePregunta||''}</textarea></div>
+        <div><label>⚡ El Desafío (debateDesafio)</label><textarea id="c-debate-desafio">${c.debateDesafio||''}</textarea></div>
+        <div class="grid-2">
+          <div><label>Horas imputadas reales (hoursImputed)</label><input id="c-hours" type="number" value="${c.hoursImputed||0}" min="0" step="0.5"/></div>
+        </div>
+        <div><label>Lección / Moraleja (moraleja) — visible solo en STAGE_RETRO sub 2</label><textarea id="c-moraleja">${c.moraleja||''}</textarea></div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.75rem;border-top:1px solid var(--border)">GitLab — Retro</div>
+        <div class="grid-2">
+          <div><label>Proyecto GitLab (gitlabProject)</label><input id="c-gl-project" value="${(c.retro&&c.retro.gitlabProject)||''}"/></div>
+          <div><label>Número de issue (gitlabIssueNumber)</label><input id="c-gl-issue-num" type="number" value="${(c.retro&&c.retro.gitlabIssueNumber)||''}"/></div>
+        </div>
+        <div class="grid-2">
+          <div><label>Ruta del proyecto (glProjectPath)</label><input id="c-gl-project-path" value="${(c.retro&&c.retro.glProjectPath)||''}"/></div>
+          <div><label>Etiquetas (glLabels, separadas por coma)</label><input id="c-gl-labels" value="${(c.retro&&c.retro.glLabels&&c.retro.glLabels.join(', '))||''}"/></div>
+        </div>
+        <div><label>Título del issue (glTitle)</label><input id="c-gl-title" value="${(c.retro&&c.retro.glTitle)||''}"/></div>
+        <div><label>Descripción del issue (glDescription)</label><textarea id="c-gl-description">${(c.retro&&c.retro.glDescription)||''}</textarea></div>
+        <div>
+          <label style="margin-bottom:.4rem;display:block">Comentarios GitLab (glComments)</label>
+          <div id="gl-comments-list" style="display:flex;flex-direction:column;gap:.5rem">
+            ${((c.retro&&c.retro.glComments)||[]).map(cm=>`<div class="gl-comment-row" style="display:grid;grid-template-columns:160px 1fr 28px;gap:.4rem;align-items:start">
+              <input class="gl-comment-author" value="${cm.author||''}" placeholder="autor"/>
+              <textarea class="gl-comment-body" style="min-height:52px;font-size:.82rem" placeholder="Comentario...">${cm.body||''}</textarea>
+              <button type="button" onclick="delGlComment(this)" style="padding:.2rem .35rem;font-size:.85rem;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;cursor:pointer;line-height:1;height:28px">✕</button>
+            </div>`).join('')}
+          </div>
+          <button type="button" onclick="addGlComment()" style="margin-top:.4rem;padding:.25rem .65rem;font-size:.78rem;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;border-radius:6px;cursor:pointer">+ Añadir comentario</button>
+        </div>
+        <div class="section-title" style="margin-top:.25rem;padding-top:.5rem;border-top:1px solid rgba(99,102,241,.2);font-size:.72rem">Mensaje de cierre (glClosing)</div>
+        <div class="grid-2">
+          <div><label>Autor del cierre</label><input id="c-gl-closing-author" value="${(c.retro&&c.retro.glClosing&&c.retro.glClosing.author)||''}"/></div>
+          <div><label>Texto del cierre</label><textarea id="c-gl-closing-body" style="min-height:52px">${(c.retro&&c.retro.glClosing&&c.retro.glClosing.body)||''}</textarea></div>
         </div>
         <div class="flex gap-2" style="margin-top:.5rem">
           <button class="btn btn-primary" onclick="saveCase('${ec}')">Guardar caso</button>
@@ -1595,16 +1681,70 @@ function renderCases(){
 }
 function saveCase(ec){
   const title=$('c-title')?.value.trim(), pts=parseInt($('c-pts')?.value)||100;
-  const s1=$('c-s1')?.value.trim(), s2=$('c-s2')?.value.trim(), s3=$('c-s3')?.value.trim();
+  const s1=$('c-s1')?.value.trim(), s3=$('c-s3')?.value.trim();
+  const stage2Messages=Array.from(document.querySelectorAll('#s2-msgs-list .s2-msg-row')).map(row=>({type:row.querySelector('.s2-msg-type')?.value||'Tecnico',text:(row.querySelector('.s2-msg-text')?.value||'').trim()})).filter(m=>m.text);
+  const s1titulo=($('c-s1titulo')?.value||'').trim();
+  const s1contexto=($('c-s1contexto')?.value||'').trim();
+  const s1impacto=($('c-s1impacto')?.value||'').trim();
+  const debatePregunta=($('c-debate-pregunta')?.value||'').trim();
+  const debateDesafio=($('c-debate-desafio')?.value||'').trim();
+  const moraleja=($('c-moraleja')?.value||'').trim();
+  const hours=parseFloat($('c-hours')?.value)||0;
   const answers=[0,1,2,3].map(i=>$(`c-a${i}`)?.value.trim()||'');
   const correct=parseInt(document.querySelector('input[name="correct-ans"]:checked')?.value??0);
   const titanAnswerIndices=Array.from(document.querySelectorAll('input[name="titan-ans"]:checked')).map(el=>parseInt(el.value));
   if(!title){toast('El título es obligatorio','error');return;}
-  if(!s1||!s2||!s3){toast('Completa las 3 etapas','error');return;}
+  if(!s1||stage2Messages.length===0||!s3){toast('Completa las 3 etapas','error');return;}
   if(answers.filter(Boolean).length<4){toast('Añade las 4 opciones de respuesta','error');return;}
   if(titanAnswerIndices.length!==2){toast('Marca exactamente 2 opciones Titán (para el comodín 50%)','error');return;}
-  send({type:'ADMIN_SAVE_CASE',payload:{caseData:{title,points:pts,stage1:s1,stage2:s2,stage3:s3,answers,correctAnswerIndex:correct,titanAnswerIndices,id:ec==='new'?null:ec}}});
+  const glProject=($('c-gl-project')?.value||'').trim();
+  const glIssueNum=parseInt($('c-gl-issue-num')?.value)||null;
+  const glProjectPath=($('c-gl-project-path')?.value||'').trim();
+  const glLabelsRaw=($('c-gl-labels')?.value||'').trim();
+  const glLabels=glLabelsRaw?glLabelsRaw.split(',').map(l=>l.trim()).filter(Boolean):[];
+  const glTitle=($('c-gl-title')?.value||'').trim();
+  const glDescription=($('c-gl-description')?.value||'').trim();
+  const glComments=Array.from(document.querySelectorAll('#gl-comments-list .gl-comment-row')).map(row=>({author:(row.querySelector('.gl-comment-author')?.value||'').trim(),body:(row.querySelector('.gl-comment-body')?.value||'').trim()})).filter(cm=>cm.author||cm.body);
+  const glClosingAuthor=($('c-gl-closing-author')?.value||'').trim();
+  const glClosingBody=($('c-gl-closing-body')?.value||'').trim();
+  const retro={gitlabProject:glProject,gitlabIssueNumber:glIssueNum,glProjectPath,glTitle,glDescription,glComments,glClosing:{author:glClosingAuthor,body:glClosingBody},glLabels};
+  const existingCase = ec==='new' ? {} : (S.library.find(x=>x.id===ec)||{});
+  const caseData = {
+    ...existingCase,
+    title, points:pts,
+    stage1:s1, stage2Messages, stage3:s3,
+    stage1Titulo:s1titulo, stage1Contexto:s1contexto, stage1Impacto:s1impacto,
+    debatePregunta, debateDesafio, moraleja, hoursImputed:hours,
+    answers, correctAnswerIndex:correct, titanAnswerIndices,
+    retro,
+    id: ec==='new'?null:ec
+  };
+  send({type:'ADMIN_SAVE_CASE',payload:{caseData}});
 }
+function addS2Msg(){
+  const list=document.getElementById('s2-msgs-list');
+  if(!list||list.children.length>=5) return;
+  const row=document.createElement('div');
+  row.className='s2-msg-row';
+  row.style.cssText='display:grid;grid-template-columns:110px 1fr 28px;gap:.4rem;align-items:start';
+  row.innerHTML=`<select class="s2-msg-type" style="padding:.3rem .4rem;font-size:.8rem;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text)"><option value="Tecnico">🔧 Técnico</option><option value="Funcional">📋 Funcional</option></select><textarea class="s2-msg-text" style="min-height:60px;font-size:.82rem" placeholder="Texto del mensaje..."></textarea><button type="button" onclick="delS2Msg(this)" style="padding:.2rem .35rem;font-size:.85rem;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;cursor:pointer;line-height:1;height:28px">✕</button>`;
+  list.appendChild(row);
+}
+function delS2Msg(btn){
+  const list=document.getElementById('s2-msgs-list');
+  if(!list||list.children.length<=1) return;
+  btn.closest('.s2-msg-row')?.remove();
+}
+function addGlComment(){
+  const list=document.getElementById('gl-comments-list');
+  if(!list) return;
+  const row=document.createElement('div');
+  row.className='gl-comment-row';
+  row.style.cssText='display:grid;grid-template-columns:160px 1fr 28px;gap:.4rem;align-items:start';
+  row.innerHTML=`<input class="gl-comment-author" placeholder="autor"/><textarea class="gl-comment-body" style="min-height:52px;font-size:.82rem" placeholder="Comentario..."></textarea><button type="button" onclick="delGlComment(this)" style="padding:.2rem .35rem;font-size:.85rem;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:6px;cursor:pointer;line-height:1;height:28px">✕</button>`;
+  list.appendChild(row);
+}
+function delGlComment(btn){btn.closest('.gl-comment-row')?.remove();}
 function delCase(id){if(!confirm('¿Eliminar este caso de la biblioteca?'))return;send({type:'ADMIN_DELETE_CASE',payload:{caseId:id}});}
 function addEligible(caseId){send({type:'SESSION_ADD_ELIGIBLE',payload:{caseId}});}
 function removeEligible(caseId){send({type:'SESSION_REMOVE_ELIGIBLE',payload:{caseId}});}
@@ -2213,8 +2353,9 @@ function projStage(s){
   // ── STAGE_1 y STAGE_1_DEBATE: simulación Slack ──
   if(s1){
     const titulo=cc?.stage1Titulo||cc?.title||'';
-    const contexto=applySlackPersonality(cc?.stage1Contexto||cc?.stage1||'');
-    const impactoDetalle=applySlackPersonality(cc?.stage1Impacto||'');
+    const s1Text=cc?.stage1||'';
+    const s1Contexto=applySlackPersonality(cc?.stage1Contexto||'');
+    const impactoDetalle=cc?.stage1Impacto||'';
     const sm=_sm(s.currentCaseIndex);
     // En debate ya están todos visibles; en STAGE_1 la animación los muestra
     const v1=isDebate1?'visible':'', v2=isDebate1?'visible':'', v3=isDebate1?'visible':'';
@@ -2249,6 +2390,8 @@ function projStage(s){
                   <div class="slack-msg-text">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
                 </div>
               </div>
+              <!-- Reacción 🔴 bajo Msg 1 -->
+              <div style="display:block;margin:2px 0 3px 6px"><span id="slack-react-1" style="display:${isDebate1?'inline-flex':'none'};align-items:center;gap:3px;padding:2px 7px;border-radius:999px;background:rgba(200,30,30,.18);border:1px solid rgba(200,30,30,.38);color:#ffaaaa;font-size:.82rem;line-height:1.3;cursor:default;transition:transform .15s;white-space:nowrap">🔴 <span>1</span></span></div>
               <!-- Mensaje 2: contexto / descripción -->
               <div class="slack-typing-row" id="slack-typing-2">
                 ${_av(sm.img,sm.av,sm.grad)}
@@ -2259,20 +2402,20 @@ function projStage(s){
                 ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-msg-body">
                   <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
-                  <div class="slack-msg-text">📋 ${contexto}</div>
+                  <div class="slack-msg-text">📋 ${s1Text}</div>
                 </div>
               </div>
-              <!-- Mensaje 3: impacto -->
+              <!-- Mensaje 3: stage1Contexto -->
               <div class="slack-typing-row" id="slack-typing-3">
-                ${_av(sm.img,sm.av,sm.grad,'slack-avatar sm-urgent')}
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
                 <span class="slack-typing-label">${sm.name} está escribiendo...</span>
               </div>
               <div class="slack-msg ${v3}" id="slack-m3">
-                ${_av(sm.img,sm.av,sm.grad,'slack-avatar sm-urgent')}
+                ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-msg-body">
                   <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
-                  <div class="slack-msg-text"><div class="slack-impact-box">🔴 ${impactoDetalle}</div></div>
+                  <div class="slack-msg-text">${s1Contexto}</div>
                 </div>
               </div>
               <!-- Mensaje 4: Luis Novalio (aparece al entrar en zona roja del timer) -->
@@ -2288,6 +2431,8 @@ function projStage(s){
                   <div class="slack-msg-text">Nos ponemos con ello 💪💪💪 <a class="slack-mention">@${sm.name}</a></div>
                 </div>
               </div>
+              <!-- Reacción 💪 bajo Luis -->
+              <div style="display:block;margin:2px 0 3px 6px"><span id="slack-react-luis" style="display:${isDebate1?'inline-flex':'none'};align-items:center;gap:3px;padding:2px 7px;border-radius:999px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.35);color:#7dd3fc;font-size:.82rem;line-height:1.3;cursor:default;transition:transform .15s;white-space:nowrap">💪 <span>${isDebate1?4+(s.currentCaseIndex%3):1}</span></span></div>
               <!-- Mensaje 5: Javier Sánchez (gracioso andaluz) -->
               <div class="slack-typing-row" id="slack-typing-javier">
                 ${_av(_funMembers[0].img,_funMembers[0].av,_funMembers[0].grad)}
@@ -2301,6 +2446,8 @@ function projStage(s){
                   <div class="slack-msg-text">${_javierSlackMsg(s.currentCaseIndex)}</div>
                 </div>
               </div>
+              <!-- Reacción 😂 bajo Javi -->
+              <div style="display:block;margin:2px 0 3px 6px"><span id="slack-react-javier" style="display:${isDebate1?'inline-flex':'none'};align-items:center;gap:3px;padding:2px 7px;border-radius:999px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35);color:#fde68a;font-size:.82rem;line-height:1.3;cursor:default;transition:transform .15s;white-space:nowrap">😂 <span>${isDebate1?5+(s.currentCaseIndex%3):1}</span></span></div>
               <!-- Mensaje 6: Adrián Cifuentes -->
               <div class="slack-typing-row" id="slack-typing-adrian">
                 ${_av(_devMembers[0].img,_devMembers[0].av,_devMembers[0].grad)}
@@ -2324,7 +2471,7 @@ function projStage(s){
                 ${_av(sm.img,sm.av,sm.grad)}
                 <div class="slack-msg-body">
                   <div class="slack-msg-meta"><span class="slack-author">${sm.name}</span><span class="slack-time">hace un momento</span></div>
-                  <div class="slack-msg-text">${_smExpediteReason(s.currentCaseIndex)}</div>
+                  <div class="slack-msg-text"><div class="slack-impact-box">🚨 ${impactoDetalle}</div></div>
                 </div>
               </div>
             </div>
@@ -2343,11 +2490,9 @@ function projStage(s){
 
   // ── STAGE_2 y STAGE_2_DEBATE: formato GitLab issue ──
   if(s2){
-    const dev=_devMember(s.currentCaseIndex);
-    const fun=_funMember(s.currentCaseIndex);
-    const [part1,part2]=_splitStage2(applySlackPersonality(cc?.stage2||''));
+    const s2msgs=_getS2Messages(cc).map((m,i)=>({...m,member:_getS2Member(m.type,s.currentCaseIndex,i),text:applySlackPersonality(m.text)}));
     const isDebate2=stage==='STAGE_2_DEBATE';
-    const v1=isDebate2?'visible':'', v2=isDebate2?'visible':'', vLuis2=isDebate2?'visible':'';
+    const vAll=isDebate2?'visible':'', vLuis2=isDebate2?'visible':'';
     const issueNum=`${8000+s.currentCaseIndex*13}`;
     const labelTipo=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa">Desarrollo y acciones técnicas</span>`;
     return `<div class="proj-body">
@@ -2375,43 +2520,26 @@ function projStage(s){
                 ${labelTipo}
               </div>
             </div>
-            <div class="gl-thread" id="gl-thread">
-              <!-- Typing 1 -->
-              <div class="gl-typing-row" id="gl-typing-1">
-                ${_av(dev.img,dev.av,dev.grad,'gl-avatar')}
+              <div class="gl-thread" id="gl-thread">
+              ${s2msgs.map((m,i)=>`
+              <!-- Typing ${i+1} -->
+              <div class="gl-typing-row" id="gl-typing-${i+1}">
+                ${_av(m.member.img,m.member.av,m.member.grad,'gl-avatar')}
                 <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${dev.name} está comentando...</span>
+                <span class="slack-typing-label">${m.member.name} está comentando...</span>
               </div>
-              <!-- Comment 1: Dev -->
-              <div class="gl-comment ${v1}" id="gl-c1">
-                ${_av(dev.img,dev.av,dev.grad,'gl-avatar')}
+              <!-- Comment ${i+1} -->
+              <div class="gl-comment ${vAll}" id="gl-c${i+1}">
+                ${_av(m.member.img,m.member.av,m.member.grad,'gl-avatar')}
                 <div class="gl-comment-box">
                   <div class="gl-comment-hdr">
-                    <span class="gl-comment-author">${dev.name}</span>
-                    <span class="gl-role-badge gl-role-dev">Técnico</span>
+                    <span class="gl-comment-author">${m.member.name}</span>
+                    <span class="gl-role-badge ${m.type==='Tecnico'?'gl-role-dev':'gl-role-fun'}">${m.type==='Tecnico'?'Técnico':'Funcional'}</span>
                     <span>comentó hace un momento</span>
                   </div>
-                  <div class="gl-comment-body">${part1}</div>
+                  <div class="gl-comment-body">${m.text}</div>
                 </div>
-              </div>
-              <!-- Typing 2 -->
-              <div class="gl-typing-row" id="gl-typing-2">
-                ${_av(fun.img,fun.av,fun.grad,'gl-avatar')}
-                <div class="slack-typing-dots"><span></span><span></span><span></span></div>
-                <span class="slack-typing-label">${fun.name} está comentando...</span>
-              </div>
-              <!-- Comment 2: Fun -->
-              <div class="gl-comment ${v2}" id="gl-c2">
-                ${_av(fun.img,fun.av,fun.grad,'gl-avatar')}
-                <div class="gl-comment-box">
-                  <div class="gl-comment-hdr">
-                    <span class="gl-comment-author">${fun.name}</span>
-                    <span class="gl-role-badge gl-role-fun">Funcional</span>
-                    <span>comentó hace un momento</span>
-                  </div>
-                  <div class="gl-comment-body">${part2}</div>
-                </div>
-              </div>
+              </div>`).join('')}
               <!-- Typing Luis -->
               <div class="gl-typing-row" id="gl-typing-luis">
                 ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
@@ -2471,13 +2599,12 @@ function projStage(s){
 
     // Para el debate final necesitamos los datos de las otras etapas también
     const smD=_sm(s.currentCaseIndex);
-    const devD=_devMember(s.currentCaseIndex);
-    const funD=_funMember(s.currentCaseIndex);
-    const [p1,p2]=_splitStage2(applySlackPersonality(cc?.stage2||''));
+    const s2msgsD=_getS2Messages(cc).map((m,i)=>({...m,member:_getS2Member(m.type,s.currentCaseIndex,i),text:applySlackPersonality(m.text)}));
     const titulo=cc?.stage1Titulo||cc?.title||'';
     const issueNum3=`${8000+s.currentCaseIndex*13}`;
-    const contexto=applySlackPersonality(cc?.stage1Contexto||cc?.stage1||'');
-    const impacto=applySlackPersonality(cc?.stage1Impacto||'');
+    const s1Text=cc?.stage1||'';
+    const s1Contexto=applySlackPersonality(cc?.stage1Contexto||'');
+    const impacto=cc?.stage1Impacto||'';
     const labelTipo3=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante" style="font-size:.6rem">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa" style="font-size:.6rem">Desarrollo y acciones técnicas</span>`;
 
     const s3Content = isDebate3 ? `
@@ -2494,19 +2621,20 @@ function projStage(s){
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
               <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
-              <div class="slack-msg-text" style="font-size:.78rem">🚨 <strong>${titulo}</strong></div>
+              <div class="slack-msg-text" style="font-size:.78rem">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
+            </div>
+          </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(200,30,30,.18);border:1px solid rgba(200,30,30,.38);color:#ffaaaa;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">🔴 <span>1</span></div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem">📋 ${s1Text}</div>
             </div>
           </div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
-              <div class="slack-msg-text" style="font-size:.78rem">📋 ${contexto}</div>
-            </div>
-          </div>
-          <div class="slack-msg visible" style="gap:.45rem">
-            ${_av(smD.img,smD.av,smD.grad,'slack-avatar sm-urgent')}
-            <div class="slack-msg-body">
-              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🔴 ${impacto}</div></div>
+              <div class="slack-msg-text" style="font-size:.78rem">${s1Contexto}</div>
             </div>
           </div>
           <div class="slack-msg visible" style="gap:.45rem">
@@ -2516,6 +2644,7 @@ function projStage(s){
               <div class="slack-msg-text" style="font-size:.78rem">Nos ponemos con ello 💪💪💪 <a class="slack-mention">@${smD.name}</a></div>
             </div>
           </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.35);color:#7dd3fc;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">💪 <span>${4+(s.currentCaseIndex%3)}</span></div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(_funMembers[0].img,_funMembers[0].av,_funMembers[0].grad,'slack-avatar')}
             <div class="slack-msg-body">
@@ -2523,6 +2652,7 @@ function projStage(s){
               <div class="slack-msg-text" style="font-size:.78rem">${_javierSlackMsg(s.currentCaseIndex)}</div>
             </div>
           </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35);color:#fde68a;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">😂 <span>${5+(s.currentCaseIndex%3)}</span></div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(_devMembers[0].img,_devMembers[0].av,_devMembers[0].grad,'slack-avatar')}
             <div class="slack-msg-body">
@@ -2534,7 +2664,7 @@ function projStage(s){
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
               <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
-              <div class="slack-msg-text" style="font-size:.78rem">${_smExpediteReason(s.currentCaseIndex)}</div>
+              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🚨 ${impacto}</div></div>
             </div>
           </div>
         </div>
@@ -2556,26 +2686,16 @@ function projStage(s){
           </div>
         </div>
         <div class="gl-thread" style="padding:.4rem .6rem;gap:.4rem">
-          <div class="gl-comment visible" style="gap:.45rem">
-            ${_av(devD.img,devD.av,devD.grad,'gl-avatar')}
+          ${s2msgsD.map(m=>`<div class="gl-comment visible" style="gap:.45rem">
+            ${_av(m.member.img,m.member.av,m.member.grad,'gl-avatar')}
             <div class="gl-comment-box">
               <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
-                <span class="gl-comment-author" style="font-size:.72rem">${devD.name}</span>
-                <span class="gl-role-badge gl-role-dev" style="font-size:.6rem">Técnico</span>
+                <span class="gl-comment-author" style="font-size:.72rem">${m.member.name}</span>
+                <span class="gl-role-badge ${m.type==='Tecnico'?'gl-role-dev':'gl-role-fun'}" style="font-size:.6rem">${m.type==='Tecnico'?'Técnico':'Funcional'}</span>
               </div>
-              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p1}</div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${m.text}</div>
             </div>
-          </div>
-          <div class="gl-comment visible" style="gap:.45rem">
-            ${_av(funD.img,funD.av,funD.grad,'gl-avatar')}
-            <div class="gl-comment-box">
-              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
-                <span class="gl-comment-author" style="font-size:.72rem">${funD.name}</span>
-                <span class="gl-role-badge gl-role-fun" style="font-size:.6rem">Funcional</span>
-              </div>
-              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p2}</div>
-            </div>
-          </div>
+          </div>`).join('')}
           <div class="gl-comment visible" style="gap:.45rem">
             ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
             <div class="gl-comment-box">
@@ -2661,12 +2781,11 @@ function _debate3ColsHTML(s){
   const cc=s.cases[s.currentCaseIndex];
   const member=_stage3Member(s.currentCaseIndex);
   const smD=_sm(s.currentCaseIndex);
-  const devD=_devMember(s.currentCaseIndex);
-  const funD=_funMember(s.currentCaseIndex);
-  const [p1,p2]=_splitStage2(cc?.stage2||'');
+  const s2msgsD=_getS2Messages(cc).map((m,i)=>({...m,member:_getS2Member(m.type,s.currentCaseIndex,i),text:applySlackPersonality(m.text)}));
   const titulo=cc?.stage1Titulo||cc?.title||'';
   const issueNum3=`${8000+s.currentCaseIndex*13}`;
-  const contexto=cc?.stage1Contexto||cc?.stage1||'';
+  const s1Text=cc?.stage1||'';
+  const s1Contexto=cc?.stage1Contexto||'';
   const impacto=cc?.stage1Impacto||'';
   const labelTipo3=s.currentCaseIndex%2===0?`<span class="gl-label gl-label-mante" style="font-size:.6rem">Mantenimiento evolutivo</span>`:`<span class="gl-label gl-label-desa" style="font-size:.6rem">Desarrollo y acciones técnicas</span>`;
   return `
@@ -2683,19 +2802,20 @@ function _debate3ColsHTML(s){
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
               <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
-              <div class="slack-msg-text" style="font-size:.78rem">🚨 <strong>${titulo}</strong></div>
+              <div class="slack-msg-text" style="font-size:.78rem">🚨 Tengo un expedite urgente: <strong>${titulo}</strong></div>
+            </div>
+          </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(200,30,30,.18);border:1px solid rgba(200,30,30,.38);color:#ffaaaa;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">🔴 <span>1</span></div>
+          <div class="slack-msg visible" style="gap:.45rem">
+            ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
+            <div class="slack-msg-body">
+              <div class="slack-msg-text" style="font-size:.78rem">📋 ${s1Text}</div>
             </div>
           </div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
-              <div class="slack-msg-text" style="font-size:.78rem">📋 ${contexto}</div>
-            </div>
-          </div>
-          <div class="slack-msg visible" style="gap:.45rem">
-            ${_av(smD.img,smD.av,smD.grad,'slack-avatar sm-urgent')}
-            <div class="slack-msg-body">
-              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🔴 ${impacto}</div></div>
+              <div class="slack-msg-text" style="font-size:.78rem">${s1Contexto}</div>
             </div>
           </div>
           <div class="slack-msg visible" style="gap:.45rem">
@@ -2705,6 +2825,7 @@ function _debate3ColsHTML(s){
               <div class="slack-msg-text" style="font-size:.78rem">Nos ponemos con ello 💪💪💪 <a class="slack-mention">@${smD.name}</a></div>
             </div>
           </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.35);color:#7dd3fc;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">💪 <span>${4+(s.currentCaseIndex%3)}</span></div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(_funMembers[0].img,_funMembers[0].av,_funMembers[0].grad,'slack-avatar')}
             <div class="slack-msg-body">
@@ -2712,6 +2833,7 @@ function _debate3ColsHTML(s){
               <div class="slack-msg-text" style="font-size:.78rem">${_javierSlackMsg(s.currentCaseIndex)}</div>
             </div>
           </div>
+          <div style="display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .6rem;border-radius:999px;background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.35);color:#fde68a;font-size:.82rem;font-weight:700;cursor:default;margin:.05rem 0 .2rem .5rem">😂 <span>${5+(s.currentCaseIndex%3)}</span></div>
           <div class="slack-msg visible" style="gap:.45rem">
             ${_av(_devMembers[0].img,_devMembers[0].av,_devMembers[0].grad,'slack-avatar')}
             <div class="slack-msg-body">
@@ -2723,7 +2845,7 @@ function _debate3ColsHTML(s){
             ${_av(smD.img,smD.av,smD.grad,'slack-avatar')}
             <div class="slack-msg-body">
               <div class="slack-msg-meta"><span class="slack-author" style="font-size:.78rem">${smD.name}</span></div>
-              <div class="slack-msg-text" style="font-size:.78rem">${_smExpediteReason(s.currentCaseIndex)}</div>
+              <div class="slack-msg-text" style="font-size:.78rem"><div class="slack-impact-box" style="font-size:.75rem;padding:.4rem .6rem">🚨 ${impacto}</div></div>
             </div>
           </div>
         </div>
@@ -2745,26 +2867,16 @@ function _debate3ColsHTML(s){
           </div>
         </div>
         <div class="gl-thread" style="padding:.4rem .6rem;gap:.4rem">
-          <div class="gl-comment visible" style="gap:.45rem">
-            ${_av(devD.img,devD.av,devD.grad,'gl-avatar')}
+          ${s2msgsD.map(m=>`<div class="gl-comment visible" style="gap:.45rem">
+            ${_av(m.member.img,m.member.av,m.member.grad,'gl-avatar')}
             <div class="gl-comment-box">
               <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
-                <span class="gl-comment-author" style="font-size:.72rem">${devD.name}</span>
-                <span class="gl-role-badge gl-role-dev" style="font-size:.6rem">Técnico</span>
+                <span class="gl-comment-author" style="font-size:.72rem">${m.member.name}</span>
+                <span class="gl-role-badge ${m.type==='Tecnico'?'gl-role-dev':'gl-role-fun'}" style="font-size:.6rem">${m.type==='Tecnico'?'Técnico':'Funcional'}</span>
               </div>
-              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p1}</div>
+              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${m.text}</div>
             </div>
-          </div>
-          <div class="gl-comment visible" style="gap:.45rem">
-            ${_av(funD.img,funD.av,funD.grad,'gl-avatar')}
-            <div class="gl-comment-box">
-              <div class="gl-comment-hdr" style="padding:.25rem .6rem;font-size:.72rem">
-                <span class="gl-comment-author" style="font-size:.72rem">${funD.name}</span>
-                <span class="gl-role-badge gl-role-fun" style="font-size:.6rem">Funcional</span>
-              </div>
-              <div class="gl-comment-body" style="padding:.45rem .6rem;font-size:.78rem;line-height:1.5">${p2}</div>
-            </div>
-          </div>
+          </div>`).join('')}
           <div class="gl-comment visible" style="gap:.45rem">
             ${_av(_luis.img,_luis.av,_luis.grad,'gl-avatar')}
             <div class="gl-comment-box">
@@ -2820,7 +2932,7 @@ function projQuiz(s){
           <div data-disconnect-banner>${disconnectBannerHTML()}</div>
         </div>
         <div class="proj-sidebar">
-          ${timerHTML(120)}
+          ${timerHTML(currentTimerTotal())}
           <div class="card card-sm" style="text-align:center;padding:.6rem">
             <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.2rem">Respuestas</div>
             <div data-answer-count style="font-size:1.1rem;font-weight:700;font-family:var(--font-mono);color:var(--accent)">${answered}/${total}</div>
@@ -2854,7 +2966,7 @@ function projQuiz(s){
         <div data-disconnect-banner>${disconnectBannerHTML()}</div>
       </div>
       <div class="proj-sidebar">
-        ${timerHTML(120)}
+        ${timerHTML(currentTimerTotal())}
         <div class="card"><div class="section-title">Clasificación</div>
           <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
         </div>
@@ -2887,6 +2999,7 @@ function projQuizReveal(s){
         </div>
       </div>
       <div class="proj-sidebar">
+        ${timerHTML(currentTimerTotal())}
         <div class="card"><div class="section-title">Clasificación</div>
           <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
         </div>
@@ -2931,6 +3044,7 @@ function projResults(s){
         </div>
       </div>
       <div class="proj-sidebar">
+        ${timerHTML(currentTimerTotal())}
         <div class="card"><div class="section-title">Nueva clasificación</div>
           <div data-lb class="flex col gap-1" style="margin-top:.5rem">${lbHTML()}</div>
         </div>
@@ -2988,15 +3102,15 @@ function _startRetroScroll(){
 // ── Bloque 3: personalidad Slack de Luis y Javi ──────────────────────────────
 function applySlackPersonality(text){
   if(!text) return text;
-  const luisPfx=['Pisha, ','Churrita, '];
-  const javiPfx=['Illo, ','Ompare, '];
-  return text.split('\n').map((line,li)=>{
+  const luisPfx=['¡De arte! ','Pisha, ','Churrita, '];
+  const javiPfx=['Ompare! ','Illo! '];
+  return text.split('\n').map((line)=>{
     if(/^Luis:/i.test(line)){
-      const p=luisPfx[li%luisPfx.length];
+      const p=luisPfx[Math.floor(Math.random()*luisPfx.length)];
       return line.replace(/^(Luis:)\s*/i,`$1 ${p}`);
     }
     if(/^Javi(er)?:/i.test(line)){
-      const p=javiPfx[li%javiPfx.length];
+      const p=javiPfx[Math.floor(Math.random()*javiPfx.length)];
       return line.replace(/^(Javi(?:er)?:)\s*/i,`$1 ${p}`);
     }
     return line;
@@ -3026,7 +3140,7 @@ function _renderMd(text){
   return h;
 }
 
-function _retroGlFrame(cc,r){
+function _retroGlFrame(cc,r,rt=0){
   const projPath=(r.glProjectPath||r.gitlabProject||'—').split('/').pop();
   const num=r.gitlabIssueNumber;
   const glTitle=r.glTitle||cc.title;
@@ -3042,12 +3156,26 @@ function _retroGlFrame(cc,r){
       <div class="gl-topbar-logo">${_retroTanuki} &nbsp;<span style="color:#e6edf3;font-size:.85rem">git.factorlibre.com</span><span style="color:#8b949e;margin:0 .4rem">/</span><span style="color:#58a6ff;font-size:.85rem">${projPath}</span>${num?`<span style="color:#8b949e;margin:0 .3rem">/</span><span style="color:#8b949e;font-size:.85rem">issues / <span style="color:#e6edf3">#${num}</span></span>`:''}</div>
       <span style="margin-left:auto;display:inline-flex;align-items:center;gap:.3rem;background:rgba(34,197,94,.12);color:#56d364;border:1px solid rgba(34,197,94,.3);border-radius:20px;padding:.2rem .75rem;font-size:.78rem;font-weight:600">✓ Closed</span>
     </div>
-    <div class="gl-issue-head" style="flex-shrink:0;padding:1rem 1.5rem">
-      <div class="gl-issue-title" style="font-size:1.35rem;font-weight:700;line-height:1.35;margin-bottom:.6rem">${num?`<span style="color:#8b949e;font-weight:400">#${num}</span> `:''}${glTitle}</div>
-      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-        ${labels.map(l=>`<span style="padding:.2rem .65rem;border-radius:10px;font-size:.75rem;font-weight:600;letter-spacing:.03em;${_glLabelStyle(l)}">${l}</span>`).join('')}
-        ${!labels.length?'<span style="padding:.2rem .65rem;border-radius:10px;font-size:.75rem;background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.3)">Almacén</span>':''}
-        ${h!=='?'?`<span style="margin-left:auto;font-family:var(--font-mono);font-size:.95rem;font-weight:700;color:var(--accent)">⏱ ${h}h${dias?` · ${dias}d`:''}</span>`:''}
+    <div class="gl-issue-head" style="flex-shrink:0;padding:.5rem 1.25rem">
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div style="flex:1;min-width:0">
+          <div class="gl-issue-title" style="font-size:1.05rem;font-weight:700;line-height:1.3;margin-bottom:.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${num?`<span style="color:#8b949e;font-weight:400">#${num}</span> `:''}${glTitle}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+            ${labels.map(l=>`<span style="padding:.15rem .5rem;border-radius:8px;font-size:.7rem;font-weight:600;letter-spacing:.02em;${_glLabelStyle(l)}">${l}</span>`).join('')}
+            ${!labels.length?'<span style="padding:.15rem .5rem;border-radius:8px;font-size:.7rem;background:rgba(245,166,35,.15);color:#fcd34d;border:1px solid rgba(245,166,35,.3)">Almacén</span>':''}
+            ${h!=='?'?`<span style="font-family:var(--font-mono);font-size:.82rem;font-weight:700;color:var(--accent)">⏱ ${h}h${dias?` · ${dias}d`:''}</span>`:''}
+          </div>
+        </div>
+        <div class="timer-ring timer-display" data-total="${rt}" style="flex-shrink:0;position:relative;width:72px;height:72px">
+          <svg width="72" height="72" viewBox="0 0 72 72" style="transform:rotate(-90deg)">
+            <circle fill="none" stroke="var(--surface2)" stroke-width="6" cx="36" cy="36" r="28"/>
+            <circle class="progress" fill="none" stroke-width="6" stroke-linecap="round" cx="36" cy="36" r="28" style="stroke-dasharray:${2*Math.PI*28};stroke-dashoffset:${2*Math.PI*28};stroke:#22c55e;transition:stroke-dashoffset .5s linear,stroke .5s"/>
+          </svg>
+          <div class="label" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-mono)">
+            <span class="time-text" style="font-size:.85rem;font-weight:700">${fmt(S.timerRemaining)}</span>
+            <span class="status-text" style="font-size:.42rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em">${S.paused?'PAUSADO':'restante'}</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="gl-thread" style="flex:1;min-height:0;overflow-y:auto;padding:1rem 1.75rem;gap:1rem">
@@ -3094,11 +3222,8 @@ function _retroHoursPanel(cc){
 }
 
 function _retroDebateOverlay(cc){
-  const raw=cc.debate||'';
-  const splitRx=/\*\*El Desafío:\*\*/i;
-  const splitIdx=raw.search(splitRx);
-  const pregunta=splitIdx>0?raw.slice(0,splitIdx).trim():raw;
-  const desafio=splitIdx>0?raw.slice(raw.indexOf(':',splitIdx)+1).trim():'';
+  const pregunta=cc.debatePregunta||'';
+  const desafio=cc.debateDesafio||'';
   return `<div style="position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.62);display:flex;align-items:center;justify-content:center;padding:2rem;animation:fadeSlideIn .45s ease">
     <div style="width:100%;max-width:1080px;background:rgba(10,12,18,.94);border:1.5px solid rgba(139,92,246,.45);border-radius:22px;box-shadow:0 0 80px rgba(139,92,246,.25),0 24px 60px rgba(0,0,0,.6);overflow:hidden">
       <div style="padding:.55rem 1.75rem;background:rgba(139,92,246,.1);border-bottom:1px solid rgba(139,92,246,.25);display:flex;align-items:center;gap:.6rem">
@@ -3139,11 +3264,8 @@ function projRetro(s){
   </div>`;
   // Sub 1: vista dedicada full-screen debate
   if(sub===1){
-    const raw=cc.debate||'';
-    const splitRx=/\*\*El Desafío:\*\*/i;
-    const splitIdx=raw.search(splitRx);
-    const pregunta=splitIdx>0?raw.slice(0,splitIdx).trim():raw;
-    const desafio=splitIdx>0?raw.slice(raw.indexOf(':',splitIdx)+1).trim():'';
+    const pregunta=cc.debatePregunta||'';
+    const desafio=cc.debateDesafio||'';
     return `<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(139,92,246,.2) 0%,transparent 65%);padding:2.5rem">
       <div style="width:100%;max-width:1280px;animation:fadeSlideIn .7s ease">
         <div style="text-align:center;margin-bottom:2rem">
@@ -3167,11 +3289,8 @@ function projRetro(s){
   const rt=s.config?.retroTime||0;
   return `<div class="proj-body" style="position:relative">
     ${_projHeader(s,'STAGE_RETRO')}
-    <div style="position:absolute;top:56px;right:1.25rem;z-index:30">
-      ${timerHTML(rt)}
-    </div>
     <div style="flex:1;min-height:0;overflow:hidden;position:relative">
-      ${_retroGlFrame(cc,r)}
+      ${_retroGlFrame(cc,r,rt)}
     </div>
   </div>`;
 }
@@ -3506,7 +3625,7 @@ function teamRetro(){
         </div>
         ${sub>=1?`<div class="card" style="border-color:rgba(139,92,246,.3);background:rgba(139,92,246,.04);padding:.75rem;animation:fadeSlideIn .5s ease">
           <div style="font-size:.62rem;color:#c4b5fd;margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.1em">💬 La Pregunta / ⚡ El Desafío</div>
-          <div style="font-size:.82rem;line-height:1.5">${(cc.debate||'').replace(/\*\*El Desafío:\*\*/i,'<br><span style="color:#c4b5fd;font-weight:700">⚡ El Desafío:</span>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
+          <div style="font-size:.82rem;line-height:1.5">${(cc.debatePregunta||'').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}${cc.debateDesafio?`<br><span style="color:#c4b5fd;font-weight:700">⚡ El Desafío:</span> ${cc.debateDesafio.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}`:''}</div>
         </div>`:''}
       </div>
       <div style="text-align:center;color:var(--text-dim);font-size:.72rem;padding:.3rem">Moderador controlando el ritmo...</div>
@@ -3604,7 +3723,8 @@ function render(){
   else if(S.view==='ADMIN')     root.innerHTML=renderAdmin();
   else if(S.view==='TEAM')      root.innerHTML=renderTeam();
   else if(S.view==='PROJECTOR') root.innerHTML=renderProjector();
-  updateTimerUI();
+  // Timer fijo proyector: renderizado directo en body, fuera de cualquier contenedor
+updateTimerUI();
   refreshLeaderboards();
   refreshDisconnectBanner();
   // Slack animation: trigger after DOM update for STAGE_1 projector

@@ -1,0 +1,55 @@
+{
+  "cases": [
+    {
+      "title": "La Trampa del Albarán Único",
+      "points": 150,
+
+      "stage1": "En 'El Gigante del Retail', la operativa de reposición a tiendas ha pasado de ser un éxito visual a un colapso del sistema. El equipo funcional ha conseguido que el ERP genere un único albarán agrupado por tienda, tal como pidió el cliente para ahorrar papel y tiempo. Los albaranes aparecen perfectos en pantalla, pero de repente, el servidor de base de datos empieza a degradarse y los procesos de salida de la web se detienen por completo.",
+      "stage1Titulo": "Éxito en Pantalla, Bloqueo en el Motor",
+      "stage1Contexto": "Pisha, no entiendo nada. Los albaranes de las tiendas se crean bien y con todas sus líneas. Sin embargo, el trabajo de generación se queda 'Ejecutando' durante horas y no termina nunca. Mientras tanto, las colas de pedidos están paradas y no salen etiquetas. Hemos arreglado el papel del operario, pero parece que hemos gripado el motor del servidor.",
+      "stage1Impacto": "Jobs de sistema bloqueados por horas · 2 días de parálisis en la reposición automática · degradación del rendimiento general.",
+
+      "stage2": "La investigación en el entorno de test es un campo de minas: existen ubicaciones duplicadas con el mismo nombre y las reglas de stock no se aplican como en producción. El equipo técnico detecta que, aunque funcionalmente vemos un solo albarán, por debajo el sistema gestiona un 'Grupo de Abastecimiento' independiente por cada regla. Al forzar la unificación, el proceso entra en una guerra de concurrencia, intentando validar miles de líneas que compiten por los mismos recursos de base de datos.",
+
+      "stage3": "Al auditar los logs de `queue.job`, se confirma el patrón de bloqueo: el proceso de abastecimiento agota su tiempo de ejecución sin llegar jamás al estado 'Finalizado'. El error no es el volumen de datos, sino la jerarquía: se ha unificado el contenedor físico (`stock.picking`), pero se ha ignorado la unificación del hilo lógico (`procurement.group`), obligando a Odoo a realizar un recálculo infinito cada vez que intenta agrupar un movimiento[cite: 831, 833, 847].",
+
+      "answers": [
+        "Opción A: Rediseñar la estrategia en las rutas para que el 'Grupo de Abastecimiento' sea único por almacén de destino, garantizando una operación atómica y eficiente.",
+        "Opción B: Aumentar el número de workers del servidor y procesar las reposiciones en bloques de 10 reglas para evitar la saturación de la cola de trabajos.",
+        "Opción C: Implementar un parámetro de sistema para forzar el cierre manual de los Jobs y limpiar el histórico de movimientos huérfanos cada noche.",
+        "Opción D: Desactivar la agrupación de albaranes y volver al estándar de un picking por regla para eliminar los errores de concurrencia."
+      ],
+      "correctAnswerIndex": 0,
+      "titanAnswerIndices": [0, 3],
+
+      "debate": "¿En qué punto una petición de cliente con el objetivo de una vista 'limpia' nos hace ignorar las señales de que estamos forzando la lógica del estándar hasta romperla? **El Desafío: Cuando un entorno de test está 'sucio' y no refleja la realidad, ¿cómo podemos validar el impacto de rendimiento de una configuración antes de que tumbe el sistema en producción? ",
+
+      "moraleja": "Simplificar la interfaz a costa de complicar la lógica es una deuda que siempre se cobra en rendimiento; el valor del equipo reside en construir soluciones que sean elegantes para el operario pero, sobre todo, digeribles para la arquitectura del sistema.",
+
+      "hoursImputed": 11,
+
+      "retro": {
+        "gitlabProject": "bimani",
+        "gitlabIssueNumber": 1012,
+        "glProjectPath": "odoo-16/bimani",
+        "glTitle": "[ALMACEN] Configuración Abastecimiento en Base a Consumo agrupado por Grupo abastecimiento",
+        "glDescription": "El cliente solicitó agrupar albaranes de reposición por tienda. La configuración funcional logró el objetivo visual pero generó un problema de rendimiento crítico: el Job de abastecimiento no terminaba nunca debido a la discrepancia entre la agrupación de pickings y los grupos de abastecimiento internos, provocando errores de concurrencia. [cite: 822, 855]",
+        "glComments": [
+          {
+            "author": "sabrina.iborra",
+            "body": "Muchos problemas en entorno de test para replicar el comportamiento de producción. El trabajo de ejecución de abastecimiento tarda mucho en terminar... el job sigue en ejecución."
+          },
+          {
+            "author": "danielexposito.bimani",
+            "body": "El job no es capaz de crear los albaranes y falla. ¿No sería mejor que se crease un job por cada almacén? Así un fallo de rendimiento en una tienda no afectaría al resto. "
+          }
+        ],
+        "glClosing": {
+          "author": "ignacio.morales",
+          "body": "Solución aplicada: Reconfiguración de las reglas de propagación para usar un grupo de abastecimiento fijo por tienda, asegurando que todos los movimientos se acumulen en un solo hilo lógico y físico."
+        },
+        "glLabels": ["Almacén", "Rendimiento", "Estandar"]
+      }
+    }
+  ]
+}

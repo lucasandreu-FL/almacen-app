@@ -1,0 +1,53 @@
+{
+  "cases": [
+    {
+      "title": "El Laberinto de las Ubicaciones Fantasma",
+      "points": 150,
+
+      "stage1": "El almacén de 'El Operador de Logística Tensiva' está al borde del colapso. Han pasado de preparar pedidos a gestionar incendios operativos. El sistema de clasificación por palomares (put-to-wall), diseñado para agilizar la salida masiva, se ha convertido en un cuello de botella donde la mercancía entra pero no encuentra su sitio. Los operarios están frustrados y el flujo de salida está bloqueado mientras la dirección exige soluciones inmediatas.",
+      "stage1Titulo": "Un Almacén que se Quema",
+      "stage1Contexto": "Pisha, estamos desbordados. Tenemos más de 1.200 pedidos diarios y el ratio de unidades preparadas por hora no llega ni a 150. El sistema nos dice que hay sitios libres en los palomares, pero cuando el operario llega con la caja, el sistema da error o la ubicación ya está ocupada. Llevamos meses así y la situación ya nos quema un poco.",
+      "stage1Impacto": "Ratio de preparación hundido (< 150 uds/h) · 1.200 pedidos en cola · 11 meses de incidencias recurrentes.",
+
+      "stage2": "La investigación revela un fallo crítico en la gestión de los pedidos divididos (backorders). Cuando un pedido se rompe por falta de stock, el sistema 'olvida' el destino asignado originalmente y envía la mercancía a una ubicación genérica de espera. Para evitar el bloqueo total, el equipo funcional realiza exportaciones manuales a Excel para remapear a mano decenas de albaranes cada tarde. En los logs, el método de búsqueda de huecos libres sigue devolviendo 'falsos positivos' constantemente.",
+
+      "stage3": "Al auditar el código del módulo de gestión de palomares, se detecta que la función principal de búsqueda de huecos utiliza una query SQL que solo comprueba las intenciones de movimiento (`stock.move`). Sin embargo, no realiza ninguna verificación sobre la tabla de stock real (`stock.quant`), ignorando si hay restos de inventario físico o reservas de otros procesos bloqueando el espacio.",
+
+      "answers": [
+        "Opción A: Refactorizar la query de búsqueda de ubicaciones para que valide la existencia de quants y movimientos pendientes + corregir la lógica de herencia en backorders para mantener el destino original",
+        "Opción B: Aumentar el número de palomares físicos disponibles y desactivar el flujo de artículos sensibles para simplificar la lógica de reserva",
+        "Opción C: Implementar un proceso de limpieza nocturna de quants vacíos y forzar la validación manual de cada backorder en la entrada de mercancía",
+        "Opción D: Sustituir el sistema de palomares por una operativa de picking por oleadas estándar para eliminar la dependencia de la query de asignación"
+      ],
+      "correctAnswerIndex": 0,
+      "titanAnswerIndices": [0, 2],
+
+      "debate": "¿En qué punto de la acumulación de incidentes 'aislados' debemos dejar de apagar el fuego para cuestionar la construcción del sistema? **El Desafío:** Cuando un síntoma persiste a pesar de nuestras correcciones, ¿cómo de críticos somos con nuestras propias herramientas de diagnóstico antes de dar por hecho que el problema son simplemente 'datos sucios' del cliente?",
+
+      "moraleja": "El sistema no falla por falta de lógica, sino por exceso de confianza en que los datos coinciden con la estantería. Si tu query no mira la realidad física, estás enviando a tus operarios a un laberinto de fantasmas.",
+
+      "retro": {
+        "gitlabProject": "farmaciasdirect",
+        "gitlabIssueNumber": 878,
+        "glProjectPath": "odoo-11/farmaciasdirect",
+        "glTitle": "[ALMACÉN][FASE 2] Corrección Query asignación de ubicaciones libres de palomar",
+        "glDescription": "Corrección de la asignación de consolidados y problemas en la asignación de ubicación de consolidado. El problema radicaba en que el sistema devolvía ubicaciones libres en el Palomar 01 cuando en realidad no lo estaban, debido a que la query original no tenía en cuenta los quants de stock, generando inconsistencias graves en el flujo de entrada y backorders.",
+        "glComments": [
+          {
+            "author": "f.abaurrea",
+            "body": "Por favor, por si podemos acelerar... estamos teniendo al día 1.200 pedidos y el ratio de Uds/desglosadas hora no llega a 150... Nos quema un poco."
+          },
+          {
+            "author": "ignacio.morales",
+            "body": "Hay un total de 94 albaranes afectados, voy a cambiar todos los movimientos manualmente para solucionar el atasco de esta tarde. El problema es que los backorder se quedan en consolidado genérico en lugar de coger la ubicación del primer albarán."
+          }
+        ],
+        "glClosing": {
+          "author": "alejandro.vallejo",
+          "body": "Se ha modificado la query para que no tenga en cuenta las ubicaciones 'libres' que daban un falso positivo, revisando ahora si tienen quants. También se ha corregido el histórico de albaranes de palomar."
+        },
+        "glLabels": ["Almacén", "Expedite", "Estandar."]
+      }
+    }
+  ]
+}

@@ -38,6 +38,11 @@ const DEFAULT_PEOPLE = [
 const users    = { people: [], teams: [] };
 const sessions = {};
 const caseLibrary = []; // biblioteca global de casos — persiste independientemente de las sesiones
+const DEFAULT_CONFIG = {
+  stage1Time:45, stage1DebateTime:120, stage2Time:90, stage2DebateTime:300,
+  stage3Time:60, stage3DebateTime:180, resultsTime:20, retroTime:0
+};
+let globalConfig = { ...DEFAULT_CONFIG };
 const clients  = {}; // roomCode → Set<{ ws, role, personId, teamId }>
 const waitingClients = new Set(); // clientes esperando sesión activa
 
@@ -47,6 +52,7 @@ function saveData() {
     const data = {
       users,
       caseLibrary,
+      globalConfig,
       sessions: Object.fromEntries(
         Object.entries(sessions).map(([code, s]) => {
           // eslint-disable-next-line no-unused-vars
@@ -100,6 +106,9 @@ function loadData() {
     // Cargar biblioteca global de casos
     if (Array.isArray(data.caseLibrary)) {
       caseLibrary.splice(0, caseLibrary.length, ...data.caseLibrary);
+    }
+    if (data.globalConfig && typeof data.globalConfig === 'object') {
+      Object.assign(globalConfig, data.globalConfig);
     }
 
     for (const [code, s] of Object.entries(data.sessions || {})) {
@@ -172,7 +181,8 @@ function getPublicSession(session) {
         ...c,
         correctAnswerIndex: showCorrect ? c.correctAnswerIndex : undefined,
         // Datos de retro enmascarados hasta STAGE_RETRO
-        debate: showRetro ? c.debate : undefined,
+        debatePregunta: showRetro ? c.debatePregunta : undefined,
+        debateDesafio: showRetro ? c.debateDesafio : undefined,
         hoursImputed: showRetro ? c.hoursImputed : undefined,
         moraleja: showRetro ? c.moraleja : undefined,
         retro: showRetro ? c.retro : undefined,
@@ -537,7 +547,7 @@ wss.on('connection', ws => {
       const code = generateCode();
       sessions[code] = {
         roomCode: code, status: 'LOBBY', cases: [], teams: [], answers: {}, wildcardUsed: {},
-        config: { stage1Time:45, stage1DebateTime:120, stage2Time:90, stage2DebateTime:300, stage3Time:60, stage3DebateTime:180, resultsTime:20, retroTime:0 },
+        config: { ...globalConfig },
         currentCaseIndex:0, currentStage:'LOBBY', skipTeamId:null, skipAvailable:false,
         timer:null, timerEnd:null, paused:false, pausedRemaining:null, pausedByDisconnect:false,
         lastResults:null, awaitingReconnect: new Set(), requiredParticipants: new Set(),
@@ -672,7 +682,7 @@ wss.on('connection', ws => {
       if (!Array.isArray(cases)) { ws.send(JSON.stringify({ type: 'ERROR', message: 'Formato inválido: se espera un array "cases"' })); return; }
       let imported = 0, skipped = 0;
       for (const c of cases) {
-        const valid = c.title && c.stage1 && c.stage2 && c.stage3
+        const valid = c.title && c.stage1 && (c.stage2 || (Array.isArray(c.stage2Messages) && c.stage2Messages.length > 0)) && c.stage3
           && Array.isArray(c.answers) && c.answers.length === 4
           && c.correctAnswerIndex !== undefined && c.correctAnswerIndex >= 0 && c.correctAnswerIndex <= 3;
         if (!valid) { skipped++; continue; }
@@ -681,13 +691,44 @@ wss.on('connection', ws => {
           title: String(c.title),
           points: Number(c.points) || 100,
           stage1: String(c.stage1),
-          stage2: String(c.stage2),
           stage3: String(c.stage3),
           answers: c.answers.map(String),
           correctAnswerIndex: Number(c.correctAnswerIndex),
+          ...(c.stage1Titulo ? { stage1Titulo: String(c.stage1Titulo) } : {}),
+          ...(c.stage1Contexto ? { stage1Contexto: String(c.stage1Contexto) } : {}),
+          ...(c.stage1Impacto ? { stage1Impacto: String(c.stage1Impacto) } : {}),
+          // stage2Messages: new format or compat with old stage2 string
+          ...(() => {
+            if (Array.isArray(c.stage2Messages) && c.stage2Messages.length > 0) {
+              return { stage2Messages: c.stage2Messages.map(m => ({ type: m.type === 'Tecnico' ? 'Tecnico' : 'Funcional', text: String(m.text) })) };
+            } else if (c.stage2) {
+              return { stage2: String(c.stage2) };  // keep as legacy fallback
+            }
+            return {};
+          })(),
           ...(c.moraleja ? { moraleja: String(c.moraleja) } : {}),
-          ...(c.debate ? { debate: String(c.debate) } : {}),
           ...(c.hoursImputed !== undefined ? { hoursImputed: Number(c.hoursImputed) } : {}),
+          // debate: soporte nuevo (debatePregunta/debateDesafio) y retrocompat con campo debate único
+          ...(() => {
+            if (c.debatePregunta || c.debateDesafio) {
+              return {
+                ...(c.debatePregunta ? { debatePregunta: String(c.debatePregunta) } : {}),
+                ...(c.debateDesafio ? { debateDesafio: String(c.debateDesafio) } : {}),
+              };
+            } else if (c.debate) {
+              const raw = String(c.debate);
+              const rx = /\*\*El Desafío:\*\*/i;
+              const parts = raw.split(rx);
+              if (parts.length > 1) {
+                return {
+                  debatePregunta: parts[0].trim(),
+                  debateDesafio: parts[1].trim(),
+                };
+              }
+              return { debatePregunta: raw };
+            }
+            return {};
+          })(),
           ...(Array.isArray(c.titanAnswerIndices) ? { titanAnswerIndices: c.titanAnswerIndices.map(Number) } : {}),
           ...(c.retro ? { retro: {
             gitlabProject: c.retro.gitlabProject || null,
@@ -702,7 +743,6 @@ wss.on('connection', ws => {
         });
         imported++;
       }
-      saveData();
       saveData();
       ws.send(JSON.stringify({ type: 'LIBRARY_DATA', cases: caseLibrary, importResult: { imported, skipped } }));
       return;
@@ -759,6 +799,7 @@ wss.on('connection', ws => {
 
     if (type === 'ADMIN_UPDATE_CONFIG' && clientRole === 'admin') {
       Object.assign(session.config, payload.config);
+      Object.assign(globalConfig, payload.config);
       saveData();
       ws.send(JSON.stringify({ type: 'CONFIG_UPDATED', config: session.config }));
       return;
