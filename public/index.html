@@ -984,6 +984,7 @@ const _devMembers=[
   {name:'Óscar Indias',av:'OI',img:'avatar_oscar_indias.jpg',grad:'linear-gradient(135deg,#f59e0b,#b45309)'},
   {name:'Álvaro Gómez',av:'AG',img:'avatar_alvaro_gomez.jpg',grad:'linear-gradient(135deg,#10b981,#065f46)'},
   {name:'Sergio Bustamante',av:'SB',img:'avatar_sergio_bustamante.jpg',grad:'linear-gradient(135deg,#ec4899,#9d174d)'},
+  {name:'Rodrigo Bonilla',av:'RB',img:'avatar_rodrigo_bonilla.jpg',grad:'linear-gradient(135deg,#14b8a6,#0f766e)'},
 ];
 const _funMembers=[
   {name:'Javier Sánchez',av:'JS',img:'avatar_javier_sanchez.jpg',grad:'linear-gradient(135deg,#3b82f6,#1d4ed8)'},
@@ -1971,7 +1972,13 @@ function showCredentialsModal(roomCode, credentials){
     credentials.forEach(c=>{
       lines += `*${c.teamName}*\n`;
       lines += `  Usuario: ${c.email}\n`;
-      lines += `  Contraseña: ${c.password}\n\n`;
+      lines += `  Contraseña: ${c.password}\n`;
+      const team = (S.users?.teams||[]).find(t=>t.teamName===c.teamName);
+      if(team){
+        const members = (team.memberIds||[]).map(id=>(S.users.people||[]).find(p=>p.id===id)).filter(Boolean);
+        if(members.length) lines += `  Integrantes: ${members.map(p=>p.name).join(', ')}\n`;
+      }
+      lines += `\n`;
     });
   } else {
     lines += `_(No hay equipos configurados aún)_\n`;
