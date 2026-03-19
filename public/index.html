@@ -1968,16 +1968,18 @@ function showCredentialsModal(roomCode, credentials){
   let lines = `🏭 *GÜERJAUS TBT* — ¡La dinámica está lista!\n\n`;
   lines += `🔗 ${url}\n`;
   lines += `🏠 Código de sala: *${roomCode}*\n\n`;
+  const _teamMembers = [
+    ['Adrián Cifuentes','Rodrigo Bonilla','Fabio García','Jesús Sánchez'],
+    ['Óscar Indias','Javier Sánchez','Luis Novalio','Sabrina Iborra'],
+    ['Sergio Bustamante','Nacho Morales','Daniel Cagigas','Nuria Delgado'],
+  ];
   if(credentials.length){
-    credentials.forEach(c=>{
+    credentials.forEach((c,i)=>{
       lines += `*${c.teamName}*\n`;
       lines += `  Usuario: ${c.email}\n`;
       lines += `  Contraseña: ${c.password}\n`;
-      const team = (S.users?.teams||[]).find(t=>t.teamName===c.teamName);
-      if(team){
-        const members = (team.memberIds||[]).map(id=>(S.users.people||[]).find(p=>p.id===id)).filter(Boolean);
-        if(members.length) lines += `  Integrantes: ${members.map(p=>p.name).join(', ')}\n`;
-      }
+      const members = _teamMembers[i];
+      if(members) lines += `  Integrantes: ${members.join(', ')}\n`;
       lines += `\n`;
     });
   } else {
